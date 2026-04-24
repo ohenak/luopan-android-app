@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">罗盘</string>
+    <string name="magnetic_north">磁北</string>
+    <string name="true_north">真北</string>
+    <string name="calibrate_now">立即校准</string>
+    <string name="uncalibrated">未校准</string>
+    <string name="calibrated_today">今天已校准</string>
+    <string name="cal_age_days">%d 天前</string>
+    <string name="tilt_warning">倾斜：%s</string>
+    <string name="interference_warning">检测到磁场干扰</string>
+    <string name="no_gyroscope_advisory">无陀螺仪——精度降低</string>
+    <string name="power_saving_advisory">省电模式已启用</string>
+    <string name="sensor_stuck">传感器无响应</string>
+    <string name="stabilizing">正在稳定…</string>
+</resources>

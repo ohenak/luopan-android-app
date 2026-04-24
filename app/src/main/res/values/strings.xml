@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Luopan Compass</string>
+    <string name="app_name">Luopan</string>
+    <string name="magnetic_north">Magnetic N</string>
+    <string name="true_north">True N</string>
+    <string name="calibrate_now">Calibrate Now</string>
+    <string name="uncalibrated">Uncalibrated</string>
+    <string name="calibrated_today">Calibrated today</string>
+    <string name="cal_age_days">%d days ago</string>
+    <string name="tilt_warning">Tilt: %s</string>
+    <string name="interference_warning">Magnetic interference detected</string>
+    <string name="no_gyroscope_advisory">No gyroscope — accuracy reduced</string>
+    <string name="power_saving_advisory">Power saving mode active</string>
+    <string name="sensor_stuck">Sensor not responding</string>
+    <string name="stabilizing">Stabilizing…</string>
 </resources>

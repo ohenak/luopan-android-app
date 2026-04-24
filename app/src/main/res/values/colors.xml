@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="cal_dot_green">#4CAF50</color>
+    <color name="cal_dot_yellow">#FFC107</color>
+    <color name="cal_dot_red">#F44336</color>
+    <color name="tilt_warning">#FF9800</color>
+    <color name="confidence_high">#4CAF50</color>
+    <color name="confidence_moderate">#FFC107</color>
+    <color name="confidence_poor">#F44336</color>
+</resources>
