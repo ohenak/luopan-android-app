@@ -119,7 +119,6 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
                 val interferenceState = interferenceDetector.getState()
 
                 val hasGyro = sensorLayer.hasGyroscope
-                val isStabilizing = sensorState == SensorState.STABILIZING
 
                 val confidence = confidenceModel.compute(
                     interferencState = interferenceState,
@@ -127,7 +126,7 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
                     noiseVariance = noiseVariance,
                     calibrationAgeDays = calibrationAgeDays,
                     hasGyroscope = hasGyro,
-                    isStabilizing = isStabilizing
+                    sensorState = sensorState
                 )
 
                 // Update lastValidHeading only when sensor is not STUCK

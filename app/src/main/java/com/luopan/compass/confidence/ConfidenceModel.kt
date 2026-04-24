@@ -2,6 +2,7 @@ package com.luopan.compass.confidence
 
 import com.luopan.compass.model.InterferenceState
 import com.luopan.compass.model.OverallConfidence
+import com.luopan.compass.model.SensorState
 
 class ConfidenceModel {
 
@@ -20,10 +21,22 @@ class ConfidenceModel {
         noiseVariance: Double,
         calibrationAgeDays: Long,
         hasGyroscope: Boolean,
-        isStabilizing: Boolean
+        sensorState: SensorState = SensorState.NORMAL
     ): OverallConfidence {
-        if (isStabilizing) return OverallConfidence.STABILIZING
+        return when (sensorState) {
+            SensorState.STUCK -> OverallConfidence.SENSOR_ERROR
+            SensorState.STABILIZING -> OverallConfidence.STABILIZING
+            SensorState.NORMAL -> normalCompute(interferencState, tilt_deg, noiseVariance, calibrationAgeDays, hasGyroscope)
+        }
+    }
 
+    private fun normalCompute(
+        interferencState: InterferenceState,
+        tilt_deg: Double,
+        noiseVariance: Double,
+        calibrationAgeDays: Long,
+        hasGyroscope: Boolean
+    ): OverallConfidence {
         val scores = listOf(
             scoreInterference(interferencState),
             scoreTilt(tilt_deg),
@@ -45,6 +58,7 @@ class ConfidenceModel {
 
         return result
     }
+
 
     internal fun scoreInterference(state: InterferenceState): ConfidenceScore = when (state) {
         InterferenceState.CLEAR -> ConfidenceScore.GOOD

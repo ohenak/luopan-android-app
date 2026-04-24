@@ -2,6 +2,7 @@ package com.luopan.compass.confidence
 
 import com.luopan.compass.model.InterferenceState
 import com.luopan.compass.model.OverallConfidence
+import com.luopan.compass.model.SensorState
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -13,17 +14,17 @@ class ConfidenceModelTest {
     @Before fun setUp() { model = ConfidenceModel() }
 
     @Test fun `all GOOD dimensions with gyro → HIGH`() {
-        val result = model.compute(InterferenceState.CLEAR, 0.0, 0.0, 0L, true, false)
+        val result = model.compute(InterferenceState.CLEAR, 0.0, 0.0, 0L, true, SensorState.NORMAL)
         assertEquals(OverallConfidence.HIGH, result)
     }
 
     @Test fun `WARNING interference → POOR`() {
-        val result = model.compute(InterferenceState.WARNING, 0.0, 0.0, 0L, true, false)
+        val result = model.compute(InterferenceState.WARNING, 0.0, 0.0, 0L, true, SensorState.NORMAL)
         assertEquals(OverallConfidence.POOR, result)
     }
 
     @Test fun `MODERATE interference → at most MODERATE`() {
-        val result = model.compute(InterferenceState.MODERATE, 0.0, 0.0, 0L, true, false)
+        val result = model.compute(InterferenceState.MODERATE, 0.0, 0.0, 0L, true, SensorState.NORMAL)
         assertTrue(result == OverallConfidence.MODERATE || result == OverallConfidence.POOR)
     }
 
@@ -44,22 +45,22 @@ class ConfidenceModelTest {
     }
 
     @Test fun `no gyroscope caps HIGH to MODERATE`() {
-        val result = model.compute(InterferenceState.CLEAR, 0.0, 0.0, 0L, false, false)
+        val result = model.compute(InterferenceState.CLEAR, 0.0, 0.0, 0L, false, SensorState.NORMAL)
         assertEquals(OverallConfidence.MODERATE, result)
     }
 
     @Test fun `no gyroscope does not upgrade POOR`() {
-        val result = model.compute(InterferenceState.WARNING, 0.0, 0.0, 0L, false, false)
+        val result = model.compute(InterferenceState.WARNING, 0.0, 0.0, 0L, false, SensorState.NORMAL)
         assertEquals(OverallConfidence.POOR, result)
     }
 
     @Test fun `isStabilizing returns STABILIZING`() {
-        val result = model.compute(InterferenceState.CLEAR, 0.0, 0.0, 0L, true, true)
+        val result = model.compute(InterferenceState.CLEAR, 0.0, 0.0, 0L, true, SensorState.STABILIZING)
         assertEquals(OverallConfidence.STABILIZING, result)
     }
 
     @Test fun `uncalibrated (-1 days) → POOR`() {
-        val result = model.compute(InterferenceState.CLEAR, 0.0, 0.0, -1L, true, false)
+        val result = model.compute(InterferenceState.CLEAR, 0.0, 0.0, -1L, true, SensorState.NORMAL)
         assertEquals(OverallConfidence.POOR, result)
     }
 
@@ -97,7 +98,7 @@ class ConfidenceModelTest {
 
     @Test fun `minimum score wins`() {
         // CLEAR (GOOD) + big tilt (POOR) → POOR
-        val result = model.compute(InterferenceState.CLEAR, 25.0, 0.0, 0L, true, false)
+        val result = model.compute(InterferenceState.CLEAR, 25.0, 0.0, 0L, true, SensorState.NORMAL)
         assertEquals(OverallConfidence.POOR, result)
     }
 }

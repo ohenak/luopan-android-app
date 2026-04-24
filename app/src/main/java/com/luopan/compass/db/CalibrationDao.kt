@@ -19,4 +19,7 @@ interface CalibrationDao {
 
     @Query("DELETE FROM calibration_records WHERE id = :id")
     suspend fun delete(id: Int)
+
+    @Query("SELECT * FROM calibration_records")
+    suspend fun getAll(): List<CalibrationRecord>
 }
