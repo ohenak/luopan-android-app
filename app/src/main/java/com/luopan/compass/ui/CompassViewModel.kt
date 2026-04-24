@@ -53,6 +53,7 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
 
     // Power-saving advisory tracking
     private var lowRateStartNs: Long = -1L
+    private var baselineFieldUt: Float = -1f
 
     init {
         loadCalibrationAge()
@@ -105,12 +106,19 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
                 noiseTracker.addSample(magnitude)
                 val noiseVariance = noiseTracker.getVariance()
 
-                // Build InterferenceMetrics: use simple deviation proxy
-                val fieldDev = (noiseVariance / 50.0).toFloat().coerceIn(0f, 1f)
+                // Track a baseline field magnitude (exponential moving average over first 100 frames)
+                if (baselineFieldUt < 0f) {
+                    baselineFieldUt = magnitude.toFloat()
+                } else {
+                    baselineFieldUt = baselineFieldUt * 0.99f + magnitude.toFloat() * 0.01f
+                }
+                val fieldDev = if (baselineFieldUt > 0f)
+                    kotlin.math.abs(magnitude.toFloat() - baselineFieldUt) / baselineFieldUt
+                else 0f
                 val metrics = com.luopan.compass.sensor.InterferenceMetrics(
                     fieldMagnitude_uT = magnitude.toFloat(),
-                    expectedField_uT = magnitude.toFloat(),
-                    fieldDeviation = fieldDev,
+                    expectedField_uT = baselineFieldUt,
+                    fieldDeviation = fieldDev.coerceIn(0f, 1f),
                     inclination_deg = fusion.pitch_deg.toFloat(),
                     expectedInclination_deg = 0f,
                     inclinationDeviation_deg = abs(fusion.pitch_deg).toFloat()

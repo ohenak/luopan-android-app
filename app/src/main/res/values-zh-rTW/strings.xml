@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">羅盤</string>
+    <string name="magnetic_north">磁北</string>
+    <string name="true_north">真北</string>
+    <string name="calibrate_now">立即校準</string>
+    <string name="uncalibrated">未校準</string>
+    <string name="calibrated_today">今天已校準</string>
+    <string name="cal_age_days">%d 天前</string>
+    <string name="tilt_warning">傾斜：%s</string>
+    <string name="interference_warning">偵測到磁場干擾</string>
+    <string name="no_gyroscope_advisory">無陀螺儀——精度降低</string>
+    <string name="power_saving_advisory">省電模式已啟用</string>
+    <string name="sensor_stuck">感測器無回應</string>
+    <string name="stabilizing">正在穩定…</string>
+    <string name="calibration_cta_title">校準您的羅盤以獲得準確讀數</string>
+    <string name="later">稍後</string>
+    <string name="compass_unavailable">羅盤不可用</string>
+    <string name="no_magnetometer_explanation">此裝置沒有磁力計，羅盤功能不可用。</string>
+    <string name="sensor_error">感測器錯誤</string>
+    <string name="sensor_not_responding">感測器無回應——請嘗試重啟應用程式或裝置</string>
+    <string name="interference_explanation">偵測到附近有磁場干擾</string>
+    <string name="calibration_cta_title">校準您的羅盤以獲得準確讀數</string>
+</resources>

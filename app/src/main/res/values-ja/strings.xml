@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">羅盤</string>
+    <string name="magnetic_north">磁北</string>
+    <string name="true_north">真北</string>
+    <string name="calibrate_now">今すぐキャリブレーション</string>
+    <string name="uncalibrated">未キャリブレーション</string>
+    <string name="calibrated_today">本日キャリブレーション済み</string>
+    <string name="cal_age_days">%d 日前</string>
+    <string name="tilt_warning">傾き：%s</string>
+    <string name="interference_warning">磁場干渉を検出</string>
+    <string name="no_gyroscope_advisory">ジャイロスコープなし——精度低下</string>
+    <string name="power_saving_advisory">省電力モードが有効</string>
+    <string name="sensor_stuck">センサーが応答しません</string>
+    <string name="stabilizing">安定化中…</string>
+    <string name="calibration_cta_title">正確な読み取りのためにコンパスをキャリブレーションしてください</string>
+    <string name="later">後で</string>
+    <string name="compass_unavailable">コンパスを利用できません</string>
+    <string name="no_magnetometer_explanation">この端末には磁力計がありません。コンパス機能はご利用いただけません。</string>
+    <string name="sensor_error">センサーエラー</string>
+    <string name="sensor_not_responding">センサーが応答しません——アプリまたは端末を再起動してください</string>
+    <string name="interference_explanation">近くに磁場干渉を検出しました</string>
+</resources>

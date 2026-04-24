@@ -43,6 +43,7 @@ class CompassActivity : AppCompatActivity() {
 
     private var calBanner: MaterialBanner? = null
     private var bannerDismissedThisSession = false
+    private val wakeLockManager by lazy { WakeLockManager(this) }
 
     private val calibrationLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -81,6 +82,16 @@ class CompassActivity : AppCompatActivity() {
         calCta.setOnClickListener { launchCalibrationWizard() }
 
         observeUiState()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        wakeLockManager.acquire()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        wakeLockManager.release()
     }
 
     private fun showNoMagnetometerError() {
