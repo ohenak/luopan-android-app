@@ -51,6 +51,9 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
     private var calibrationAgeDays: Long = -1L
     private var lastValidHeading: Double? = null
 
+    // Power-saving advisory tracking
+    private var lowRateStartNs: Long = -1L
+
     init {
         loadCalibrationAge()
         startSensorCollection()
@@ -78,6 +81,19 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
 
                 rateMonitor.onSample(frame.timestamp_ns)
                 val sensorState = stateMonitor.update(frame.timestamp_ns)
+
+                // Power-saving advisory: track low sensor rate
+                val actualHz = rateMonitor.getActualRateHz()
+                val powerSavingAdvisory: Boolean
+                if (actualHz < 15.0) {
+                    if (lowRateStartNs < 0) {
+                        lowRateStartNs = frame.timestamp_ns
+                    }
+                    powerSavingAdvisory = (frame.timestamp_ns - lowRateStartNs >= 2_000_000_000L)
+                } else {
+                    lowRateStartNs = -1L
+                    powerSavingAdvisory = false
+                }
 
                 val fusion = fusionEngine.process(filteredFrame)
                 val heading = fusion.heading_deg
@@ -114,18 +130,27 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
                     isStabilizing = isStabilizing
                 )
 
-                if (confidence != OverallConfidence.POOR && confidence != OverallConfidence.STABILIZING) {
+                // Update lastValidHeading only when sensor is not STUCK
+                if (sensorState != SensorState.STUCK) {
                     lastValidHeading = heading
                 }
 
+                // When stuck, use lastValidHeading for display heading
+                val displayHeading = if (sensorState == SensorState.STUCK) {
+                    lastValidHeading ?: heading
+                } else {
+                    heading
+                }
+
                 val uiState = buildUiState(
-                    heading = heading,
+                    heading = displayHeading,
                     tilt = tilt,
                     confidence = confidence,
                     interferenceState = interferenceState,
                     interferenceMetrics = metrics,
                     sensorState = sensorState,
-                    hasGyro = hasGyro
+                    hasGyro = hasGyro,
+                    powerSavingAdvisory = powerSavingAdvisory
                 )
                 _uiState.value = uiState
             }
@@ -139,7 +164,8 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
         interferenceState: InterferenceState,
         interferenceMetrics: com.luopan.compass.sensor.InterferenceMetrics,
         sensorState: SensorState,
-        hasGyro: Boolean
+        hasGyro: Boolean,
+        powerSavingAdvisory: Boolean
     ): CompassUiState {
         val isStabilizing = sensorState == SensorState.STABILIZING
         val headingFormatted = if (isStabilizing) "---" else formatHeading(heading)
@@ -171,7 +197,7 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
             calibration_age_days = ageDays,
             calibration_age_label = ageLabel,
             cal_dot_color = calDotColor,
-            power_saving_advisory = false,
+            power_saving_advisory = powerSavingAdvisory,
             no_gyroscope_advisory = !hasGyro,
             fallback_mag_advisory = false,
             location_fallback_advisory = false,

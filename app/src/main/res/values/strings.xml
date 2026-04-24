@@ -19,4 +19,9 @@
     <string name="cancel_calibration_message">Data will be discarded.</string>
     <string name="poor_quality_confirm_title">Poor calibration quality</string>
     <string name="poor_quality_confirm_message">This calibration is Poor quality. Your confidence level will be Poor and readings may not be reliable. Save anyway?</string>
+    <string name="compass_unavailable">Compass unavailable</string>
+    <string name="no_magnetometer_explanation">This device does not have a magnetometer. Compass functionality is unavailable.</string>
+    <string name="sensor_error">Sensor error</string>
+    <string name="sensor_not_responding">Sensor not responding — try restarting the app or device</string>
+    <string name="interference_explanation">Magnetic interference detected nearby</string>
 </resources>

@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -14,7 +15,10 @@ import com.google.android.material.banner.MaterialBanner
 import com.luopan.compass.R
 import com.luopan.compass.calibration.ui.CalibrationWizardActivity
 import com.luopan.compass.model.CalDotColor
+import com.luopan.compass.model.InterferenceState
 import com.luopan.compass.model.OverallConfidence
+import com.luopan.compass.model.SensorState
+import com.luopan.compass.sensor.SensorLayer
 import kotlinx.coroutines.launch
 
 class CompassActivity : AppCompatActivity() {
@@ -28,6 +32,14 @@ class CompassActivity : AppCompatActivity() {
     private lateinit var calDot: View
     private lateinit var calAgeLabel: TextView
     private lateinit var calCta: Button
+
+    // New views — T-6-01, T-6-05
+    private lateinit var confidenceBadge: TextView
+    private lateinit var interferenceBanner: TextView
+    private lateinit var noGyroAdvisory: TextView
+    private lateinit var powerSavingAdvisoryText: TextView
+    private lateinit var sensorStuckText: TextView
+    private lateinit var noMagErrorLayout: LinearLayout
 
     private var calBanner: MaterialBanner? = null
     private var bannerDismissedThisSession = false
@@ -52,9 +64,39 @@ class CompassActivity : AppCompatActivity() {
         calAgeLabel = findViewById(R.id.calAgeLabel)
         calCta = findViewById(R.id.calCta)
 
+        confidenceBadge = findViewById(R.id.confidence_badge)
+        interferenceBanner = findViewById(R.id.interference_banner)
+        noGyroAdvisory = findViewById(R.id.no_gyro_advisory)
+        powerSavingAdvisoryText = findViewById(R.id.power_saving_advisory_text)
+        sensorStuckText = findViewById(R.id.sensor_stuck_text)
+        noMagErrorLayout = findViewById(R.id.no_mag_error_layout)
+
+        // T-6-05: Check for magnetometer before proceeding
+        val sensorLayer = SensorLayer(this)
+        if (!sensorLayer.hasMagnetometer) {
+            showNoMagnetometerError()
+            return
+        }
+
         calCta.setOnClickListener { launchCalibrationWizard() }
 
         observeUiState()
+    }
+
+    private fun showNoMagnetometerError() {
+        noMagErrorLayout.visibility = View.VISIBLE
+        // Hide all compass UI
+        compassRose.visibility = View.GONE
+        headingText.visibility = View.GONE
+        northLabel.visibility = View.GONE
+        tiltText.visibility = View.GONE
+        findViewById<View>(R.id.calDotRow).visibility = View.GONE
+        calCta.visibility = View.GONE
+        confidenceBadge.visibility = View.GONE
+        interferenceBanner.visibility = View.GONE
+        noGyroAdvisory.visibility = View.GONE
+        powerSavingAdvisoryText.visibility = View.GONE
+        sensorStuckText.visibility = View.GONE
     }
 
     private fun launchCalibrationWizard() {
@@ -65,10 +107,23 @@ class CompassActivity : AppCompatActivity() {
     private fun observeUiState() {
         lifecycleScope.launch {
             viewModel.uiState.collect { state ->
-                compassRose.setHeading(state.heading_deg.toFloat())
-                compassRose.setConfidence(state.confidence.name)
 
-                headingText.text = state.heading_formatted
+                // --- Heading update: freeze when sensor is STUCK ---
+                if (state.sensor_state == SensorState.STUCK) {
+                    val frozenHeading = state.last_valid_heading_deg
+                    if (frozenHeading != null) {
+                        compassRose.setHeading(frozenHeading.toFloat())
+                        headingText.text = "%03d°".format(frozenHeading.toInt())
+                    }
+                    sensorStuckText.text = getString(R.string.sensor_not_responding)
+                    sensorStuckText.visibility = View.VISIBLE
+                } else {
+                    compassRose.setHeading(state.heading_deg.toFloat())
+                    headingText.text = state.heading_formatted
+                    sensorStuckText.visibility = View.GONE
+                }
+
+                compassRose.setConfidence(state.confidence.name)
                 northLabel.text = state.north_label
 
                 tiltText.text = state.tilt_text
@@ -84,6 +139,64 @@ class CompassActivity : AppCompatActivity() {
                 )
 
                 calCta.visibility = if (state.show_calibration_cta) View.VISIBLE else View.GONE
+
+                // --- Confidence badge ---
+                when (state.confidence) {
+                    OverallConfidence.HIGH -> {
+                        confidenceBadge.text = "High accuracy"
+                        confidenceBadge.setBackgroundColor(Color.parseColor("#4CAF50"))
+                    }
+                    OverallConfidence.MODERATE -> {
+                        confidenceBadge.text = "Moderate accuracy"
+                        confidenceBadge.setBackgroundColor(Color.parseColor("#FFC107"))
+                    }
+                    OverallConfidence.POOR -> {
+                        confidenceBadge.text = "Poor accuracy"
+                        confidenceBadge.setBackgroundColor(Color.parseColor("#F44336"))
+                    }
+                    OverallConfidence.STABILIZING -> {
+                        confidenceBadge.text = getString(R.string.stabilizing)
+                        confidenceBadge.setBackgroundColor(Color.parseColor("#FFC107"))
+                    }
+                    OverallConfidence.SENSOR_ERROR -> {
+                        confidenceBadge.text = getString(R.string.sensor_error)
+                        confidenceBadge.setBackgroundColor(Color.parseColor("#F44336"))
+                    }
+                }
+                confidenceBadge.visibility = View.VISIBLE
+
+                // --- Interference banner ---
+                when (state.interference_state) {
+                    InterferenceState.CLEAR -> {
+                        interferenceBanner.visibility = View.GONE
+                    }
+                    InterferenceState.MODERATE -> {
+                        interferenceBanner.text = getString(R.string.interference_explanation)
+                        interferenceBanner.setBackgroundColor(Color.parseColor("#FFC107"))
+                        interferenceBanner.visibility = View.VISIBLE
+                    }
+                    InterferenceState.WARNING -> {
+                        interferenceBanner.text = getString(R.string.interference_explanation)
+                        interferenceBanner.setBackgroundColor(Color.parseColor("#F44336"))
+                        interferenceBanner.visibility = View.VISIBLE
+                    }
+                }
+
+                // --- No-gyroscope advisory ---
+                if (state.no_gyroscope_advisory) {
+                    noGyroAdvisory.text = getString(R.string.no_gyroscope_advisory)
+                    noGyroAdvisory.visibility = View.VISIBLE
+                } else {
+                    noGyroAdvisory.visibility = View.GONE
+                }
+
+                // --- Power-saving advisory ---
+                if (state.power_saving_advisory) {
+                    powerSavingAdvisoryText.text = getString(R.string.power_saving_advisory)
+                    powerSavingAdvisoryText.visibility = View.VISIBLE
+                } else {
+                    powerSavingAdvisoryText.visibility = View.GONE
+                }
 
                 // MaterialBanner for first-launch CTA
                 if (state.show_calibration_cta && !bannerDismissedThisSession) {
