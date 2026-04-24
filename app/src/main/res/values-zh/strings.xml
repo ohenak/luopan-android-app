@@ -13,4 +13,6 @@
     <string name="power_saving_advisory">省电模式已启用</string>
     <string name="sensor_stuck">传感器无响应</string>
     <string name="stabilizing">正在稳定…</string>
+    <string name="calibration_cta_title">校准您的罗盘以获得准确读数</string>
+    <string name="later">稍后</string>
 </resources>

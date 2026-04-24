@@ -13,4 +13,10 @@
     <string name="power_saving_advisory">Power saving mode active</string>
     <string name="sensor_stuck">Sensor not responding</string>
     <string name="stabilizing">Stabilizing…</string>
+    <string name="calibration_cta_title">Calibrate your compass for accurate readings</string>
+    <string name="later">Later</string>
+    <string name="cancel_calibration_title">Cancel calibration?</string>
+    <string name="cancel_calibration_message">Data will be discarded.</string>
+    <string name="poor_quality_confirm_title">Poor calibration quality</string>
+    <string name="poor_quality_confirm_message">This calibration is Poor quality. Your confidence level will be Poor and readings may not be reliable. Save anyway?</string>
 </resources>
