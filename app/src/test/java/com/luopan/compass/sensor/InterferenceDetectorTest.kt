@@ -11,7 +11,14 @@ class InterferenceDetectorTest {
 
     @Before fun setUp() { detector = InterferenceDetector() }
 
-    private fun metrics(field: Float = 0f, incl: Float = 0f) = InterferenceMetrics(field, incl)
+    private fun metrics(field: Float = 0f, incl: Float = 0f) = InterferenceMetrics(
+        fieldMagnitude_uT = 0f,
+        expectedField_uT = 0f,
+        fieldDeviation = field,
+        inclination_deg = 0f,
+        expectedInclination_deg = 0f,
+        inclinationDeviation_deg = incl
+    )
 
     @Test fun `initial state is CLEAR`() {
         assertEquals(InterferenceState.CLEAR, detector.getState())

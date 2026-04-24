@@ -20,10 +20,10 @@ class InterferenceDetector {
     fun updateState(metrics: InterferenceMetrics, nowNs: Long) {
         val fieldWarning = metrics.fieldDeviation >= WARNING_FIELD_THRESHOLD
         val fieldModerate = metrics.fieldDeviation >= MODERATE_FIELD_THRESHOLD
-        val inclWarning = metrics.inclinationAngleDeg >= WARNING_INCL_THRESHOLD
-        val inclModerate = metrics.inclinationAngleDeg >= MODERATE_INCL_THRESHOLD
+        val inclWarning = metrics.inclinationDeviation_deg >= WARNING_INCL_THRESHOLD
+        val inclModerate = metrics.inclinationDeviation_deg >= MODERATE_INCL_THRESHOLD
 
-        val isBelow = metrics.fieldDeviation < MODERATE_FIELD_THRESHOLD && metrics.inclinationAngleDeg < MODERATE_INCL_THRESHOLD
+        val isBelow = metrics.fieldDeviation < MODERATE_FIELD_THRESHOLD && metrics.inclinationDeviation_deg < MODERATE_INCL_THRESHOLD
 
         when {
             fieldWarning || inclWarning -> {
@@ -49,8 +49,3 @@ class InterferenceDetector {
         clearanceStartNs = -1L
     }
 }
-
-data class InterferenceMetrics(
-    val fieldDeviation: Float,
-    val inclinationAngleDeg: Float
-)
