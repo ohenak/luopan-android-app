@@ -1,7 +1,10 @@
 package com.luopan.compass.ui
 
 import android.app.Application
+import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.luopan.compass.calibration.CalibrationRepository
 import com.luopan.compass.confidence.ConfidenceModel
@@ -10,8 +13,12 @@ import com.luopan.compass.confidence.NoiseVarianceTracker
 import com.luopan.compass.db.DatabaseKeyManager
 import com.luopan.compass.db.LuopanDatabase
 import com.luopan.compass.fusion.FusionEngine
+import com.luopan.compass.location.LocationRepository
+import com.luopan.compass.location.LocationResult
+import com.luopan.compass.magnetic.MagneticFieldModelProvider
 import com.luopan.compass.model.CalDotColor
 import com.luopan.compass.model.InterferenceState
+import com.luopan.compass.model.NorthType
 import com.luopan.compass.model.OverallConfidence
 import com.luopan.compass.model.SensorState
 import com.luopan.compass.sensor.InterferenceDetector
@@ -20,15 +27,24 @@ import com.luopan.compass.sensor.SensorLayer
 import com.luopan.compass.sensor.SensorRateMonitor
 import com.luopan.compass.sensor.SensorStateMonitor
 import com.luopan.compass.settings.SettingsRepository
+import com.luopan.compass.util.Clock
+import com.luopan.compass.util.WallClock
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
-class CompassViewModel(application: Application) : AndroidViewModel(application) {
+class CompassViewModel(
+    application: Application,
+    private val modelProvider: MagneticFieldModelProvider?,
+    private val locationRepository: LocationRepository?,
+    private val clock: Clock
+) : AndroidViewModel(application) {
 
     private val sensorLayer = SensorLayer(application)
     private val fusionEngine = FusionEngine()
@@ -46,6 +62,12 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
     }
     private val calibrationRepo by lazy { CalibrationRepository(db.calibrationDao()) }
 
+    /** North-type engine encapsulates the pure declination computation logic. */
+    private val northTypeEngine = NorthTypeEngine()
+
+    /** Exposed so observers can react to north-type changes (e.g., P4.3 toggle button). */
+    val northType: StateFlow<NorthType> = northTypeEngine.northType
+
     private val _uiState = MutableStateFlow(CompassUiState.INITIAL)
     val uiState: StateFlow<CompassUiState> = _uiState.asStateFlow()
 
@@ -57,16 +79,64 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
     private var lowRateStartNs: Long = -1L
     private var baselineFieldUt: Float = -1f
 
+    // WMM expiry debounce (TSPEC §3.7): at most once per 60 s
+    private var lastExpiryCheckMs: Long = -1L
+
     init {
         loadCalibrationAge()
         startSensorCollection()
     }
 
+    // -----------------------------------------------------------------------
+    // Public API — north type
+    // -----------------------------------------------------------------------
+
+    /**
+     * Changes the active north reference type.
+     *
+     * Updates [northType] StateFlow and triggers a heading recomputation on the next
+     * sensor frame (guaranteed ≤50 ms / one 20 Hz frame, well within the 200 ms budget).
+     *
+     * TSPEC §3.7: `setNorthType()` is the only entry point for north type changes.
+     */
+    fun setNorthType(type: NorthType) {
+        northTypeEngine.setNorthType(type)
+    }
+
+    /**
+     * Toggles between [NorthType.TRUE] and [NorthType.MAGNETIC].
+     *
+     * Convenience method used by the P4.3 toggle button.
+     */
+    fun toggleNorthType() {
+        setNorthType(
+            if (northType.value == NorthType.TRUE) NorthType.MAGNETIC else NorthType.TRUE
+        )
+    }
+
+    /**
+     * Checks whether the WMM2025 model has expired and a model switch is required.
+     * Debounced to at most once per 60 seconds to avoid repeated checks on rapid
+     * lifecycle transitions (e.g., screen rotation).
+     *
+     * FSPEC §2.1 step 7: called from Activity.onResume when northType == TRUE.
+     */
+    fun checkWmmExpiry() {
+        val nowMs = clock.nowMs()
+        if (lastExpiryCheckMs >= 0L && nowMs - lastExpiryCheckMs < 60_000L) return
+        lastExpiryCheckMs = nowMs
+        modelProvider?.activeModel()?.isExpired()  // side-effect: updates modelProvider state
+    }
+
+    // -----------------------------------------------------------------------
+    // Internal — calibration and sensor pipeline
+    // -----------------------------------------------------------------------
+
     private fun loadCalibrationAge() {
         viewModelScope.launch(Dispatchers.IO) {
             val record = calibrationRepo.getCurrent()
             if (record != null) {
-                val ageMs = System.currentTimeMillis() - record.recorded_at
+                val ageMs = clock.nowMs() - record.recorded_at
                 calibrationAgeDays = TimeUnit.MILLISECONDS.toDays(ageMs)
                 calibrationQuality = CalibrationQuality.valueOf(record.quality)
             }
@@ -100,7 +170,7 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 val fusion = fusionEngine.process(filteredFrame)
-                val heading = fusion.heading_deg
+                val magneticHeading = fusion.heading_deg
                 val tilt = fusion.tilt_deg
 
                 val magnitude = kotlin.math.sqrt(
@@ -109,7 +179,7 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
                 noiseTracker.addSample(magnitude)
                 val noiseVariance = noiseTracker.getVariance()
 
-                // Track a baseline field magnitude (exponential moving average over first 100 frames)
+                // EMA baseline (fallback when no location)
                 if (baselineFieldUt < 0f) {
                     baselineFieldUt = magnitude.toFloat()
                 } else {
@@ -143,18 +213,41 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
 
                 // Update lastValidHeading only when sensor is not STUCK
                 if (sensorState != SensorState.STUCK) {
-                    lastValidHeading = heading
+                    lastValidHeading = magneticHeading
                 }
 
-                // When stuck, use lastValidHeading for display heading
-                val displayHeading = if (sensorState == SensorState.STUCK) {
-                    lastValidHeading ?: heading
+                // When stuck, use lastValidHeading for display
+                val rawHeading = if (sensorState == SensorState.STUCK) {
+                    lastValidHeading ?: magneticHeading
                 } else {
-                    heading
+                    magneticHeading
+                }
+
+                // Resolve location and active model for north-type computation
+                val locationResult: LocationResult = locationRepository?.location?.value
+                    ?: LocationResult.Unavailable
+                val activeModel = modelProvider?.activeModel()
+
+                // Compute heading fields via NorthTypeEngine (handles declination + labels)
+                val headingFields = if (activeModel != null) {
+                    val epochYears = clock.toEpochYears()
+                    northTypeEngine.computeHeadingFields(rawHeading, locationResult, activeModel, epochYears)
+                } else {
+                    // No model provider: magnetic mode only
+                    HeadingFields(
+                        displayHeading = rawHeading,
+                        northLabel = "Magnetic N",
+                        locationFallbackAdvisory = false,
+                        fallbackMagAdvisory = false
+                    )
                 }
 
                 val uiState = buildUiState(
-                    heading = displayHeading,
+                    heading = headingFields.displayHeading,
+                    northLabel = headingFields.northLabel,
+                    northType = northTypeEngine.northType.value,
+                    locationFallbackAdvisory = headingFields.locationFallbackAdvisory,
+                    fallbackMagAdvisory = headingFields.fallbackMagAdvisory,
                     tilt = tilt,
                     confidence = confidence,
                     interferenceState = interferenceState,
@@ -170,6 +263,10 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
 
     private fun buildUiState(
         heading: Double,
+        northLabel: String,
+        northType: NorthType,
+        locationFallbackAdvisory: Boolean,
+        fallbackMagAdvisory: Boolean,
         tilt: Double,
         confidence: OverallConfidence,
         interferenceState: InterferenceState,
@@ -199,7 +296,8 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
         return CompassUiState(
             heading_deg = heading,
             heading_formatted = headingFormatted,
-            north_label = if (settings.declinationMode == SettingsRepository.DECLINATION_MAGNETIC) "Magnetic N" else "True N",
+            north_label = northLabel,
+            north_type = northType,
             confidence = confidence,
             interference_state = interferenceState,
             interference_metrics = interferenceMetrics,
@@ -210,8 +308,8 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
             cal_dot_color = calDotColor,
             power_saving_advisory = powerSavingAdvisory,
             no_gyroscope_advisory = !hasGyro,
-            fallback_mag_advisory = false,
-            location_fallback_advisory = false,
+            fallback_mag_advisory = fallbackMagAdvisory,
+            location_fallback_advisory = locationFallbackAdvisory,
             sensor_state = sensorState,
             is_stabilizing = isStabilizing,
             last_valid_heading_deg = lastValidHeading,
@@ -224,4 +322,45 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun onCalibrationComplete() { loadCalibrationAge() }
+
+    // -----------------------------------------------------------------------
+    // Factory for constructor injection (ViewModelProvider.Factory pattern)
+    // -----------------------------------------------------------------------
+
+    class Factory(
+        private val application: Application,
+        private val modelProvider: MagneticFieldModelProvider?,
+        private val locationRepository: LocationRepository?,
+        private val clock: Clock
+    ) : ViewModelProvider.Factory {
+
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            require(modelClass == CompassViewModel::class.java) {
+                "Factory only creates CompassViewModel"
+            }
+            return CompassViewModel(application, modelProvider, locationRepository, clock) as T
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Clock extension — epoch year computation (TSPEC §5.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts a [Clock.nowMs] value to a decimal year (e.g., 2025.5 ≈ 2025-07-02).
+ *
+ * Formula: `year + (dayOfYear - 1) / daysInYear`
+ * Accounts for leap years (366 days) for correctness.
+ *
+ * TSPEC §5.3 — used by [CompassViewModel] to supply [epochYears] to the magnetic model.
+ */
+internal fun Clock.toEpochYears(): Double {
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    cal.timeInMillis = this.nowMs()
+    val year = cal.get(Calendar.YEAR)
+    val dayOfYear = cal.get(Calendar.DAY_OF_YEAR)
+    val daysInYear = cal.getActualMaximum(Calendar.DAY_OF_YEAR).toDouble()
+    return year + (dayOfYear - 1) / daysInYear
 }

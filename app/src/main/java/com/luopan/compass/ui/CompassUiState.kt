@@ -2,6 +2,7 @@ package com.luopan.compass.ui
 
 import com.luopan.compass.model.CalDotColor
 import com.luopan.compass.model.InterferenceState
+import com.luopan.compass.model.NorthType
 import com.luopan.compass.model.OverallConfidence
 import com.luopan.compass.model.SensorState
 import com.luopan.compass.sensor.InterferenceMetrics
@@ -10,6 +11,8 @@ data class CompassUiState(
     val heading_deg: Double,
     val heading_formatted: String,
     val north_label: String,
+    /** Active north reference type: [NorthType.MAGNETIC] or [NorthType.TRUE]. */
+    val north_type: NorthType,
     val confidence: OverallConfidence,
     val interference_state: InterferenceState,
     val interference_metrics: InterferenceMetrics?,
@@ -20,7 +23,9 @@ data class CompassUiState(
     val cal_dot_color: CalDotColor,
     val power_saving_advisory: Boolean,
     val no_gyroscope_advisory: Boolean,
+    /** True when the Android GeomagneticField fallback model is active (WMM2025 expired/unavailable). */
     val fallback_mag_advisory: Boolean,
+    /** True when True North is active and using a cached GPS location rather than a fresh fix. */
     val location_fallback_advisory: Boolean,
     val sensor_state: SensorState,
     val is_stabilizing: Boolean,
@@ -32,6 +37,7 @@ data class CompassUiState(
             heading_deg = 0.0,
             heading_formatted = "---",
             north_label = "Magnetic N",
+            north_type = NorthType.MAGNETIC,
             confidence = OverallConfidence.POOR,
             interference_state = InterferenceState.CLEAR,
             interference_metrics = null,
