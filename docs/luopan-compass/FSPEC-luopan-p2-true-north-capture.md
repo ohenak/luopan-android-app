@@ -4,9 +4,10 @@
 | Field | Value |
 |-------|-------|
 | **Document ID** | FSPEC-luopan-p2-true-north-capture |
-| **Version** | 0.1-draft |
+| **Version** | 0.2-draft |
 | **Status** | Draft |
 | **Date** | 2026-04-24 |
+| **Revised** | 2026-04-24 (v0.2-draft — addressed SE/TE cross-review findings: SE-F-01 `calibration_version` type; SE-F-02 permission rationale flow; SE-F-03 Phase 1 baseline correction; SE-F-04 BearingRecord type conflicts; SE-F-05 `WallClock` rename; SE-F-06 `MagneticFieldModel` interface; SE-F-07 `requestLocationUpdates` params; SE-F-11 AT-NFR-01 cold-start; TE concurrent-save debounce; TE first-capture persistence; TE force-stop resilience) |
 | **Phase** | 2 of 5 |
 | **Parent REQ** | [REQ-luopan-p2-true-north-capture.md](REQ-luopan-p2-true-north-capture.md) |
 | **Master REQ** | [REQ-luopan-compass.md](REQ-luopan-compass.md) |
@@ -260,7 +261,7 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 **Business rules:**
 - The panel must show coordinates masked to 2 decimal places (approximately 1.1 km resolution at the equator). Full precision coordinates are never displayed, per REQ-CAPTURE-06 location privacy principles.
 - The declination value is shown with full precision (2 decimal places) in the parenthetical, and to 1 decimal place with E/W notation in the primary display.
-- Cache age display and cache expiry calculation use the `Clock` interface (injectable for testing with `FakeClock`; production uses `SystemClock`). This is defined here because the panel is where the cache age is surfaced to the user.
+- Cache age display and cache expiry calculation use the `Clock` interface (injectable for testing with `FakeClock`; production uses `WallClock`). This is defined here because the panel is where the cache age is surfaced to the user.
 - The panel never makes a network call. All values are computed offline.
 
 **Edge cases:**
@@ -300,11 +301,13 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 
 **Permission request flow:**
 
-2. The first time True North mode is attempted AND `ACCESS_FINE_LOCATION` has never been requested: the system shows the system permission dialog (Android standard). The app does not show a pre-permission rationale dialog in Phase 2 — the permission is requested directly.
+2. The first time True North mode is attempted AND `ACCESS_FINE_LOCATION` has never been requested: the system shows the system permission dialog (Android standard).
+
+   **2a. Rationale dialog (re-request path):** If `shouldShowRequestPermissionRationale()` returns `true` (the OS signals the user has denied once before and has not selected "Don't ask again"), the app MUST show a brief in-app rationale dialog before presenting the system permission prompt. The rationale dialog text: "Location is used to compute magnetic declination for True North. Your coordinates are stored on-device only and are never shared." (localized). The dialog has two buttons: "Continue" (proceeds to system permission prompt) and "Not now" (abandons the permission request; the flow falls to 3b below).
 
 3a. **Permission granted:** The location resolution chain (Step 1 above) runs.
 
-3b. **Permission denied (first denial):** The toggle remains on Magnetic N. A brief informational message is shown: "Location permission needed for True North. You can enter coordinates manually instead." (localized). The manual coordinate entry dialog is offered.
+3b. **Permission denied (first denial or "Not now" from rationale dialog):** The toggle remains on Magnetic N. A brief informational message is shown: "Location permission needed for True North. You can enter coordinates manually instead." (localized). The manual coordinate entry dialog is offered.
 
 3c. **Permission permanently denied** (user selected "Don't ask again" on a prior denial): the system cannot show the permission dialog again. The same message as 3b is shown, and the app directs the user to device settings for manual permission grant. The manual coordinate entry dialog is still offered as an alternative.
 
@@ -322,7 +325,7 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 
 **Continuous GPS update during session:**
 
-9. While True North mode is active and location permission is granted, the system requests periodic GPS updates (low-power mode, not high-accuracy continuous mode — to respect battery). When a new fix arrives:
+9. While True North mode is active and location permission is granted, the system requests periodic GPS updates using `LocationManager.requestLocationUpdates()` with the following parameters: provider = `GPS_PROVIDER`, `minTimeMs` = 5000 (5 seconds), `minDistanceM` = 0.0f (no distance filter). A single-update timeout of 10 seconds is applied; if no fix arrives within 10 seconds of the initial request, the listener is cancelled and the system falls back to the cached location. When a new fix arrives:
    - The cache is updated.
    - Declination is recomputed from the new location.
    - If the new declination differs from the previous by more than 0.1°, the heading updates immediately.
@@ -391,7 +394,7 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 
 5. The name field has a maximum length of 100 characters. Characters beyond 100 are silently truncated (the input field prevents entry beyond this limit).
 
-6. The notes field has a maximum length of 500 characters. Characters beyond 500 are silently truncated.
+6. The notes field has a maximum length of 1000 characters. Characters beyond 1000 are silently truncated.
 
 **Step 3 — Save and confirmation:**
 
@@ -416,6 +419,8 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 - The first-capture GPS privacy notice (REQ-CAPTURE-06) is shown exactly once per install — on the first time the capture dialog opens with the GPS toggle visible. A SharedPreferences flag tracks whether the notice has been shown.
 - `interference_flag` is set to `true` if the field deviation percentage at capture time is ≥15% OR the inclination deviation at capture time is ≥3°. This is the Moderate interference threshold, not the Warning threshold. The flag captures any meaningful interference, not just the red-warning level.
 - The sequential bearing number in the default name is derived from the total count of records in the `bearing_records` table plus one. If the table has 5 records, the next default name is "Bearing 6." This counter never resets (it is not a "within-session" counter).
+- **BR-CAP-08 (concurrent save / double-tap debounce):** The capture button MUST be disabled immediately after the first tap and re-enabled only after the save completes (success or failure). Rapid successive taps on the capture button MUST produce exactly one BearingRecord. The button disable-and-re-enable is handled in the ViewModel before and after the database write.
+- **First-capture consent persistence:** First-capture detection uses a `SharedPreferences` boolean key `bearing_location_consent_shown`. The key is set to `true` after the first capture dialog is confirmed. Once set to `true`, the privacy notice is never shown again. The INSERT to the database is the critical write; the `SharedPreferences` write is best-effort. If `bearing_location_consent_shown` is lost (e.g., SharedPreferences cleared after a force-stop occurring between the DB insert and the prefs write), the privacy notice will appear once more on the next capture — this is acceptable per REQ-CAPTURE-06. Room and SharedPreferences are separate systems; true atomicity between them is not possible. The INSERT is the priority write.
 
 **Edge cases:**
 - User rotates device while capture dialog is open: the dialog remains open. The bearing preview does not change (snapshot). The underlying compass continues to update but is not shown in the dialog.
@@ -438,13 +443,17 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 
 **Behavioral flow:**
 
-1. In Phase 1, the interference detector computed field deviation as `|measured_field_magnitude - expected_field_magnitude| / expected_field_magnitude`. The `expected_field_magnitude` was derived from Android's `GeomagneticField` class using the last known location.
+1. In Phase 1, the interference detector computed field deviation as `|measured_field_magnitude - expected_field_magnitude| / expected_field_magnitude`. The `expected_field_magnitude` was derived from a **rolling sensor EMA** (99% previous / 1% current reading — the `baselineFieldUt` in `CompassViewModel`). Android's `GeomagneticField` class was used only at calibration time (to compute the target sphere radius in `CalibrationEngine`) — it was not used as the runtime interference baseline.
 
-2. In Phase 2, the `expected_field_magnitude` AND `expected_inclination` for interference detection are derived from **WMM2025**, not `GeomagneticField`.
+2. In Phase 2, the `expected_field_magnitude` AND `expected_inclination` for interference detection are derived from **WMM2025** via `MagneticFieldModel.getExpectedFieldMagnitude()` and `MagneticFieldModel.getExpectedInclination()`, replacing the Phase 1 sensor EMA baseline.
 
 3. The WMM2025 model provides both values simultaneously (it already computes total field, inclination, and declination in a single evaluation call). No additional computation is required beyond what is already done for true north correction.
 
-4. **When WMM2025 is not available** (no location, WMM expired, load failure): the system falls back to `GeomagneticField` for the expected values (the Phase 1 behavior). This fallback applies to interference detection baseline computation only — the same source hierarchy as for declination.
+4. **When WMM2025 is not available** (no location resolved, WMM expired, load failure): the interference baseline fallback chain is:
+   - **(a) WMM2025** — preferred; requires a resolved location and a valid model.
+   - **(b) Android `GeomagneticField`** — used when WMM2025 is expired or fails to load, and a resolved location is available (`GeomagneticField` also requires lat/lon/alt/time and cannot serve as a no-location fallback).
+   - **(c) Sensor EMA (`baselineFieldUt`)** — the Phase 1 rolling EMA is retained as the no-location fallback, matching the original Phase 1 behavior; or a 50 µT global-average constant if the EMA has not yet stabilized.
+   Note: `GeomagneticField` is never used as a fallback when no location is available — it requires coordinates just as WMM2025 does.
 
 5. The interference thresholds (15%/25% magnitude deviation, 3°/8° inclination deviation) are **unchanged** from Phase 1. WMM2025 provides more accurate baseline values, not different thresholds.
 
@@ -507,11 +516,11 @@ The following discrete, testable rules are extracted from the functional flows a
 | Rule ID | Rule | Source |
 |---------|------|--------|
 | BR-01 | True North computation is fully offline. No network call is ever made to compute declination. | FSPEC-TNORTH |
-| BR-02 | `calibration_version` in BearingRecord is the WMM model version string (e.g., `"WMM2025"`), NOT the CalibrationRecord schema version. It records which magnetic field model was used during the bearing capture session. | FSPEC-CAPTURE, §6.1 |
+| BR-02 | `calibration_version` in BearingRecord is the WMM model identifier string returned by `MagneticFieldModel.getModelId()` (e.g., `"WMM2025"` or `"AndroidGeoField"`). This field records the magnetic field model used — NOT the CalibrationRecord schema version integer. These are distinct concepts stored in different tables. | FSPEC-CAPTURE, §6.1 |
 | BR-03 | The north type toggle offers exactly two choices: TRUE and MAGNETIC. GRID is never shown in any form (no greyed-out option, no "coming soon" label). | FSPEC-TOGGLE |
 | BR-04 | A BearingRecord's `north_type` field must be either `TRUE` or `MAGNETIC`. Writing `GRID` is a programming error and must be asserted against in the capture logic. | FSPEC-CAPTURE |
 | BR-05 | A cached location older than 30 days is treated as absent. It does not enable True North mode automatically. | FSPEC-GPS |
-| BR-06 | Cache age and cache expiry are computed using the `Clock` interface (`SystemClock` in production, `FakeClock` in tests). No direct calls to `System.currentTimeMillis()` in cache age or expiry logic. | FSPEC-GPS, FSPEC-DECLPANEL |
+| BR-06 | Cache age and cache expiry are computed using the `Clock` interface (`WallClock` in production, `FakeClock` in tests). No direct calls to `System.currentTimeMillis()` in cache age or expiry logic. `WallClock` is used (not `SystemClock`) to avoid collision with `android.os.SystemClock`. | FSPEC-GPS, FSPEC-DECLPANEL |
 | BR-07 | Altitude is included in the location cache for WMM computation. If altitude is unavailable, 0 m is used. | FSPEC-GPS |
 | BR-08 | The heading change when switching north types must occur within 200 ms of the tap. | FSPEC-TOGGLE |
 | BR-09 | The bearing snapshot is taken at the instant of the capture button tap, not at the "Save" tap. | FSPEC-CAPTURE |
@@ -526,6 +535,8 @@ The following discrete, testable rules are extracted from the functional flows a
 | BR-18 | WMM2025 is valid for dates 2025.0–2030.0. Outside this range the app falls back to Android `GeomagneticField` and labels the source accordingly. | FSPEC-TNORTH |
 | BR-19 | The capture dialog captures an immutable snapshot of the heading at tap time. The bearing preview in the dialog does not update while the dialog is open. | FSPEC-CAPTURE |
 | BR-20 | The first-capture GPS privacy notice is suppressed when location permission is not granted (the GPS toggle is hidden, not disabled). | FSPEC-CAPTURE |
+| BR-CAP-08 | The capture button MUST be disabled immediately after the first tap and re-enabled only after the save completes or fails. Rapid successive taps MUST produce exactly one BearingRecord. | FSPEC-CAPTURE |
+| BR-LOC-04 | The app MUST show a permission rationale dialog before re-requesting `ACCESS_FINE_LOCATION` if `shouldShowRequestPermissionRationale()` returns `true`. The rationale dialog fires before the system permission prompt. | FSPEC-GPS §2.4 |
 
 ---
 
@@ -651,24 +662,28 @@ This is the complete schema for the `bearing_records` Room entity introduced in 
 |-------|--------------|----------------------|----------|------------|-------------|
 | `id` | `String` | `TEXT` | No | Primary key, UUID v4 | Unique identifier for the record |
 | `name` | `String` | `TEXT` | No | Length 1–100, trimmed | User-assigned name for the bearing |
-| `bearing_deg` | `Double` | `REAL` | No | [0.0, 360.0) | Heading in degrees at capture time, normalized |
+| `bearing_deg` | `Float` | `REAL` | No | [0.0, 360.0) | Heading in degrees at capture time, normalized; `Float` is consistent with sensor pipeline output (REQ §5.3.1 canonical value) |
 | `north_type` | `String` | `TEXT` | No | `"TRUE"` or `"MAGNETIC"` only | North reference used; GRID is forbidden |
 | `confidence` | `String` | `TEXT` | No | `"HIGH"`, `"MODERATE"`, or `"POOR"` | Confidence level at capture time |
-| `captured_at` | `Long` | `INTEGER` | No | > 0, UTC epoch ms | Timestamp of capture button tap |
-| `calibration_version` | `String` | `TEXT` | No | Non-empty | WMM model version string used during this session (e.g., `"WMM2025"` or `"AndroidGeoField"`); identifies the magnetic field model, NOT the CalibrationRecord schema version |
+| `captured_at` | `Long` | `INTEGER` | No | > 0, UTC epoch ms | Timestamp of capture button tap; stored internally as `Long` epoch milliseconds (Room-idiomatic `INTEGER` column); display formatting uses ISO 8601 UTC at the presentation layer |
+| `calibration_version` | `String` | `TEXT` | No | Non-empty | WMM model identifier active at capture time (e.g., `"WMM2025"` or `"AndroidGeoField"`); provided by `MagneticFieldModel.getModelId(): String`. This field records the magnetic field model used — NOT the CalibrationRecord schema version. See normative note below. |
 | `field_deviation_pct` | `Float` | `REAL` | No | ≥ 0.0 | Field magnitude deviation percentage at capture time |
 | `inclination_deviation_deg` | `Float` | `REAL` | No | ≥ 0.0 | Inclination deviation in degrees at capture time |
 | `interference_flag` | `Int` | `INTEGER` | No | 0 or 1 (Room Boolean) | 1 if field_deviation_pct ≥ 15% OR inclination_deviation_deg ≥ 3° at capture; 0 otherwise |
-| `lat` | `Double?` | `REAL` | Yes | [−90.0, 90.0] or NULL | GPS latitude at capture time; NULL if GPS toggle OFF or no fix |
-| `lon` | `Double?` | `REAL` | Yes | [−180.0, 180.0) or NULL | GPS longitude at capture time; NULL if GPS toggle OFF or no fix |
+| `lat` | `Double?` | `REAL` | Yes | [−90.0, 90.0] or NULL | GPS latitude at capture time; NULL if GPS toggle OFF or no fix; `Double` precision required for WMM computation accuracy (≈11 cm at 6 decimal places) |
+| `lon` | `Double?` | `REAL` | Yes | [−180.0, 180.0) or NULL | GPS longitude at capture time; NULL if GPS toggle OFF or no fix; `Double` precision (see `lat`) |
 | `alt_m` | `Double?` | `REAL` | Yes | NULL permitted | GPS altitude in meters; NULL if unavailable |
-| `notes` | `String?` | `TEXT` | Yes | Length 0–500 or NULL | Optional user notes; NULL if not entered |
+| `notes` | `String?` | `TEXT` | Yes | Length 0–1000 or NULL | Optional user notes; NULL if not entered (professional use case supports longer notes per REQ §5.3.1) |
 | `display_mode` | `String?` | `TEXT` | Yes | `"MODERN"` or NULL (Phase 3 adds `"LUOPAN"`) | Display mode active at capture time; `"MODERN"` in Phase 2 |
 
 **Notes on specific fields:**
 
 - **`id`:** UUID v4 string (e.g., `"550e8400-e29b-41d4-a716-446655440000"`). Not an auto-increment integer, to support future sync/export without collision.
-- **`calibration_version`:** Records the WMM model version string for the session at capture time. Valid values in Phase 2: `"WMM2025"` (when WMM2025 model is active) or `"AndroidGeoField"` (when Android GeomagneticField fallback is active). This is NOT the `CalibrationRecord` schema version, which is defined separately by the Room migration number and must not be conflated with this field. The `calibration_records` table is not altered in Migration(1,2).
+- **`calibration_version` (normative note):** This field records the WMM model identifier used during the bearing capture session. It is populated by `MagneticFieldModel.getModelId(): String` at capture time. Valid values in Phase 2: `"WMM2025"` (when the WMM2025 bundled model is active) or `"AndroidGeoField"` (when the Android GeomagneticField fallback is active). **This field records the WMM model used, NOT the calibration record schema version.** The `CalibrationRecord.calibration_schema_version` integer (a separate field in the `calibration_records` table defined by the Room migration number) MUST NOT be conflated with this field. The `calibration_records` table is not altered in Migration(1,2).
+- **`bearing_deg` (canonical type):** `Float` is the canonical type per REQ §5.3.1. This is consistent with the sensor fusion pipeline output. Float provides approximately ±0.001° precision for an angle in [0, 360), which is more than sufficient for compass applications.
+- **`lat` / `lon` (canonical types):** `Double?` is the canonical type. GPS coordinates require Double precision (6 decimal places ≈ 11 cm) for accurate WMM input computation. Float would provide only ≈11 km precision, which is insufficient.
+- **`captured_at` (canonical type):** `Long` epoch milliseconds is the canonical internal type. ISO 8601 UTC formatting is applied at the display layer only.
+- **`notes` (max length):** 1000 characters per REQ §5.3.1 (supports professional field note use case).
 - **`interference_flag`:** Stored as `INTEGER` (0 or 1) for SQLite compatibility with Room's `@ColumnInfo` boolean mapping.
 - **`display_mode`:** Set to `"MODERN"` for all captures in Phase 2. The field is included now to avoid a schema migration when Phase 3 adds Luopan Mode.
 
@@ -676,14 +691,16 @@ This is the complete schema for the `bearing_records` Room entity introduced in 
 
 The `Clock` interface is introduced in Phase 2 to allow injection of a testable time source for cache age display and cache expiry calculation.
 
+> **Note:** The production implementation is named `WallClock` (not `SystemClock`) to avoid a naming collision with `android.os.SystemClock`, which is in scope in all Android files. `WallClock` is a distinct class in `com.luopan.compass.util`.
+
 ```kotlin
 // com.luopan.compass.util.Clock
 interface Clock {
     fun nowMs(): Long
 }
 
-// Production implementation
-class SystemClock : Clock {
+// Production implementation (name chosen to avoid collision with android.os.SystemClock)
+class WallClock : Clock {
     override fun nowMs(): Long = System.currentTimeMillis()
 }
 
@@ -700,17 +717,39 @@ The `Clock` interface is used in:
 - Declination info panel "N days ago" cache age display
 - Calibration age computation (replaces direct calls to `System.currentTimeMillis()` in `CompassViewModel.loadCalibrationAge()` to make it testable — this is a Phase 2 cleanup opportunity for the Phase 1 code path)
 
-The `Clock` interface follows the same pattern as `MagneticFieldModel` (already established in the codebase for the WMM/GeomagneticField abstraction).
-
 ### 6.3 MagneticFieldModel Interface
 
-The WMM2025 model and its GeomagneticField fallback are accessed through the existing `MagneticFieldModel` interface pattern. For completeness, the interface returns:
+The WMM2025 model and its GeomagneticField fallback are accessed through the `MagneticFieldModel` interface. This interface **does not yet exist in the codebase** — it must be created in Phase 2. Both `WMM2025Engine` and `AndroidGeomagneticFieldAdapter` implement it, enabling `FakeMagneticFieldModel` injection in tests.
 
-| Return value | Unit | Description |
-|---|---|---|
-| `declination_deg` | degrees | Magnetic declination, positive east |
-| `inclination_deg` | degrees | Magnetic inclination (dip angle), positive downward |
-| `total_field_ut` | µT | Total field magnitude for interference detection baseline |
+> **`epochYears` parameter:** `epochYears` = year + dayOfYear / 365.25 (e.g., 2025.5 = approximately 2 July 2025).
+
+```kotlin
+// com.luopan.compass.magnetic.MagneticFieldModel
+interface MagneticFieldModel {
+    /** Expected total field magnitude in µT for interference detection baseline. */
+    fun getExpectedFieldMagnitude(lat: Double, lon: Double, altMeters: Double, epochYears: Double): Float
+
+    /** Expected magnetic inclination (dip angle) in degrees, positive downward. */
+    fun getExpectedInclination(lat: Double, lon: Double, altMeters: Double, epochYears: Double): Float
+
+    /** Magnetic declination in decimal degrees, positive east. */
+    fun getDeclination(lat: Double, lon: Double, altMeters: Double, epochYears: Double): Float
+
+    /** WMM model identifier string (e.g., "WMM2025", "AndroidGeoField"). Used to populate BearingRecord.calibration_version. */
+    fun getModelId(): String
+
+    /** Returns true if the model is past its validity window and the fallback should be used. */
+    fun isExpired(): Boolean
+}
+```
+
+| Method | Return value | Unit | Description |
+|--------|-------------|------|-------------|
+| `getExpectedFieldMagnitude(...)` | `Float` | µT | Total field magnitude for interference detection baseline |
+| `getExpectedInclination(...)` | `Float` | degrees | Magnetic inclination (dip angle), positive downward |
+| `getDeclination(...)` | `Float` | degrees | Magnetic declination, positive east |
+| `getModelId()` | `String` | — | Model identifier; e.g., `"WMM2025"` or `"AndroidGeoField"` |
+| `isExpired()` | `Boolean` | — | `true` if the model is past its validity window |
 
 ---
 
@@ -818,4 +857,19 @@ Each test maps to a REQ §8 scenario with precise Given/When/Then assertions.
 
 ---
 
-*End of FSPEC-luopan-p2-true-north-capture v0.1-draft*
+---
+
+### AT-NFR-01: Cold-Start Performance (REQ-NFR-08)
+
+**Linked flow:** REQ §5.4 REQ-NFR-08
+
+**Measurement method:** Android Macrobenchmark (`StartupMode.COLD` / `StartupMode.WARM`). Measurement window: from `Application.onCreate()` to first `CompassUiState` emission where `headingState` is not `STABILIZING` (i.e., the first rendered heading frame). Minimum 5 iterations; report the **median** result. Reference device class: mid-range Android device as defined in REQ §5.4.
+
+| # | Given | When | Then | Precise Assertion |
+|---|-------|------|------|-------------------|
+| NFR-01 | Fresh process start (`StartupMode.COLD`); WMM coefficients on-disk (not in-memory); no GPS fix cached | App launches to first non-STABILIZING heading frame | Elapsed time ≤ 5 s | Macrobenchmark median over ≥5 iterations ≤ 5000 ms (`StartupMode.COLD`) |
+| NFR-02 | Warm process start (`StartupMode.WARM`); WMM coefficients and GPS cache already loaded | App resumes to first non-STABILIZING heading frame | Elapsed time ≤ 3 s | Macrobenchmark median over ≥5 iterations ≤ 3000 ms (`StartupMode.WARM`) |
+
+---
+
+*End of FSPEC-luopan-p2-true-north-capture v0.2-draft*
