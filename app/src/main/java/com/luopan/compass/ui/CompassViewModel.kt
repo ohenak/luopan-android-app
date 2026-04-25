@@ -28,6 +28,7 @@ import com.luopan.compass.sensor.SensorLayer
 import com.luopan.compass.sensor.SensorRateMonitor
 import com.luopan.compass.sensor.SensorStateMonitor
 import com.luopan.compass.settings.SettingsRepository
+import com.luopan.compass.bearing.BearingCapturePort
 import com.luopan.compass.bearing.BearingCaptureUseCase
 import com.luopan.compass.bearing.BearingSnapshot
 import com.luopan.compass.util.Clock
@@ -45,7 +46,7 @@ class CompassViewModel(
     private val modelProvider: MagneticFieldModelProvider?,
     private val locationRepository: LocationRepository?,
     private val clock: Clock,
-    private val captureUseCase: BearingCaptureUseCase? = null
+    private val captureUseCase: BearingCapturePort? = null
 ) : AndroidViewModel(application) {
 
     private val sensorLayer = SensorLayer(application)

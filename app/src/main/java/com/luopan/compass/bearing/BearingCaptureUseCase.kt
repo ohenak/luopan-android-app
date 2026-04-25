@@ -25,7 +25,7 @@ class BearingCaptureUseCase(
     private val locationRepository: LocationRepository,
     private val modelProvider: MagneticFieldModelProvider,
     private val clock: Clock
-) {
+) : BearingCapturePort {
     /**
      * Executes the save. Constructs a [BearingRecord] from the snapshot and persists it.
      *
@@ -34,7 +34,7 @@ class BearingCaptureUseCase(
      * @return The saved [BearingRecord].
      * @throws IllegalStateException if [BearingSnapshot.northType] == [NorthType.GRID].
      */
-    suspend fun execute(snapshot: BearingSnapshot): BearingRecord {
+    override suspend fun execute(snapshot: BearingSnapshot): BearingRecord {
         // Programming-error guard (AT-G-08): GRID must never be written to BearingRecord
         check(snapshot.northType != NorthType.GRID) {
             "GRID north type must never be written to BearingRecord"

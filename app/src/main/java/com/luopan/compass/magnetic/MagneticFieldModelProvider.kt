@@ -4,8 +4,8 @@ package com.luopan.compass.magnetic
  * Selects the active [MagneticFieldModel] at runtime.
  *
  * Selection policy (TSPEC §3.3):
- *  - [wmm] is preferred when it is non-null and [Wmm2025Model.isExpired] returns false.
- *  - [fallback] ([AndroidGeoFieldModel]) is used when [wmm] is null or expired.
+ *  - [wmm] is preferred when it is non-null and [MagneticFieldModel.isExpired] returns false.
+ *  - [fallback] is used when [wmm] is null or expired.
  *
  * This class does NOT hold a [com.luopan.compass.util.Clock] directly. The expiry check
  * is delegated to [wmm]'s internal Clock (injected at Wmm2025Model construction time).
@@ -14,11 +14,12 @@ package com.luopan.compass.magnetic
  * pipeline coroutine on Dispatchers.Default). Not thread-safe by design.
  *
  * @param wmm      Primary model. May be null if loading failed; provider falls back immediately.
- * @param fallback Always-available fallback model.
+ *                 Accepts any [MagneticFieldModel] implementation to enable injection of test doubles.
+ * @param fallback Always-available fallback model. Accepts any [MagneticFieldModel] implementation.
  */
 class MagneticFieldModelProvider(
-    private val wmm: Wmm2025Model?,
-    private val fallback: AndroidGeoFieldModel
+    private val wmm: MagneticFieldModel?,
+    private val fallback: MagneticFieldModel
 ) {
 
     private var lastResult: WmmResult? = null

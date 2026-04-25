@@ -40,6 +40,7 @@ sqlite-ktx = { group = "androidx.sqlite", name = "sqlite-ktx", version.ref = "sq
 security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 commons-math3 = { group = "org.apache.commons", name = "commons-math3", version.ref = "commonsMath3" }
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutinesAndroid" }
+coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesAndroid" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 process-phoenix = { group = "com.jakewharton", name = "process-phoenix", version.ref = "processPhoenix" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
