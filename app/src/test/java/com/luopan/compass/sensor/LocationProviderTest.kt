@@ -3,6 +3,7 @@ package com.luopan.compass.sensor
 import android.location.Location
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Test
 
 class LocationProviderTest {
@@ -20,7 +21,7 @@ class LocationProviderTest {
             longitude = 114.1
         }
         val provider = LocationProvider { mockLocation }
-        assertEquals(mockLocation, provider.getLastKnownLocation())
+        assertSame(mockLocation, provider.getLastKnownLocation())
     }
 
     @Test

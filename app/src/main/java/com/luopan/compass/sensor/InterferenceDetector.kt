@@ -31,7 +31,7 @@ class InterferenceDetector {
                 clearanceStartNs = -1L
             }
             fieldModerate || inclModerate -> {
-                state = InterferenceState.MODERATE
+                if (state != InterferenceState.WARNING) state = InterferenceState.MODERATE
                 clearanceStartNs = -1L
             }
             isBelow -> {

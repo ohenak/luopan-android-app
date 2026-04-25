@@ -18,6 +18,7 @@ processPhoenix = "2.1.2"
 junit = "4.13.2"
 espresso = "3.5.1"
 androidxTest = "1.5.0"
+androidxTestCore = "1.5.0"
 lint = "31.3.2"
 
 [libraries]
@@ -40,6 +41,7 @@ process-phoenix = { group = "com.jakewharton", name = "process-phoenix", version
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTest" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 lint-api = { group = "com.android.tools.lint", name = "lint-api", version.ref = "lint" }
 lint-checks = { group = "com.android.tools.lint", name = "lint-checks", version.ref = "lint" }
 lint-tests = { group = "com.android.tools.lint", name = "lint-tests", version.ref = "lint" }

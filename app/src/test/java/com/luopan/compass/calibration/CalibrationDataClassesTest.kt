@@ -35,42 +35,37 @@ class CalibrationDataClassesTest {
     }
 
     @Test
-    fun `CalibrationResult copy produces structural equality`() {
-        val result = CalibrationResult(
-            hard_iron = Vector3(1.0f, 2.0f, 3.0f),
-            soft_iron = Matrix3x3(
-                1.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f,
-                0.0f, 0.0f, 1.0f
-            ),
-            residual_rms = 0.35f,
-            coverage = CoverageStats(0.9f, 0.85f, 0.8f),
-            quality = CalibrationQuality.GOOD,
-            target_radius = 50.0f
+    fun `CalibrationResult equality uses array content`() {
+        val si = Array(3) { i -> FloatArray(3) { j -> if (i == j) 1f else 0f } }
+        val a = CalibrationResult(
+            hardIron = floatArrayOf(1f, 2f, 3f),
+            softIron = si,
+            residualMicroTesla = 0.35f,
+            coverageScore = 0.9f,
+            quality = CalibrationQuality.GOOD
         )
-        assertEquals(result, result.copy())
+        val b = CalibrationResult(
+            hardIron = floatArrayOf(1f, 2f, 3f),
+            softIron = Array(3) { i -> FloatArray(3) { j -> if (i == j) 1f else 0f } },
+            residualMicroTesla = 0.35f,
+            coverageScore = 0.9f,
+            quality = CalibrationQuality.GOOD
+        )
+        assertEquals(a, b)
     }
 
     @Test
-    fun `CalibrationResult copy with changed field only modifies that field`() {
+    fun `CalibrationResult copy with changed quality only modifies quality`() {
         val original = CalibrationResult(
-            hard_iron = Vector3(1.0f, 2.0f, 3.0f),
-            soft_iron = Matrix3x3(
-                1.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f,
-                0.0f, 0.0f, 1.0f
-            ),
-            residual_rms = 0.35f,
-            coverage = CoverageStats(0.9f, 0.85f, 0.8f),
-            quality = CalibrationQuality.GOOD,
-            target_radius = 50.0f
+            hardIron = floatArrayOf(1f, 2f, 3f),
+            softIron = Array(3) { i -> FloatArray(3) { j -> if (i == j) 1f else 0f } },
+            residualMicroTesla = 0.35f,
+            coverageScore = 0.9f,
+            quality = CalibrationQuality.GOOD
         )
         val modified = original.copy(quality = CalibrationQuality.FAIR)
         assertEquals(CalibrationQuality.FAIR, modified.quality)
-        assertEquals(original.hard_iron, modified.hard_iron)
-        assertEquals(original.soft_iron, modified.soft_iron)
-        assertEquals(original.residual_rms, modified.residual_rms)
-        assertEquals(original.coverage, modified.coverage)
-        assertEquals(original.target_radius, modified.target_radius)
+        assertEquals(original.residualMicroTesla, modified.residualMicroTesla)
+        assertEquals(original.coverageScore, modified.coverageScore)
     }
 }

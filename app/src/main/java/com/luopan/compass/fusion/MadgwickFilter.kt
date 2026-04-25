@@ -20,8 +20,10 @@ class MadgwickFilter(var beta: Float = 0.05f) {
         var recipNorm = invSqrt(ax * ax + ay * ay + az * az)
         val ax2 = ax * recipNorm; val ay2 = ay * recipNorm; val az2 = az * recipNorm
 
-        // Normalise magnetometer
-        recipNorm = invSqrt(mx * mx + my * my + mz * mz)
+        // Normalise magnetometer; skip update if degenerate
+        val magSq = mx * mx + my * my + mz * mz
+        if (magSq == 0f) return
+        recipNorm = invSqrt(magSq)
         val mx2 = mx * recipNorm; val my2 = my * recipNorm; val mz2 = mz * recipNorm
 
         // Reference direction of Earth's magnetic field
@@ -57,8 +59,9 @@ class MadgwickFilter(var beta: Float = 0.05f) {
                  (-bx * q0 + bz * q2) * (bx * (q1 * q2 - q0 * q3) + bz * (q0 * q1 + q2 * q3) - my2) +
                   bx * q1 * (bx * (q0 * q2 + q1 * q3) + bz * (0.5f - q1 * q1 - q2 * q2) - mz2)
 
-        // Normalise step magnitude
-        recipNorm = invSqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3)
+        // Normalise step magnitude; guard against zero gradient (no correction applied)
+        val stepSq = s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3
+        recipNorm = if (stepSq > 0f) invSqrt(stepSq) else 0f
 
         // Apply feedback step
         val qDot0 = 0.5f * (-q1 * gx - q2 * gy - q3 * gz) - beta * s0 * recipNorm

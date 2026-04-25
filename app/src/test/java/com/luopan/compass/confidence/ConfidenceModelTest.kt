@@ -28,7 +28,7 @@ class ConfidenceModelTest {
         assertTrue(result == OverallConfidence.MODERATE || result == OverallConfidence.POOR)
     }
 
-    @Test fun `tilt 5_0 exact → GOOD (not > 5_0)`() {
+    @Test fun `tilt 5_0 exact is GOOD threshold is exclusive`() {
         assertEquals(ConfidenceScore.GOOD, model.scoreTilt(5.0))
     }
 
@@ -36,7 +36,7 @@ class ConfidenceModelTest {
         assertEquals(ConfidenceScore.MODERATE, model.scoreTilt(5.001))
     }
 
-    @Test fun `tilt 20_0 exact → MODERATE (not > 20_0)`() {
+    @Test fun `tilt 20_0 exact is MODERATE threshold is exclusive`() {
         assertEquals(ConfidenceScore.MODERATE, model.scoreTilt(20.0))
     }
 
