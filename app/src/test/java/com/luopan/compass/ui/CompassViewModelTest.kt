@@ -5,6 +5,7 @@ import com.luopan.compass.magnetic.FakeMagneticFieldModel
 import com.luopan.compass.model.CalDotColor
 import com.luopan.compass.model.NorthType
 import com.luopan.compass.model.OverallConfidence
+import com.luopan.compass.sensor.InterferenceMetricsFactory
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -299,5 +300,132 @@ class CompassViewModelTest {
     @Test
     fun `CompassUiState INITIAL has north_type MAGNETIC`() {
         assertEquals(NorthType.MAGNETIC, CompassUiState.INITIAL.north_type)
+    }
+
+    // -----------------------------------------------------------------------
+    // P4.2 — WMM-baseline upgrade: InterferenceMetrics sourced from model
+    // -----------------------------------------------------------------------
+
+    /**
+     * When a location is available and a WMM model provides field values,
+     * expectedField_uT in InterferenceMetrics must come from the model (not EMA).
+     *
+     * TSPEC §3.8 / PLAN §4 P4.2: "when getLastResult() is non-null:
+     * metrics.expectedField_uT = wmmResult.totalField"
+     */
+    @Test
+    fun `buildInterferenceMetrics uses WMM expectedField_uT when model result is available`() {
+        val wmmTotalField = 52300f
+        val wmmInclination = 66.0f
+        val sensorFieldUt = 52300f
+        val sensorPitchDeg = 66.0f
+        val emaBaseline = 49000f // different from WMM — must NOT appear in expected field
+
+        val metrics = InterferenceMetricsFactory.build(
+            sensorFieldMagnitude = sensorFieldUt,
+            sensorInclination = sensorPitchDeg,
+            wmmResult = com.luopan.compass.magnetic.WmmResult(
+                declination = 8.93f,
+                inclination = wmmInclination,
+                totalField = wmmTotalField
+            ),
+            emaBaselineFallback = emaBaseline
+        )
+
+        // expectedField_uT must be the WMM value, not the EMA baseline
+        assertEquals(wmmTotalField, metrics.expectedField_uT, 0.1f)
+        assertEquals(wmmInclination, metrics.expectedInclination_deg, 0.1f)
+    }
+
+    /**
+     * When no WMM model result is available (null), expectedField_uT falls back to EMA.
+     *
+     * TSPEC §3.8: "When getLastResult() is null: existing EMA behavior is retained"
+     */
+    @Test
+    fun `buildInterferenceMetrics uses EMA expectedField_uT when WMM result is null`() {
+        val emaBaseline = 49000f
+        val sensorFieldUt = 49000f
+        val sensorPitchDeg = 45.0f
+
+        val metrics = InterferenceMetricsFactory.build(
+            sensorFieldMagnitude = sensorFieldUt,
+            sensorInclination = sensorPitchDeg,
+            wmmResult = null,
+            emaBaselineFallback = emaBaseline
+        )
+
+        // No WMM result → fall back to EMA baseline
+        assertEquals(emaBaseline, metrics.expectedField_uT, 0.1f)
+    }
+
+    /**
+     * WMM-based inclinationDeviation_deg is the absolute difference between
+     * sensor pitch and WMM expected inclination.
+     *
+     * TSPEC §3.8: "metrics.inclinationDeviation_deg = abs(fusion.pitch_deg - wmmResult.inclination)"
+     */
+    @Test
+    fun `buildInterferenceMetrics inclinationDeviation is abs diff between sensor pitch and WMM inclination`() {
+        val wmmInclination = 66.0f
+        val sensorPitch = 70.0f // 4° above expected
+        val expectedDeviation = 4.0f
+
+        val metrics = InterferenceMetricsFactory.build(
+            sensorFieldMagnitude = 52300f,
+            sensorInclination = sensorPitch,
+            wmmResult = com.luopan.compass.magnetic.WmmResult(
+                declination = 8.93f,
+                inclination = wmmInclination,
+                totalField = 52300f
+            ),
+            emaBaselineFallback = 49000f
+        )
+
+        assertEquals(expectedDeviation, metrics.inclinationDeviation_deg, 0.01f)
+    }
+
+    /**
+     * When WMM result is null, inclinationDeviation_deg is abs(sensorInclination)
+     * (i.e., deviation from 0° — the legacy behaviour).
+     *
+     * TSPEC §3.8: "When getLastResult() is null: metrics.inclinationDeviation_deg = abs(fusion.pitch_deg)"
+     */
+    @Test
+    fun `buildInterferenceMetrics inclinationDeviation is abs sensor pitch when WMM result is null`() {
+        val sensorPitch = -35.0f // negative pitch (tilted down)
+
+        val metrics = InterferenceMetricsFactory.build(
+            sensorFieldMagnitude = 49000f,
+            sensorInclination = sensorPitch,
+            wmmResult = null,
+            emaBaselineFallback = 49000f
+        )
+
+        assertEquals(kotlin.math.abs(sensorPitch), metrics.inclinationDeviation_deg, 0.01f)
+    }
+
+    /**
+     * fieldDeviation is computed against WMM expected field when WMM result is available.
+     *
+     * Example: sensor = 62760 nT, WMM expected = 52300 nT → deviation = 0.20 (20%)
+     */
+    @Test
+    fun `buildInterferenceMetrics fieldDeviation is computed against WMM expected when available`() {
+        val wmmTotalField = 52300f
+        val sensorField = wmmTotalField * 1.20f // 20% above expected
+
+        val metrics = InterferenceMetricsFactory.build(
+            sensorFieldMagnitude = sensorField,
+            sensorInclination = 66.0f,
+            wmmResult = com.luopan.compass.magnetic.WmmResult(
+                declination = 8.93f,
+                inclination = 66.0f,
+                totalField = wmmTotalField
+            ),
+            emaBaselineFallback = 49000f
+        )
+
+        assertEquals(0.20f, metrics.fieldDeviation, 0.001f)
     }
 }

@@ -1,7 +1,6 @@
 package com.luopan.compass.ui
 
 import android.app.Application
-import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -22,13 +21,13 @@ import com.luopan.compass.model.NorthType
 import com.luopan.compass.model.OverallConfidence
 import com.luopan.compass.model.SensorState
 import com.luopan.compass.sensor.InterferenceDetector
+import com.luopan.compass.sensor.InterferenceMetricsFactory
 import com.luopan.compass.sensor.NoiseSpikeFilter
 import com.luopan.compass.sensor.SensorLayer
 import com.luopan.compass.sensor.SensorRateMonitor
 import com.luopan.compass.sensor.SensorStateMonitor
 import com.luopan.compass.settings.SettingsRepository
 import com.luopan.compass.util.Clock
-import com.luopan.compass.util.WallClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +36,6 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
-import kotlin.math.abs
 
 class CompassViewModel(
     application: Application,
@@ -179,22 +177,37 @@ class CompassViewModel(
                 noiseTracker.addSample(magnitude)
                 val noiseVariance = noiseTracker.getVariance()
 
-                // EMA baseline (fallback when no location)
+                // EMA baseline (fallback when no WMM location fix is available — PLAN §5.3)
                 if (baselineFieldUt < 0f) {
                     baselineFieldUt = magnitude.toFloat()
                 } else {
                     baselineFieldUt = baselineFieldUt * 0.99f + magnitude.toFloat() * 0.01f
                 }
-                val fieldDev = if (baselineFieldUt > 0f)
-                    kotlin.math.abs(magnitude.toFloat() - baselineFieldUt) / baselineFieldUt
-                else 0f
-                val metrics = com.luopan.compass.sensor.InterferenceMetrics(
-                    fieldMagnitude_uT = magnitude.toFloat(),
-                    expectedField_uT = baselineFieldUt,
-                    fieldDeviation = fieldDev.coerceIn(0f, 1f),
-                    inclination_deg = fusion.pitch_deg.toFloat(),
-                    expectedInclination_deg = 0f,
-                    inclinationDeviation_deg = abs(fusion.pitch_deg).toFloat()
+
+                // Resolve location and active model for north-type computation
+                val locationResult: LocationResult = locationRepository?.location?.value
+                    ?: LocationResult.Unavailable
+                val activeModel = modelProvider?.activeModel()
+
+                // P4.2 — WMM-baseline upgrade (TSPEC §3.8):
+                // When a location fix is available, evaluate the WMM model to get a
+                // model-derived expected field and inclination. Keep EMA as fallback
+                // when no location is available. The two paths must not interfere (PLAN §5.3).
+                val hasLocation = locationResult !is LocationResult.Unavailable
+                if (hasLocation && modelProvider != null && activeModel != null) {
+                    val epochYears = clock.toEpochYears()
+                    val coords = resolveCoords(locationResult)
+                    if (coords != null) {
+                        modelProvider.evaluate(coords.lat, coords.lon, coords.alt, epochYears)
+                    }
+                }
+                val wmmResult = modelProvider?.getLastResult()
+
+                val metrics = InterferenceMetricsFactory.build(
+                    sensorFieldMagnitude = magnitude.toFloat(),
+                    sensorInclination = fusion.pitch_deg.toFloat(),
+                    wmmResult = wmmResult,
+                    emaBaselineFallback = baselineFieldUt
                 )
                 interferenceDetector.updateState(metrics, frame.timestamp_ns)
                 val interferenceState = interferenceDetector.getState()
@@ -222,11 +235,6 @@ class CompassViewModel(
                 } else {
                     magneticHeading
                 }
-
-                // Resolve location and active model for north-type computation
-                val locationResult: LocationResult = locationRepository?.location?.value
-                    ?: LocationResult.Unavailable
-                val activeModel = modelProvider?.activeModel()
 
                 // Compute heading fields via NorthTypeEngine (handles declination + labels)
                 val headingFields = if (activeModel != null) {
@@ -323,6 +331,19 @@ class CompassViewModel(
     private fun formatHeading(deg: Double): String {
         return "%05.1f°".format(deg)
     }
+
+    /**
+     * Resolves lat/lon/alt from a [LocationResult] for WMM evaluation.
+     * Returns null when no coordinates are available ([LocationResult.Unavailable]).
+     */
+    private fun resolveCoords(locationResult: LocationResult): Coords? = when (locationResult) {
+        is LocationResult.GpsFix      -> Coords(locationResult.lat, locationResult.lon, locationResult.altM)
+        is LocationResult.CachedFix   -> Coords(locationResult.lat, locationResult.lon, locationResult.altM)
+        is LocationResult.ManualEntry  -> Coords(locationResult.lat, locationResult.lon, locationResult.altM)
+        is LocationResult.Unavailable  -> null
+    }
+
+    private data class Coords(val lat: Double, val lon: Double, val alt: Double)
 
     fun onCalibrationComplete() { loadCalibrationAge() }
 
