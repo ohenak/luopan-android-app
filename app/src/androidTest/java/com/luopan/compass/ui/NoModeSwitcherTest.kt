@@ -16,7 +16,7 @@ class NoModeSwitcherTest {
     @get:Rule
     val activityRule = ActivityScenarioRule(CompassActivity::class.java)
 
-    @Test fun `no bottom navigation view`() {
+    @Test fun noBottomNavigationView() {
         onView(withContentDescription("Luopan")).check(doesNotExist())
         onView(withContentDescription("Sighting")).check(doesNotExist())
     }

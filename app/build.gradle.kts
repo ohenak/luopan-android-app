@@ -48,6 +48,12 @@ android {
         jvmTarget = "17"
     }
 
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDirs("$projectDir/schemas")
+        }
+    }
+
     testOptions {
         unitTests {
             isIncludeAndroidResources = true

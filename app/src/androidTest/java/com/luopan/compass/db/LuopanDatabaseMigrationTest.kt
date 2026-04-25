@@ -28,7 +28,7 @@ class LuopanDatabaseMigrationTest {
     @get:Rule
     val helper = MigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(),
-        LuopanDatabase::class.java.canonicalName,
+        LuopanDatabase::class.java.canonicalName!!,
         FrameworkSQLiteOpenHelperFactory()
     )
 
@@ -40,7 +40,7 @@ class LuopanDatabaseMigrationTest {
      */
     @Test
     @Throws(IOException::class)
-    fun `migration from v1 to v2 preserves calibration row and creates bearing_records table`() {
+    fun migrationFromV1ToV2_preservesCalibrationRow_andCreatesBearingRecordsTable() {
         // --- Create v1 database and insert a calibration row ---
         val v1Db = helper.createDatabase(testDbName, 1)
         v1Db.execSQL(
@@ -148,7 +148,7 @@ class LuopanDatabaseMigrationTest {
      */
     @Test
     @Throws(IOException::class)
-    fun `migration from v1 to v2 does not alter calibration_records table structure`() {
+    fun migrationFromV1ToV2_doesNotAlterCalibrationRecordsTableStructure() {
         val v1Db = helper.createDatabase(testDbName + "_struct", 1)
         v1Db.close()
 

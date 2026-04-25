@@ -66,7 +66,7 @@ class LocationPermissionTest {
      * PROP-LOCATION-05: rationale only shown when shouldShowRationale = true.
      */
     @Test
-    fun `grant path - with permission granted requestLocationPermissionForTrueNorth shows no rationale dialog`() {
+    fun grantPath_withPermissionGranted_requestLocationPermissionForTrueNorth_showsNoRationaleDialog() {
         // Pre-grant the permission so the system confirms it
         InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(
             "com.luopan.compass",
@@ -94,7 +94,7 @@ class LocationPermissionTest {
      * FSPEC §2.4 step 3b: "Toggle remains on Magnetic N."
      */
     @Test
-    fun `deny path - Magnetic N label shown when permission not granted`() {
+    fun denyPath_magneticNLabelShown_whenPermissionNotGranted() {
         // Without a permission grant, the north label must default to Magnetic N
         onView(withText(R.string.magnetic_north))
             .check(matches(isDisplayed()))
@@ -111,7 +111,7 @@ class LocationPermissionTest {
      * TSPEC §6.5 step 3, FSPEC §2.4 step 2a, FSPEC BR-LOC-04, PROP-LOCATION-05.
      */
     @Test
-    fun `rationale path - showLocationPermissionRationale displays rationale dialog with correct text`() {
+    fun rationalePath_showLocationPermissionRationale_displaysRationaleDialog_withCorrectText() {
         activityRule.scenario.onActivity { activity ->
             activity.showLocationPermissionRationale(
                 onContinue = {},
@@ -136,7 +136,7 @@ class LocationPermissionTest {
      * FSPEC §2.4 step 2a: "'Not now' → abandons the permission request; flow falls to 3b."
      */
     @Test
-    fun `rationale dialog - tapping Not Now invokes onNotNow callback and dismisses dialog`() {
+    fun rationaleDialog_tappingNotNow_invokesOnNotNowCallback_andDismissesDialog() {
         val notNowCalled = AtomicBoolean(false)
         val continueCalled = AtomicBoolean(false)
 
@@ -166,7 +166,7 @@ class LocationPermissionTest {
      * FSPEC §2.4 step 2a: "'Continue' → proceeds to system permission prompt."
      */
     @Test
-    fun `rationale dialog - tapping Continue invokes onContinue callback and dismisses dialog`() {
+    fun rationaleDialog_tappingContinue_invokesOnContinueCallback_andDismissesDialog() {
         val continueCalled = AtomicBoolean(false)
 
         activityRule.scenario.onActivity { activity ->
@@ -197,7 +197,7 @@ class LocationPermissionTest {
      * TSPEC §6.5 step 4, FSPEC §2.4 step 3c, FSPEC error scenarios table.
      */
     @Test
-    fun `permanent denial - showOpenSettingsDialog displays Open Settings dialog`() {
+    fun permanentDenial_showOpenSettingsDialog_displaysOpenSettingsDialog() {
         activityRule.scenario.onActivity { activity ->
             activity.showOpenSettingsDialog()
         }
@@ -218,7 +218,7 @@ class LocationPermissionTest {
      * FSPEC §2.4 step 3c: "app directs the user to device settings for manual permission grant."
      */
     @Test
-    fun `permanent denial - tapping Open Settings launches app settings intent`() {
+    fun permanentDenial_tappingOpenSettings_launchesAppSettingsIntent() {
         // Stub the Settings intent so the test doesn't leave the app
         Intents.intending(
             allOf(hasAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS))
@@ -246,7 +246,7 @@ class LocationPermissionTest {
      * FSPEC: user may dismiss the settings redirect and use manual entry instead.
      */
     @Test
-    fun `permanent denial - tapping Cancel dismisses Open Settings dialog`() {
+    fun permanentDenial_tappingCancel_dismissesOpenSettingsDialog() {
         activityRule.scenario.onActivity { activity ->
             activity.showOpenSettingsDialog()
         }
