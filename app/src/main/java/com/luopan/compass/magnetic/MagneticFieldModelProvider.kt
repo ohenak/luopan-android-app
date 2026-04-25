@@ -10,8 +10,11 @@ package com.luopan.compass.magnetic
  * This class does NOT hold a [com.luopan.compass.util.Clock] directly. The expiry check
  * is delegated to [wmm]'s internal Clock (injected at Wmm2025Model construction time).
  *
- * Thread safety: call [activeModel] and [evaluate] from a single coroutine (the sensor
- * pipeline coroutine on Dispatchers.Default). Not thread-safe by design.
+ * Thread safety: [activeModel] and [evaluate] must both be called from the same coroutine
+ * (the sensor pipeline coroutine on Dispatchers.Default). [evaluate] must receive the model
+ * returned by the immediately preceding [activeModel] call on the same frame — callers must
+ * not call [activeModel] twice per frame or the [hasModelChanged] transition detection will
+ * compare two calls within the same frame instead of consecutive frames. Not thread-safe by design.
  *
  * @param wmm      Primary model. May be null if loading failed; provider falls back immediately.
  *                 Accepts any [MagneticFieldModel] implementation to enable injection of test doubles.
@@ -51,19 +54,23 @@ class MagneticFieldModelProvider(
     }
 
     /**
-     * Evaluates the active model for the given location and epoch year.
+     * Evaluates the given model for the given location and epoch year.
+     *
+     * The caller must pass the model resolved by a prior [activeModel] call on the same
+     * frame — this avoids a second [activeModel] call (which would shift [previousModelId]
+     * and break [hasModelChanged] detection).
      *
      * Caches the result in [lastResult]. Subsequent calls to [getLastResult] return the
      * cached value without re-evaluating.
      *
+     * @param model      The active model resolved by the caller via [activeModel].
      * @param latDeg     Latitude in decimal degrees.
      * @param lonDeg     Longitude in decimal degrees.
      * @param altM       Altitude in meters (0.0 if unknown).
      * @param epochYears Current decimal year (caller computes from Clock.nowMs()).
      * @return The [WmmResult] for the given parameters.
      */
-    fun evaluate(latDeg: Double, lonDeg: Double, altM: Double, epochYears: Double): WmmResult {
-        val model = activeModel()
+    fun evaluate(model: MagneticFieldModel, latDeg: Double, lonDeg: Double, altM: Double, epochYears: Double): WmmResult {
         val result = WmmResult(
             declination = model.getDeclination(latDeg, lonDeg, altM, epochYears),
             inclination = model.getExpectedInclination(latDeg, lonDeg, altM, epochYears),

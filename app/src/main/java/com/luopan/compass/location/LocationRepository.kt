@@ -34,7 +34,7 @@ class LocationRepository(
         _location.value = LocationResult.GpsFix(lat, lon, altM)
     }
 
-    /** Sets a manual coordinate entry. */
+    /** Sets a manual coordinate entry. altM defaults to 0.0 (sea level) — acceptable precision for declination. */
     fun setManualLocation(lat: Double, lon: Double) {
         manualLocation = LocationResult.ManualEntry(lat, lon)
         _location.value = manualLocation!!

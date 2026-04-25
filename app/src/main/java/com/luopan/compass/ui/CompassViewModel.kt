@@ -217,9 +217,12 @@ class CompassViewModel(
     fun captureBearing(snapshot: BearingSnapshot) {
         val useCase = captureUseCase ?: return
         _captureButtonEnabled.value = false
+        // Enrich with calibration_version at tap time — the use case reads it from the snapshot
+        val calibrationVersion = modelProvider?.activeModel()?.getModelId() ?: ""
+        val enrichedSnapshot = snapshot.copy(calibrationVersion = calibrationVersion)
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val record = useCase.execute(snapshot)
+                val record = useCase.execute(enrichedSnapshot)
                 _captureConfirmation.emit(record.name)
             } finally {
                 _captureButtonEnabled.value = true
@@ -238,7 +241,7 @@ class CompassViewModel(
         val nowMs = clock.nowMs()
         if (lastExpiryCheckMs >= 0L && nowMs - lastExpiryCheckMs < 60_000L) return
         lastExpiryCheckMs = nowMs
-        modelProvider?.activeModel()?.isExpired()  // side-effect: updates modelProvider state
+        modelProvider?.activeModel()  // advances previousModelId/currentModelId for hasModelChanged()
     }
 
     // -----------------------------------------------------------------------
@@ -299,10 +302,12 @@ class CompassViewModel(
                     baselineFieldUt = baselineFieldUt * 0.99f + magnitude.toFloat() * 0.01f
                 }
 
-                // Resolve location and active model for north-type computation
+                // Resolve location and active model for north-type computation.
+                // activeModel() is called once per frame; epochYears is computed once and reused.
                 val locationResult: LocationResult = locationRepository?.location?.value
                     ?: LocationResult.Unavailable
                 val activeModel = modelProvider?.activeModel()
+                val epochYears = clock.toEpochYears()
 
                 // P4.2 — WMM-baseline upgrade (TSPEC §3.8):
                 // When a location fix is available, evaluate the WMM model to get a
@@ -310,10 +315,9 @@ class CompassViewModel(
                 // when no location is available. The two paths must not interfere (PLAN §5.3).
                 val hasLocation = locationResult !is LocationResult.Unavailable
                 if (hasLocation && modelProvider != null && activeModel != null) {
-                    val epochYears = clock.toEpochYears()
                     val coords = resolveCoords(locationResult)
                     if (coords != null) {
-                        modelProvider.evaluate(coords.lat, coords.lon, coords.alt, epochYears)
+                        modelProvider.evaluate(activeModel, coords.lat, coords.lon, coords.alt, epochYears)
                     }
                 }
                 val wmmResult = modelProvider?.getLastResult()
@@ -359,7 +363,6 @@ class CompassViewModel(
 
                 // Compute heading fields via NorthTypeEngine (handles declination + labels)
                 val headingFields = if (activeModel != null) {
-                    val epochYears = clock.toEpochYears()
                     northTypeEngine.computeHeadingFields(rawHeading, locationResult, activeModel, epochYears)
                 } else {
                     // No model provider: magnetic mode only

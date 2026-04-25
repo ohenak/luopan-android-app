@@ -936,7 +936,8 @@ class CompassViewModelTest {
         )
 
         // Simulate one WMM evaluation at a valid location
-        val wmmResult = provider.evaluate(latDeg = 75.0, lonDeg = 90.0, altM = 0.0, epochYears = 2027.0)
+        val activeModel = provider.activeModel()
+        val wmmResult = provider.evaluate(activeModel, latDeg = 75.0, lonDeg = 90.0, altM = 0.0, epochYears = 2027.0)
 
         // Verify the WMM result carries the expected inclination
         assertEquals("WMM result inclination must be 80.0°", 80.0f, wmmResult.inclination, 0.001f)
@@ -995,7 +996,7 @@ class CompassViewModelTest {
         val provider = MagneticFieldModelProvider(wmm = model, fallback = FakeMagneticFieldModel(modelId = "AndroidGeoField"))
 
         // Simulate location available: evaluate the provider
-        provider.evaluate(40.0, -105.0, 0.0, 2025.5)
+        provider.evaluate(provider.activeModel(), 40.0, -105.0, 0.0, 2025.5)
         val wmmResult = provider.getLastResult()
 
         assertNotNull("WMM result must be non-null after evaluate()", wmmResult)

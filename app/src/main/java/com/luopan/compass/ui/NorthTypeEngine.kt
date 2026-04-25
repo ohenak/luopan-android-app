@@ -143,7 +143,6 @@ class NorthTypeEngine {
         // Resolve the location coordinates if available
         val coords = resolveCoords(locationResult)
 
-        val hasLocation = coords != null
         val isTrueNorth = type == NorthType.TRUE
 
         // Apply declination only when TRUE mode and location is available
@@ -153,7 +152,7 @@ class NorthTypeEngine {
         val fallbackMagAdvisory: Boolean
 
         val declinationDeg: Float
-        if (isTrueNorth && hasLocation && coords != null) {
+        if (isTrueNorth && coords != null) {
             val declination = activeModel.getDeclination(coords.lat, coords.lon, coords.alt, epochYears)
             displayHeading = (magneticHeading + declination + 360.0) % 360.0
             declinationDeg = declination

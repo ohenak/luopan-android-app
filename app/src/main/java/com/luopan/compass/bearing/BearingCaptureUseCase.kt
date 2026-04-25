@@ -1,7 +1,6 @@
 package com.luopan.compass.bearing
 
 import com.luopan.compass.location.LocationRepository
-import com.luopan.compass.magnetic.MagneticFieldModelProvider
 import com.luopan.compass.model.InterferenceState
 import com.luopan.compass.model.NorthType
 import com.luopan.compass.util.Clock
@@ -18,12 +17,13 @@ import java.util.UUID
  *   (BR-10, AT-E-10). [BearingSnapshot.confidence] == POOR does NOT set the flag.
  * - `captured_at` is set to [BearingSnapshot.tapTimestampMs], NOT to [Clock.nowMs] at execute time
  *   (PM-T-01). The tap timestamp is carried through the snapshot from [captureBearing].
+ * - `calibration_version` is read from [BearingSnapshot.calibrationVersion], which is populated
+ *   by [com.luopan.compass.ui.CompassViewModel] at tap time. The use case does NOT touch the model.
  * - [NorthType.GRID] is rejected as a programming-error guard (AT-G-08).
  */
 class BearingCaptureUseCase(
     private val bearingRepository: BearingRepository,
     private val locationRepository: LocationRepository,
-    private val modelProvider: MagneticFieldModelProvider,
     private val clock: Clock
 ) : BearingCapturePort {
     /**
@@ -52,8 +52,8 @@ class BearingCaptureUseCase(
         // Notes coercion: empty or blank string → null (TSPEC §3.6)
         val notes = snapshot.notes?.trim()?.ifEmpty { null }
 
-        // calibration_version from the active model ID
-        val calibrationVersion = modelProvider.activeModel().getModelId()
+        // calibration_version carried in the snapshot (set at tap time by CompassViewModel)
+        val calibrationVersion = snapshot.calibrationVersion
 
         val record = BearingRecord(
             id = UUID.randomUUID().toString(),

@@ -109,7 +109,8 @@ class MagneticFieldModelProviderTest {
         val fallback = AndroidGeoFieldModel(FakeClock())
         val provider = MagneticFieldModelProvider(wmm = wmm, fallback = fallback)
 
-        val result = provider.evaluate(40.0, -105.0, 0.0, 2027.0)
+        val model = provider.activeModel()
+        val result = provider.evaluate(model, 40.0, -105.0, 0.0, 2027.0)
 
         assertNotNull("getLastResult() should be non-null after evaluate()", provider.getLastResult())
         assertSame("getLastResult() should return the same WmmResult returned by evaluate()",
@@ -123,7 +124,8 @@ class MagneticFieldModelProviderTest {
         val fallback = AndroidGeoFieldModel(FakeClock())
         val provider = MagneticFieldModelProvider(wmm = wmm, fallback = fallback)
 
-        val result = provider.evaluate(40.0, -105.0, 0.0, 2027.0)
+        val model = provider.activeModel()
+        val result = provider.evaluate(model, 40.0, -105.0, 0.0, 2027.0)
 
         assertFalse("declination should not be NaN", result.declination.isNaN())
         assertFalse("inclination should not be NaN", result.inclination.isNaN())

@@ -51,5 +51,13 @@ data class BearingSnapshot(
      * [com.luopan.compass.bearing.BearingRecord.captured_at] — the use case does NOT
      * call [com.luopan.compass.util.Clock.nowMs] at execute time for this field.
      */
-    val tapTimestampMs: Long
+    val tapTimestampMs: Long,
+    /**
+     * Model ID of the active [com.luopan.compass.magnetic.MagneticFieldModel] at tap time.
+     *
+     * Populated by [com.luopan.compass.ui.CompassViewModel.captureBearing] via
+     * [com.luopan.compass.magnetic.MagneticFieldModelProvider.activeModel] immediately when
+     * the capture button is tapped. Stored as [com.luopan.compass.bearing.BearingRecord.calibration_version].
+     */
+    val calibrationVersion: String = ""
 )

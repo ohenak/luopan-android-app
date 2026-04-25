@@ -3,8 +3,6 @@ package com.luopan.compass.bearing
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.luopan.compass.location.LocationRepository
-import com.luopan.compass.magnetic.AndroidGeoFieldModel
-import com.luopan.compass.magnetic.MagneticFieldModelProvider
 import com.luopan.compass.model.InterferenceState
 import com.luopan.compass.model.NorthType
 import com.luopan.compass.model.OverallConfidence
@@ -29,9 +27,8 @@ import org.robolectric.RobolectricTestRunner
  *   - notes empty string coerced to null
  *   - id is valid UUID format
  *
- * Uses Robolectric to satisfy Android-dependent constructor parameters (SharedPreferences,
- * AndroidGeoFieldModel). The use case itself is pure — these dependencies are unused
- * in Phase 2 per TSPEC §3.6.
+ * Uses Robolectric to satisfy Android-dependent constructor parameter (SharedPreferences).
+ * The use case itself is pure — locationRepository and clock are unused in Phase 2.
  */
 @RunWith(RobolectricTestRunner::class)
 class BearingCaptureUseCaseTest {
@@ -39,7 +36,6 @@ class BearingCaptureUseCaseTest {
     private lateinit var fakeClock: FakeClock
     private lateinit var fakeBearingRepository: FakeBearingRepository
     private lateinit var locationRepository: LocationRepository
-    private lateinit var modelProvider: MagneticFieldModelProvider
     private lateinit var useCase: BearingCaptureUseCase
 
     @Before
@@ -51,17 +47,9 @@ class BearingCaptureUseCaseTest {
         val prefs = ctx.getSharedPreferences("test_loc_prefs", Context.MODE_PRIVATE)
         locationRepository = LocationRepository(prefs, fakeClock)
 
-        // MagneticFieldModelProvider with null wmm (so fallback is used) and a real
-        // AndroidGeoFieldModel as fallback (Robolectric provides GeomagneticField stubs).
-        // The use case only calls activeModel().getModelId() for calibration_version.
-        // With null wmm, fallback is used → getModelId() returns "AndroidGeoField".
-        val fallback = AndroidGeoFieldModel(fakeClock)
-        modelProvider = MagneticFieldModelProvider(wmm = null, fallback = fallback)
-
         useCase = BearingCaptureUseCase(
             bearingRepository = fakeBearingRepository,
             locationRepository = locationRepository,
-            modelProvider = modelProvider,
             clock = fakeClock
         )
     }
@@ -293,7 +281,8 @@ class BearingCaptureUseCaseTest {
         notes: String? = null,
         displayMode: String = "MODERN",
         includeLocation: Boolean = true,
-        tapTimestampMs: Long = fakeClock.nowMs()
+        tapTimestampMs: Long = fakeClock.nowMs(),
+        calibrationVersion: String = "AndroidGeoField"
     ) = BearingSnapshot(
         bearingDeg = bearingDeg,
         northType = northType,
@@ -308,7 +297,8 @@ class BearingCaptureUseCaseTest {
         notes = notes,
         displayMode = displayMode,
         includeLocation = includeLocation,
-        tapTimestampMs = tapTimestampMs
+        tapTimestampMs = tapTimestampMs,
+        calibrationVersion = calibrationVersion
     )
 }
 
