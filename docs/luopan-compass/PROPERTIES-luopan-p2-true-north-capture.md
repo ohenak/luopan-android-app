@@ -1,6 +1,7 @@
 # PROPERTIES: luopan-p2-true-north-capture
-**Version:** 0.1-draft
+**Version:** 0.2
 **Date:** 2026-04-24
+**Revised:** 2026-04-24 (v0.2 — addressed SE cross-review findings SE-P-01 through SE-P-07 and PM cross-review findings PM-P-01, PM-P-02, PM-P-04, PM-P-05)
 **Status:** Draft
 **Author:** te-author
 **Source documents:**
@@ -46,12 +47,12 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 | ID | Description | Level | Test Class | REQ | FSPEC | Priority |
 |----|-------------|-------|------------|-----|-------|----------|
-| PROP-NORTH-01 | Displayed heading = magnetic heading + WMM2025 declination when northType=TRUE and GPS available | Unit | `TrueNorthHeadingTest` | REQ-NORTH-01, REQ-NORTH-04 | AT-A | P0 |
-| PROP-NORTH-02 | Displayed heading = magnetic heading (no declination) when northType=MAGNETIC | Unit | `TrueNorthHeadingTest` | REQ-NORTH-04 | AT-A | P0 |
-| PROP-NORTH-03 | WMM2025 declination within ±0.1° of NOAA reference for pinned test vector | Unit | `Wmm2025AccuracyTest` | REQ-NORTH-01 | Scenario B | P0 |
-| PROP-NORTH-04 | WMM2025 expired → system falls back to AndroidGeoFieldModel | Unit | `Wmm2025FallbackTest` | REQ-NORTH-02 | — | P0 |
-| PROP-NORTH-05 | Heading label shows "True N" / "Magnetic N"; "Grid N" never appears | E2E | `NorthToggleUiTest` | REQ-NORTH-04 | AT-A | P0 |
-| PROP-NORTH-06 | Heading label switches within 250 ms of toggle tap | E2E | `NorthToggleUiTest` | REQ-NORTH-04, REQ-DECL-01 | AT-A timing | P0 |
+| PROP-NORTH-01 | Displayed heading = magnetic heading + WMM2025 declination when northType=TRUE and GPS available | Unit | `CompassViewModelTest`, `WmmDeclinationAccuracyTest` | REQ-NORTH-01, REQ-NORTH-04 | AT-A | P0 |
+| PROP-NORTH-02 | Displayed heading = magnetic heading (no declination) when northType=MAGNETIC | Unit | `CompassViewModelTest` | REQ-NORTH-04 | AT-A | P0 |
+| PROP-NORTH-03 | WMM2025 declination within ±0.1° of NOAA reference for pinned test vector | Unit | `Wmm2025ModelTest` | REQ-NORTH-01 | Scenario B, AT-B | P0 |
+| PROP-NORTH-04 | WMM2025 expired → system falls back to AndroidGeoFieldModel | Unit | `Wmm2025ModelTest`, `MagneticFieldModelProviderTest` | REQ-NORTH-02 | AT-G-05 | P0 |
+| PROP-NORTH-05 | Heading label shows "True N" / "Magnetic N"; "Grid N" never appears | E2E | `TrueNorthToggleTest`, `GridNorthAbsenceTest` | REQ-NORTH-04 | AT-A, AT-G-08 | P0 |
+| PROP-NORTH-06 | Heading label switches within 250 ms of toggle tap | E2E | `TrueNorthToggleTest` | REQ-NORTH-04, REQ-DECL-01 | AT-A timing | P0 |
 
 ---
 
@@ -63,7 +64,7 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 **Property:** When `northType = NorthType.TRUE` and a GPS location is available, the heading value delivered to the display layer equals `magneticHeading_deg + wmm2025Declination_deg`, normalized to `[0, 360)`, to within ±0.5°.
 
-**Given:** `WmmModel` loaded with WMM2025 coefficients; a fixed `Location(lat=40.0°N, lon=−105.0°W, altM=1600.0)` injected; `magneticHeading_deg = 45.0`
+**Given:** `WmmModel` loaded with WMM2025 coefficients; a fixed `Location(lat=40.0°N, lon=−105.0°W, altM=0.0)` injected (matching the canonical NOAA test vector from TSPEC §10.1); `magneticHeading_deg = 45.0`
 **When:** `TrueNorthTransformer.apply(magneticHeading_deg=45.0, northType=TRUE, location=fixedLocation)` is called
 **Then:** `abs(result - (45.0 + 8.93)) <= 0.5`, normalized to `[0, 360)`
 
@@ -87,12 +88,13 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 **Type:** Unit
 **Test Level:** JVM
-**Source:** REQ-NORTH-01 | FSPEC Scenario B ("WMM2025 bundled model computes declination correctly — within ±0.1° of NOAA reference")
+**Source:** REQ-NORTH-01 | FSPEC Scenario B ("WMM2025 bundled model computes declination correctly — within ±0.1° of NOAA reference") | TSPEC §10.1 `Wmm2025ModelTest` (canonical pinned vector)
 
 **Property:** `WmmModel.declination()` for the pinned NOAA test vector produces a value within ±0.1° of the published reference.
 
-**Given:** `lat=40.0`, `lon=−105.0`, `altM=1600.0`, `epochYear=2025.5`; NOAA reference value = `+8.93°E`
-**When:** `WmmModel.declination(lat=40.0f, lon=-105.0f, altM=1600.0f, epochYear=2025.5f)` is called
+**Given:** `lat=40.0`, `lon=−105.0`, `altM=0.0`, `epochYear=2025.5`; NOAA reference value = `+8.93°E`
+*(Note: `altM=0.0` matches the TSPEC §10.1 `Wmm2025ModelTest` canonical vector exactly. Altitude 0.0 m (sea level / WGS-84 ellipsoid) is the normative test altitude for this pinned vector.)*
+**When:** `WmmModel.declination(lat=40.0f, lon=-105.0f, altM=0.0f, epochYear=2025.5f)` is called
 **Then:** `abs(result - 8.93f) <= 0.1f`
 
 ---
@@ -148,9 +150,9 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 | ID | Description | Level | Test Class | REQ | FSPEC | Priority |
 |----|-------------|-------|------------|-----|-------|----------|
-| PROP-DECL-01 | North type toggle is binary (TRUE/MAGNETIC); GRID state unreachable | Unit | `NorthTypeToggleTest` | REQ-DECL-01 | AT-A, §5.2 deferral | P0 |
-| PROP-DECL-02 | Declination info panel shows correct four fields | E2E | `DeclinationInfoPanelTest` | REQ-DECL-02 | Scenario B | P1 |
-| PROP-DECL-03 | No network request during WMM declination computation | Integration | `OfflineDeclinationTest` | REQ-NORTH-03, REQ-NFR-05 | Scenario B | P0 |
+| PROP-DECL-01 | North type toggle is binary (TRUE/MAGNETIC); GRID state unreachable | Unit | `TrueNorthToggleTest`, `GridNorthAbsenceTest` | REQ-DECL-01 | AT-A, AT-G-08 | P0 |
+| PROP-DECL-02 | Declination info panel shows required fields including coordinates type, cache age, and inactive-True-North note | E2E | `BearingCaptureFlowTest` | REQ-DECL-02 | Scenario B, FSPEC §2.3 | P1 |
+| PROP-DECL-03 | No network request during WMM declination computation | Integration | `WmmDeclinationAccuracyTest` | REQ-NORTH-03, REQ-NFR-05 | Scenario B, BR-01 | P0 |
 
 ---
 
@@ -168,21 +170,45 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 ---
 
-### PROP-DECL-02: Declination info panel shows four required fields
+### PROP-DECL-02: Declination info panel shows all required fields
 
 **Type:** E2E
 **Test Level:** Espresso
-**Source:** REQ-DECL-02 | FSPEC Scenario B ("Declination info panel shows 'WMM2025 (valid to 2030)'")
+**Source:** REQ-DECL-02 | FSPEC §2.3 (panel contents), Scenario B
 
-**Property:** When the declination info panel is open, it simultaneously shows: (1) declination value formatted as `±X.XX°E` or `±X.XX°W`, (2) model identifier `"WMM2025"`, (3) coordinates masked to 2 decimal places (e.g., `"40.00°N, 105.00°W"`), (4) a last-updated date string.
+**Property:** When the declination info panel is open, it simultaneously shows all of the following fields as specified in FSPEC §2.3:
+1. Declination value formatted as `±X.XX°E` or `±X.XX°W`
+2. Model identifier `"WMM2025"`
+3. Coordinates masked to 2 decimal places (e.g., `"40.00°N, 105.00°W"`)
+4. A last-updated date string
+5. Coordinates type label: `"GPS fix"`, `"Cached location"`, or `"Manual entry"` — identifying the active location source
+6. Cache age display (for cached locations): `"N days ago"` where N = `floor(elapsed_ms / 86_400_000L)`
+7. When Magnetic N is active: a note reading "True North is currently off. This declination would be applied if True North is enabled." (localized)
 
-**Given:** `CompassActivity` with GPS fix; `northType=TRUE`; declination info panel opened
+**Sub-case A — GPS fix active, `northType=TRUE`:**
+**Given:** `CompassActivity` with a fresh GPS fix; `northType=TRUE`; declination info panel opened
 **When:** The panel is displayed
 **Then:**
 - `onView(withId(R.id.decl_value))` shows a string matching regex `[-+]?\d+\.\d{1,2}°[EW]`
 - `onView(withId(R.id.decl_model_id))` shows `"WMM2025"`
 - `onView(withId(R.id.decl_coordinates))` shows coordinates truncated to 2 decimal places
 - `onView(withId(R.id.decl_last_updated))` shows a non-empty date string
+- `onView(withId(R.id.decl_coordinates_type))` shows `"GPS fix"`
+- `onView(withId(R.id.decl_cache_age))` is not visible (GPS fix — no cache age shown)
+- `onView(withId(R.id.decl_inactive_true_north_note))` is not visible (`northType=TRUE`)
+
+**Sub-case B — Cached location, `northType=TRUE`:**
+**Given:** `CompassActivity` with a cached location 4 days old (injected via `FakeClock`); `northType=TRUE`; declination info panel opened
+**When:** The panel is displayed
+**Then:**
+- `onView(withId(R.id.decl_coordinates_type))` shows `"Cached location"`
+- `onView(withId(R.id.decl_cache_age))` shows `"4 days ago"`
+
+**Sub-case C — Magnetic N active:**
+**Given:** `CompassActivity` with GPS fix; `northType=MAGNETIC`; declination info panel opened
+**When:** The panel is displayed
+**Then:**
+- `onView(withId(R.id.decl_inactive_true_north_note))` is visible and its text contains the localized inactive-True-North string (e.g., "True North is currently off")
 
 ---
 
@@ -206,12 +232,12 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 | ID | Description | Level | Test Class | REQ | FSPEC | Priority |
 |----|-------------|-------|------------|-----|-------|----------|
-| PROP-LOCATION-01 | Location priority chain: session GPS → cache (≤30d) → manual → None | Integration | `LocationResolverTest` | REQ-NORTH-03 | Scenarios C, D | P0 |
-| PROP-LOCATION-02 | GPS location request fires on Activity.onStart (not onResume) | Integration | `LocationLifecycleTest` | REQ-NORTH-03 | Scenario C | P0 |
-| PROP-LOCATION-03 | Cached location older than 30 days is treated as expired (boundary) | Unit | `LocationCacheExpiryTest` | REQ-NORTH-03 | Scenario C | P0 |
-| PROP-LOCATION-04 | ACCESS_FINE_LOCATION denied → BearingRecord lat/lon/alt_m = null, no crash | Integration | `LocationPermissionDeniedTest` | REQ-NORTH-03, REQ-CAPTURE-06 | Scenario D | P0 |
+| PROP-LOCATION-01 | Location priority chain: session GPS → cache (≤30d) → manual → None | Integration | `LocationRepositoryTest` | REQ-NORTH-03 | Scenarios C, D | P0 |
+| PROP-LOCATION-02 | GPS location request fires on Activity.onStart (not onResume) | Integration | `LocationRepositoryTest` | REQ-NORTH-03 | Scenario C | P0 |
+| PROP-LOCATION-03 | Cached location older than 30 days is treated as expired (1 ms boundary) | Unit | `LocationRepositoryTest` | REQ-NORTH-03 | Scenario C, AT-G-06, AT-G-07 | P0 |
+| PROP-LOCATION-04 | ACCESS_FINE_LOCATION denied → BearingRecord lat/lon/alt_m = null, no crash | Integration | `PermissionDeniedCaptureTest` | REQ-NORTH-03, REQ-CAPTURE-06 | Scenario D, AT-G-09 | P0 |
 | PROP-LOCATION-05 | shouldShowRationale=true triggers rationale dialog before permission request | E2E | `LocationPermissionRationaleTest` | REQ-NORTH-03 | BR-LOC-04 | P0 |
-| PROP-LOCATION-06 | Cache age label = floor(elapsed_ms / 86_400_000L) via injected Clock | Unit | `LocationCacheAgeLabelTest` | REQ-NORTH-03 | Scenario C | P1 |
+| PROP-LOCATION-06 | Cache age label = floor(elapsed_ms / 86_400_000L) via injected Clock | Unit | `LocationCacheAgeLabelTest` | REQ-NORTH-03 | Scenario C, AT-C | P1 |
 
 ---
 
@@ -251,21 +277,23 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 ---
 
-### PROP-LOCATION-03: Cached location boundary — day 30 valid, 30d+1s expired
+### PROP-LOCATION-03: Cached location boundary — day 30 valid, 30d+1ms expired
 
 **Type:** Unit
 **Test Level:** JVM
-**Source:** REQ-NORTH-03 | FSPEC Scenario C ("cached location ≤30 days")
+**Source:** REQ-NORTH-03 | FSPEC Scenario C ("cached location ≤30 days"), AT-G-06, AT-G-07 | TSPEC §10.1 `LocationRepositoryTest`
 
-**Property:** `LocationCache.isExpired(cachedAtMs, nowMs)` returns `false` when age is exactly 30 days (`30 * 86_400_000L` ms) and `true` when age is 30 days + 1 second (`30 * 86_400_000L + 1_000L` ms).
+**Property:** `LocationRepository.isLocationCacheValid()` returns `true` when cache age is exactly 30 days (`30 * 86_400_000L` ms) and `false` when age is 30 days + 1 millisecond (`30 * 86_400_000L + 1L` ms). The boundary check is strict: `elapsed_ms < 30 * 86_400_000L` (strictly less than), so a 1 ms overshoot triggers expiry.
 
-**Given:** `cachedAtMs = T`; `Clock` returning fixed values
+**Given:** `cachedAtMs = T`; `FakeClock` injected into `LocationRepository`
 **When:**
-- `isExpired(cachedAtMs=T, nowMs=T + 30 * 86_400_000L)`
-- `isExpired(cachedAtMs=T, nowMs=T + 30 * 86_400_000L + 1_000L)`
+- Sub-case A: `FakeClock.set(T + 30 * 86_400_000L)` — exactly 30 days
+- Sub-case B: `FakeClock.set(T + 30 * 86_400_000L + 1L)` — 30 days + 1 ms (canonical 1 ms boundary per TSPEC §10.1)
+- Sub-case C: `FakeClock.set(T + 30 * 86_400_000L + 1_000L)` — 30 days + 1 s (additional confirming case)
 **Then:**
-- First call returns `false` (day 30 is valid)
-- Second call returns `true` (30d+1s is expired)
+- Sub-case A: `isLocationCacheValid()` returns `true` (AT-G-07: exactly 30 days is valid)
+- Sub-case B: `isLocationCacheValid()` returns `false` (AT-G-06: 1 ms past 30 days is expired — reveals off-by-one errors in `<` vs `<=`)
+- Sub-case C: `isLocationCacheValid()` returns `false` (30d+1s is also expired)
 
 ---
 
@@ -317,15 +345,16 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 | ID | Description | Level | Test Class | REQ | FSPEC | Priority |
 |----|-------------|-------|------------|-----|-------|----------|
-| PROP-CAPTURE-01 | BearingRecord.captured_at = tap timestamp, not save timestamp | Unit | `BearingCaptureTimestampTest` | REQ-CAPTURE-01 | Scenario E | P0 |
-| PROP-CAPTURE-02 | interference_flag = true iff InterferenceState ∈ {MODERATE, WARNING} at capture | Unit | `BearingInterferenceFlagTest` | REQ-CAPTURE-01 | Scenario E | P0 |
-| PROP-CAPTURE-03 | calibration_version = MagneticFieldModel.getModelId() at capture | Unit | `BearingCalibrationVersionTest` | REQ-CAPTURE-01 | Scenario E | P0 |
-| PROP-CAPTURE-04 | north_type is TRUE or MAGNETIC only; GRID never written | Unit | `BearingNorthTypeTest` | REQ-CAPTURE-01 | Scenario E | P0 |
-| PROP-CAPTURE-05 | BearingRecord.bearing_deg is Float type | Unit | `BearingSchemaTest` | REQ-CAPTURE-01 | Scenario E | P0 |
-| PROP-CAPTURE-06 | Empty notes string coerced to null before persistence | Unit | `BearingNotesCoercionTest` | REQ-CAPTURE-01 | Scenario E | P1 |
+| PROP-CAPTURE-01 | BearingRecord.captured_at = tap timestamp, not save timestamp | Unit | `BearingCaptureUseCaseTest` | REQ-CAPTURE-01 | Scenario E | P0 |
+| PROP-CAPTURE-02 | interference_flag = true iff InterferenceState ∈ {MODERATE, WARNING} at capture | Unit | `BearingCaptureUseCaseTest` | REQ-CAPTURE-01 | Scenario E, AT-E-10 | P0 |
+| PROP-CAPTURE-03 | calibration_version = MagneticFieldModel.getModelId() at capture | Unit | `BearingCaptureUseCaseTest` | REQ-CAPTURE-01 | Scenario E | P0 |
+| PROP-CAPTURE-04 | north_type is TRUE or MAGNETIC only; GRID never written | Unit | `BearingCaptureUseCaseTest` | REQ-CAPTURE-01 | Scenario E | P0 |
+| PROP-CAPTURE-05 | BearingRecord.bearing_deg is Float type | Unit | `BearingCaptureUseCaseTest` | REQ-CAPTURE-01 | Scenario E | P0 |
+| PROP-CAPTURE-06 | Empty notes string coerced to null before persistence | Unit | `BearingCaptureUseCaseTest` | REQ-CAPTURE-01 | Scenario E | P1 |
 | PROP-CAPTURE-07 | Capture flow ≤3 taps for subsequent captures (first = +1 for privacy dialog) | E2E | `BearingCaptureFlowTest` | REQ-CAPTURE-02 | Scenario E | P0 |
-| PROP-CAPTURE-08 | Rapid double-tap produces exactly one BearingRecord | Integration | `BearingDoubleTapTest` | REQ-CAPTURE-02 | BR-CAP-08 | P0 |
-| PROP-CAPTURE-09 | Capture button disabled after tap until save completes or fails | E2E | `BearingCaptureButtonStateTest` | REQ-CAPTURE-02 | BR-CAP-08 | P0 |
+| PROP-CAPTURE-08 | Rapid double-tap produces exactly one BearingRecord | Integration | `CompassViewModelTest` | REQ-CAPTURE-02 | BR-CAP-08 | P0 |
+| PROP-CAPTURE-09 | Capture button disabled after tap until save completes or fails | E2E | `BearingCaptureFlowTest`, `CompassViewModelTest` | REQ-CAPTURE-02 | BR-CAP-08 | P0 |
+| PROP-CAPTURE-10 | GPS-include toggle defaults to ON on first capture dialog open | E2E | `BearingCaptureFlowTest` | REQ-CAPTURE-06 | FSPEC §2.5 step 4 | P1 |
 
 ---
 
@@ -467,16 +496,30 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 ---
 
+### PROP-CAPTURE-10: GPS-include toggle defaults to ON on first capture dialog open
+
+**Type:** E2E
+**Test Level:** Espresso
+**Source:** REQ-CAPTURE-06 | FSPEC §2.5 step 4 ("GPS toggle (on/off, default ON)")
+
+**Property:** On the very first time the capture dialog opens in a given app session, the "Include GPS location" toggle (`R.id.capture_gps_toggle`) is in the checked (ON / `true`) state. A bug that defaults the toggle to OFF would go undetected without this property.
+
+**Given:** `CompassActivity`; `ACCESS_FINE_LOCATION` permission granted; `bearing_location_consent_shown` is absent or `false` (first capture ever); capture button tapped
+**When:** The capture dialog (`BearingCaptureDialogFragment`) becomes visible
+**Then:** `onView(withId(R.id.capture_gps_toggle)).check(matches(isChecked()))` — the GPS toggle is checked (ON)
+
+---
+
 ## Domain: PROP-PERSIST — Persistence
 
 ### Summary table
 
 | ID | Description | Level | Test Class | REQ | FSPEC | Priority |
 |----|-------------|-------|------------|-----|-------|----------|
-| PROP-PERSIST-01 | bearing_records.db SQLite magic bytes absent (encrypted) | Integration | `BearingDbEncryptionTest` | REQ-CAPTURE-04 | Scenario E | P0 |
-| PROP-PERSIST-02 | BearingRecord write is atomic — force-stop yields unchanged or +1 count | Integration | `BearingAtomicWriteTest` | REQ-CAPTURE-04 | Scenario E | P0 |
-| PROP-PERSIST-03 | Migration(1,2) adds bearing_records without touching calibration_records | Integration | `DatabaseMigrationTest` | REQ-CAPTURE-04 | — | P0 |
-| PROP-PERSIST-04 | bearing_location_consent_shown set after first dialog acceptance; dialog never shown again | E2E | `LocationPrivacyConsentTest` | REQ-CAPTURE-06 | Scenario E | P0 |
+| PROP-PERSIST-01 | bearing_records.db SQLite magic bytes absent (encrypted) | Integration | `BearingEncryptionTest` | REQ-CAPTURE-04 | AT-PERSIST-01 | P0 |
+| PROP-PERSIST-02 | BearingRecord write is atomic — force-stop yields unchanged or +1 count | Integration | `BearingForceStopTest` | REQ-CAPTURE-04 | AT-PERSIST-02 | P0 |
+| PROP-PERSIST-03 | Migration(1,2) adds bearing_records without touching calibration_records | Integration | `LuopanDatabaseMigrationTest` | REQ-CAPTURE-04 | — | P0 |
+| PROP-PERSIST-04 | bearing_location_consent_shown set after first dialog acceptance; dialog never shown again | E2E | `BearingCaptureFlowTest` | REQ-CAPTURE-06 | Scenario E | P0 |
 
 ---
 
@@ -498,13 +541,15 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 **Type:** Integration
 **Test Level:** Instrumented
-**Source:** REQ-CAPTURE-04 | FSPEC Scenario E (survives force-stop)
+**Source:** REQ-CAPTURE-04 | FSPEC AT-PERSIST-02 (force-stop resilience) | TSPEC §10.2 `BearingForceStopTest`
 
 **Property:** If the app process is killed during a `BearingRepository.save()` transaction, on relaunch the database contains either the same number of records as before the save, or one more. It never contains a partial record with null required fields (`bearing_deg`, `captured_at`, `calibration_version`, `north_type`, `confidence`).
 
-**Given:** `BearingRepository` with N records; `Process.killProcess()` injected to fire during the Room `@Transaction` write
-**When:** App is relaunched after the kill
+**Given:** `BearingRepository` with N records; a save is initiated
+**When:** `ProcessPhoenix.triggerRebirth(context)` is invoked via the `BearingForceStopTest` infrastructure (per TSPEC §10.2) to kill and restart the process during the Room `@Transaction` write; app relaunches
 **Then:** `allRecords.size ∈ {N, N+1}`; `allRecords.all { it.bearing_deg.isFinite() && it.captured_at > 0 && it.calibration_version.isNotEmpty() }` is `true`
+
+*(Note: The process is killed using `ProcessPhoenix.triggerRebirth(context)` — already available in the androidTest dependency set — or `adb shell am force-stop` from the test harness. `Process.killProcess()` injected mid-transaction from within the test process is NOT used, as it is unreliable without root on CI emulators. `ProcessPhoenix` provides a deterministic, rootless kill-and-restart mechanism that matches the TSPEC §10.2 `BearingForceStopTest` specification.)*
 
 ---
 
@@ -548,9 +593,9 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 | ID | Description | Level | Test Class | REQ | FSPEC | Priority |
 |----|-------------|-------|------------|-----|-------|----------|
-| PROP-INTERFERENCE-01 | InterferenceDetector uses MagneticFieldModel for expectedField_uT when location available | Unit | `InterferenceWmmBaselineTest` | REQ-NORTH-01, REQ-DETECT-01 | Scenario F | P0 |
-| PROP-INTERFERENCE-02 | InterferenceDetector uses MagneticFieldModel for expectedInclination_deg when location available | Unit | `InterferenceWmmBaselineTest` | REQ-NORTH-01, REQ-DETECT-02 | Scenario F | P0 |
-| PROP-INTERFERENCE-03 | No location → falls back to Phase 1 EMA baseline (no regression) | Unit | `InterferenceFallbackTest` | REQ-NORTH-02, REQ-DETECT-01 | Scenario F | P0 |
+| PROP-INTERFERENCE-01 | InterferenceDetector uses MagneticFieldModel for expectedField_uT when location available | Unit | `InterferenceBaselineUpgradeTest` | REQ-NORTH-01, REQ-DETECT-01 | Scenario F, AT-F | P0 |
+| PROP-INTERFERENCE-02 | InterferenceDetector uses MagneticFieldModel for expectedInclination_deg when location available | Unit | `InterferenceBaselineUpgradeTest` | REQ-NORTH-01, REQ-DETECT-02 | Scenario F, AT-F | P0 |
+| PROP-INTERFERENCE-03 | No location → falls back to Phase 1 EMA baseline (no regression) | Unit | `InterferenceBaselineUpgradeTest` | REQ-NORTH-02, REQ-DETECT-01 | Scenario F, AT-F-04 | P0 |
 
 ---
 
@@ -558,13 +603,13 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 **Type:** Unit
 **Test Level:** JVM
-**Source:** REQ-NORTH-01 (upgrade to WMM2025 expected values), REQ-DETECT-01 | FSPEC Scenario F
+**Source:** REQ-NORTH-01 (upgrade to WMM2025 expected values), REQ-DETECT-01 | FSPEC Scenario F | TSPEC §2.1 `MagneticFieldModel`
 
-**Property:** When `MagneticFieldModel` is available (location present), `InterferenceDetector.updateExpectedField()` calls `MagneticFieldModel.getFieldStrength_uT(lat, lon, altM, epoch)` to set `expectedMagnitude_uT`. It does NOT use `GeomagneticField` or the rolling EMA baseline for this value.
+**Property:** When `MagneticFieldModel` is available (location present), `CompassViewModel` calls `MagneticFieldModel.getExpectedFieldMagnitude(latDeg, lonDeg, altM, epochYears)` to populate `InterferenceMetrics.expectedField_uT`. The `InterferenceDetector` receives the WMM-sourced value via `InterferenceMetrics` — it does NOT use `GeomagneticField` or the rolling EMA baseline for this value when a location is available.
 
-**Given:** `MagneticFieldModel` spy returning `55.0f` µT for a fixed location; `GeomagneticField` stub (should NOT be called)
-**When:** `InterferenceDetector.updateExpectedField()` is called with the location available
-**Then:** `interferenceDector.expectedMagnitude_uT == 55.0f`; `MagneticFieldModel.getFieldStrength_uT` invocation count = 1; `GeomagneticField` invocation count = 0
+**Given:** `FakeMagneticFieldModel` configured to return `55.0f` µT for all inputs; `FakeGeomagneticField` stub (should NOT be called); `LocationRepository` returning a fixed location
+**When:** The sensor pipeline processes a frame with WMM available (the `CompassViewModel` sensor coroutine calls `MagneticFieldModelProvider.evaluate()` and then constructs `InterferenceMetrics`)
+**Then:** `InterferenceMetrics.expectedField_uT == 55.0f`; `FakeMagneticFieldModel.getExpectedFieldMagnitude(latDeg, lonDeg, altM, epochYears)` invocation count ≥ 1; `GeomagneticField` invocation count = 0
 
 ---
 
@@ -572,13 +617,13 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 **Type:** Unit
 **Test Level:** JVM
-**Source:** REQ-NORTH-01 (upgrade), REQ-DETECT-02 | FSPEC Scenario F
+**Source:** REQ-NORTH-01 (upgrade), REQ-DETECT-02 | FSPEC Scenario F | TSPEC §2.1 `MagneticFieldModel`
 
-**Property:** When `MagneticFieldModel` is available, `InterferenceDetector.updateExpectedField()` calls `MagneticFieldModel.getInclination_deg(lat, lon, altM, epoch)` to set `expectedInclination_deg`.
+**Property:** When `MagneticFieldModel` is available (location present), `CompassViewModel` calls `MagneticFieldModel.getExpectedInclination(latDeg, lonDeg, altM, epochYears)` to populate `InterferenceMetrics.expectedInclination_deg`. The correct TSPEC §2.1 canonical method name is `getExpectedInclination`, not `getInclination_deg`.
 
-**Given:** `MagneticFieldModel` spy returning `64.5f` degrees inclination for a fixed location
-**When:** `InterferenceDetector.updateExpectedField()` is called with location available
-**Then:** `interferenceDetector.expectedInclination_deg == 64.5f`; `MagneticFieldModel.getInclination_deg` invocation count = 1
+**Given:** `FakeMagneticFieldModel` configured to return `64.5f` degrees inclination for all inputs; `LocationRepository` returning a fixed location
+**When:** The sensor pipeline processes a frame with WMM available (the `CompassViewModel` sensor coroutine constructs `InterferenceMetrics`)
+**Then:** `InterferenceMetrics.expectedInclination_deg == 64.5f`; `FakeMagneticFieldModel.getExpectedInclination(latDeg, lonDeg, altM, epochYears)` invocation count ≥ 1
 
 ---
 
@@ -586,13 +631,19 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 **Type:** Unit
 **Test Level:** JVM
-**Source:** REQ-NORTH-02, REQ-DETECT-01 | FSPEC Scenario F (regression guard)
+**Source:** REQ-NORTH-02, REQ-DETECT-01 | FSPEC Scenario F, AT-F-04 (regression guard) | TSPEC §3.8
 
-**Property:** When `MagneticFieldModel.isAvailable() == false` (no location), `InterferenceDetector` falls back to the Phase 1 rolling EMA baseline for `expectedMagnitude_uT` and `expectedInclination_deg`. The fallback values are the same values as Phase 1 (50.0 µT global average, 45.0° inclination fallback). Existing Phase 1 interference detection behavior is preserved.
+**Property:** When no location is available and `MagneticFieldModelProvider.getLastResult()` returns `null`, `CompassViewModel` falls back to the Phase 1 rolling sensor EMA (`baselineFieldUt`) to populate `InterferenceMetrics.expectedField_uT`. The `MagneticFieldModel.getExpectedFieldMagnitude()` method is NOT called in the no-location path. No exception is thrown. Existing Phase 1 interference detection behavior is preserved.
 
-**Given:** `MagneticFieldModel` returning `isAvailable() = false`; `LocationProvider` returning `null`; sensor measurements at 52 µT / 47° inclination
-**When:** `InterferenceDetector.updateExpectedField()` is called
-**Then:** `expectedMagnitude_uT == 50.0f` (global fallback); `expectedInclination_deg == 45.0f` (mid-latitude fallback); no exception is thrown
+The specific numeric fallback values (EMA seed or inclination default) are implementation-defined per Phase 1 behavior (TSPEC §3.8) and are NOT asserted as hardcoded constants in this property — doing so would cause test failures against a valid implementation that uses a different but spec-compliant EMA seed.
+
+**Given:** `FakeMagneticFieldModel` configured with `getLastResult() == null` (WMM not yet evaluated — no location resolved); `LocationRepository` emitting `LocationState.Unavailable`; sensor measurements active
+**When:** The `CompassViewModel` sensor coroutine constructs `InterferenceMetrics`
+**Then:**
+- `FakeMagneticFieldModel.getExpectedFieldMagnitude(...)` is NOT called (invocation count = 0)
+- `InterferenceMetrics.expectedField_uT` is set to a positive finite value sourced from the Phase 1 EMA (not from WMM)
+- No exception is thrown
+- `InterferenceDetector.updateState(metrics, nowNs)` processes normally with the EMA-sourced baseline
 
 ---
 
@@ -602,8 +653,8 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 
 | ID | Description | Level | Test Class | REQ | FSPEC | Priority |
 |----|-------------|-------|------------|-----|-------|----------|
-| PROP-LATITUDE-01 | WMM inclination ≥80° triggers advisory banner | Integration | `ExtremeLatitudeAdvisoryTest` | REQ §7 §11.4 | §11.4 advisory | P0 |
-| PROP-LATITUDE-02 | OverallConfidence capped at MODERATE when inclination ≥80° | Unit | `ExtremeLatitudeConfidenceTest` | REQ §7 §11.4 | §11.4 cap | P0 |
+| PROP-LATITUDE-01 | WMM inclination ≥80° triggers advisory banner | Integration | `CompassViewModelTest` | REQ §7 §11.4 | AT-G-01 through AT-G-04 | P0 |
+| PROP-LATITUDE-02 | OverallConfidence capped at MODERATE when inclination ≥80° | Unit | `CompassViewModelTest` | REQ §7 §11.4 | AT-G-01, AT-G-02 | P0 |
 
 ---
 
@@ -613,7 +664,7 @@ This document specifies testable properties (invariants) for Phase 2 of the Luop
 **Test Level:** Instrumented
 **Source:** REQ §7 §11.4 | FSPEC §11.4 ("WMM-predicted inclination ≥80° triggers advisory banner")
 
-**Property:** When `MagneticFieldModel.getInclination_deg()` returns ≥ 80.0°, `CompassViewModel` emits a UI state with `extremeLatitudeAdvisory = true`, and the advisory banner is displayed in `CompassActivity`.
+**Property:** When `MagneticFieldModel.getExpectedInclination(latDeg, lonDeg, altM, epochYears)` returns ≥ 80.0°, `CompassViewModel` emits a UI state with `extremeLatitudeAdvisory = true`, and the advisory banner is displayed in `CompassActivity`.
 
 **Given:** `CompassViewModel` configured with a `MagneticFieldModel` stub returning `inclination_deg = 80.0f`
 **When:** `CompassViewModel.onLocationUpdated(location)` is called and the UI state is observed
@@ -646,8 +697,8 @@ Also:
 
 | ID | Description | Level | Test Class | REQ | FSPEC | Priority |
 |----|-------------|-------|------------|-----|-------|----------|
-| PROP-PERF-01 | Cold start ≤5s (Application.onCreate to first non-STABILIZING heading) | Macrobenchmark | `ColdStartBenchmark` | REQ-NFR-08 | §2 "Cold-start performance" | P1 |
-| PROP-PERF-02 | Warm start ≤3s, same method | Macrobenchmark | `WarmStartBenchmark` | REQ-NFR-08 | §2 "Cold-start performance" | P1 |
+| PROP-PERF-01 | Cold start ≤5s (Application.onCreate to first non-STABILIZING heading) | Macrobenchmark | `CompassColdStartBenchmark` | REQ-NFR-08 | AT-NFR-01 | P1 |
+| PROP-PERF-02 | Warm start ≤3s, same method | Macrobenchmark | `CompassWarmStartBenchmark` | REQ-NFR-08 | AT-NFR-01 | P1 |
 
 ---
 
@@ -685,7 +736,7 @@ Also:
 
 | ID | Description | Level | Test Class | REQ | FSPEC | Priority |
 |----|-------------|-------|------------|-----|-------|----------|
-| PROP-SCHEMA-01 | BearingRecord has exactly 15 fields with correct types | Unit | `BearingSchemaTest` | REQ-CAPTURE-01 | FSPEC §6.1 | P0 |
+| PROP-SCHEMA-01 | BearingRecord has exactly 15 fields with correct types | Unit | `BearingCaptureUseCaseTest` | REQ-CAPTURE-01 | FSPEC §6.1 | P0 |
 
 ---
 
@@ -699,12 +750,12 @@ Also:
 
 | Field | Required Type |
 |-------|--------------|
-| `id` | `Long` (autogenerated primary key) |
+| `id` | `String` (UUID v4, TEXT primary key — NOT auto-increment Long) |
 | `name` | `String` |
 | `bearing_deg` | `Float` |
 | `lat` | `Double?` |
 | `lon` | `Double?` |
-| `altitude_m` | `Double?` |
+| `alt_m` | `Double?` |
 | `captured_at` | `Long` |
 | `notes` | `String?` |
 | `display_mode` | `String?` |
@@ -715,14 +766,17 @@ Also:
 | `field_deviation_pct` | `Float` |
 | `inclination_deviation_deg` | `Float` |
 
+*(Note: `id` is `String` (UUID v4), not `Long` auto-increment — per FSPEC §6.1 normative note: "Not an auto-increment integer, to support future sync/export without collision." The Kotlin property name for the altitude field is `alt_m` — the canonical SQLite column name per FSPEC §6.1 — not `altitude_m`.)*
+
 **Given:** Kotlin reflection on `BearingRecord::class`
 **When:** All `memberProperties` are collected and their return types are inspected
 **Then:**
 - `memberProperties.size == 15`
+- `id.returnType.classifier == String::class` (UUID v4 string, NOT Long)
 - `bearing_deg.returnType.classifier == Float::class`
 - `lat.returnType.isMarkedNullable == true && lat.returnType.classifier == Double::class`
 - `lon.returnType.isMarkedNullable == true && lon.returnType.classifier == Double::class`
-- `altitude_m.returnType.isMarkedNullable == true && altitude_m.returnType.classifier == Double::class`
+- `alt_m.returnType.isMarkedNullable == true && alt_m.returnType.classifier == Double::class`
 - `captured_at.returnType.classifier == Long::class`
 - `notes.returnType.isMarkedNullable == true && notes.returnType.classifier == String::class`
 - `interference_flag.returnType.classifier == Boolean::class`
@@ -740,13 +794,13 @@ Also:
 | PROP-NORTH | 6 |
 | PROP-DECL | 3 |
 | PROP-LOCATION | 6 |
-| PROP-CAPTURE | 9 |
+| PROP-CAPTURE | 10 |
 | PROP-PERSIST | 4 |
 | PROP-INTERFERENCE | 3 |
 | PROP-LATITUDE | 2 |
 | PROP-PERF | 2 |
 | PROP-SCHEMA | 1 |
-| **Total** | **36** |
+| **Total** | **37** |
 
 ### Properties by test level
 
@@ -754,17 +808,17 @@ Also:
 |-------|-------|
 | Unit (JVM) | 21 |
 | Integration (Instrumented/JVM) | 9 |
-| E2E (Espresso) | 4 |
+| E2E (Espresso) | 5 |
 | E2E (Macrobenchmark) | 2 |
-| **Total** | **36** |
+| **Total** | **37** |
 
 ### Properties by priority
 
 | Priority | Count |
 |----------|-------|
 | P0 | 30 |
-| P1 | 6 |
-| **Total** | **36** |
+| P1 | 7 |
+| **Total** | **37** |
 
 ---
 
@@ -783,7 +837,7 @@ REQ ID → PROP IDs that verify it:
 | REQ-CAPTURE-01 | PROP-CAPTURE-01, PROP-CAPTURE-02, PROP-CAPTURE-03, PROP-CAPTURE-04, PROP-CAPTURE-05, PROP-CAPTURE-06, PROP-SCHEMA-01 |
 | REQ-CAPTURE-02 | PROP-CAPTURE-07, PROP-CAPTURE-08, PROP-CAPTURE-09 |
 | REQ-CAPTURE-04 | PROP-PERSIST-01, PROP-PERSIST-02, PROP-PERSIST-03 |
-| REQ-CAPTURE-06 | PROP-LOCATION-04, PROP-PERSIST-04 |
+| REQ-CAPTURE-06 | PROP-LOCATION-04, PROP-PERSIST-04, PROP-CAPTURE-10 |
 | REQ-DETECT-01 | PROP-INTERFERENCE-01, PROP-INTERFERENCE-03 |
 | REQ-DETECT-02 | PROP-INTERFERENCE-02 |
 | REQ-NFR-05 | PROP-DECL-03 |
