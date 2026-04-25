@@ -3,9 +3,9 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.2-draft |
+| **Version** | 0.3-draft |
 | **Date** | 2026-04-24 |
-| **Revised** | 2026-04-24 — v0.2-draft: addressed SE/TE cross-review findings (F-01–F-06, F-10, TE-REQ-01–TE-REQ-10) |
+| **Revised** | 2026-04-24 — v0.2-draft: addressed SE/TE cross-review findings (F-01–F-06, F-10, TE-REQ-01–TE-REQ-10); 2026-04-24 — v0.3-draft: addressed iteration 2 cross-review findings N-01 (`calibration_version` type and semantics) and N-02 (`lat`/`lon` precision) |
 | **Status** | Draft |
 | **Phase** | 2 of 5 |
 | **Parent REQ** | [REQ-luopan-compass v0.2-draft](REQ-luopan-compass.md) |
@@ -108,12 +108,12 @@ Concrete implementations: `Wmm2025Model` (Phase 2 default) and `GeomagneticField
 | `north_type` | Enum: TRUE, MAGNETIC, GRID | Yes | North reference active at capture time. |
 | `confidence` | Enum: HIGH, MODERATE, POOR | Yes | `OverallConfidence` at moment of capture. |
 | `captured_at` | ISO 8601 UTC timestamp | Yes | Wall-clock time of capture. |
-| `calibration_version` | Integer | Yes | Resolves to `CalibrationRecord.calibration_schema_version` (currently `1`) for the active calibration record at capture time. This integer monotonically increases when the `CalibrationRecord` Room entity schema changes (i.e., a new DB migration bumps this value). It is NOT a calibration run counter. |
+| `calibration_version` | String | Yes | WMM model identifier at capture time — provided by `MagneticFieldModel.getModelId()`. Examples: `"WMM2025"`, `"AndroidGeoField"`. This field records which magnetic field model was active during the capture session. It is NOT the calibration record schema version (`CalibrationRecord.calibration_schema_version` is a separate integer field in the `calibration_records` table and MUST NOT be conflated with this field). |
 | `field_deviation_pct` | Float | Yes | Fraction (×100 to get %) of magnetic field magnitude deviation from WMM2025 expected value at capture time — sourced from `InterferenceMetrics.fieldDeviation`. Value of `0.0` means no deviation. |
 | `inclination_deviation_deg` | Float | Yes | Absolute deviation in degrees of measured inclination from WMM2025 expected inclination at capture time — sourced from `InterferenceMetrics.inclinationDeviation`. Value of `0.0` means no deviation. |
 | `interference_flag` | Boolean | Yes | `true` if `InterferenceState` was `MODERATE` or `WARNING` at capture time. **Note:** a `POOR` `OverallConfidence` does NOT automatically set this flag — a bearing can be POOR confidence (e.g., due to low calibration quality) without magnetic interference being detected. |
-| `latitude` | Float | Conditional | Only stored if GPS consent given and a location fix is available. |
-| `longitude` | Float | Conditional | Only stored if GPS consent given and a location fix is available. |
+| `latitude` | Double? | Conditional | Only stored if GPS consent given and a location fix is available. IEEE 754 double precision required for WMM computation accuracy (≈11 cm precision at 6 decimal places vs ≈11 m for Float). |
+| `longitude` | Double? | Conditional | Only stored if GPS consent given and a location fix is available. IEEE 754 double precision required for WMM computation accuracy (≈11 cm precision at 6 decimal places vs ≈11 m for Float). |
 | `altitude_m` | Float | Conditional | Only stored if GPS consent given and a location fix is available. |
 | `notes` | String (max 1000 chars) | No | Optional free-text notes. |
 | `display_mode` | Enum: MODERN, LUOPAN, SIGHTING | Yes | Active display mode at capture time. |

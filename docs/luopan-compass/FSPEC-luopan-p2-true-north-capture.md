@@ -4,10 +4,10 @@
 | Field | Value |
 |-------|-------|
 | **Document ID** | FSPEC-luopan-p2-true-north-capture |
-| **Version** | 0.2-draft |
+| **Version** | 0.3-draft |
 | **Status** | Draft |
 | **Date** | 2026-04-24 |
-| **Revised** | 2026-04-24 (v0.2-draft — addressed SE/TE cross-review findings: SE-F-01 `calibration_version` type; SE-F-02 permission rationale flow; SE-F-03 Phase 1 baseline correction; SE-F-04 BearingRecord type conflicts; SE-F-05 `WallClock` rename; SE-F-06 `MagneticFieldModel` interface; SE-F-07 `requestLocationUpdates` params; SE-F-11 AT-NFR-01 cold-start; TE concurrent-save debounce; TE first-capture persistence; TE force-stop resilience) |
+| **Revised** | 2026-04-24 (v0.2-draft — addressed SE/TE cross-review findings: SE-F-01 `calibration_version` type; SE-F-02 permission rationale flow; SE-F-03 Phase 1 baseline correction; SE-F-04 BearingRecord type conflicts; SE-F-05 `WallClock` rename; SE-F-06 `MagneticFieldModel` interface; SE-F-07 `requestLocationUpdates` params; SE-F-11 AT-NFR-01 cold-start; TE concurrent-save debounce; TE first-capture persistence; TE force-stop resilience); 2026-04-24 (v0.3-draft — addressed iteration 2 cross-review findings: SE N-02 REQ cross-ref note for `calibration_version`; SE N-03 `TimeSource`/`Clock` guidance; SE N-05 `onResume` lifecycle trigger for WMM expiry check; SE N-06 AT-A-01 measurement mechanism; SE N-07 AT-C-02 `FakeClock` exact assertion; SE N-09 `interference_flag` derivation via `InterferenceState`; TE N-01 AT-G-07 GPS permission denial; TE N-03 AT-PERSIST-01 encryption check; TE N-04 AT-PERSIST-02 force-stop resilience) |
 | **Phase** | 2 of 5 |
 | **Parent REQ** | [REQ-luopan-p2-true-north-capture.md](REQ-luopan-p2-true-north-capture.md) |
 | **Master REQ** | [REQ-luopan-compass.md](REQ-luopan-compass.md) |
@@ -34,6 +34,9 @@
 5. [UI State Transitions](#5-ui-state-transitions)
 6. [Data Contracts](#6-data-contracts)
 7. [Acceptance Tests](#7-acceptance-tests)
+   - AT-A through AT-G (Functional scenarios)
+   - AT-PERSIST (Persistence integrity: encryption check, force-stop resilience)
+   - AT-NFR-01 (Cold-start performance)
 
 ---
 
@@ -106,6 +109,12 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 **WMM2025 validity check:**
 
 7. The WMM2025 model is valid for dates 2025.0–2030.0 (approximately January 1, 2025 through January 1, 2030). The system checks the current UTC date against this range on each computation.
+
+   **Expiry check triggers (exactly two):** `MagneticFieldModel.isExpired()` is checked:
+   - On `Application.onCreate()` — once at app startup, regardless of the current north type.
+   - On each `Activity.onResume()` when `northType == TRUE_NORTH`. This check is **debounced to at most once per 60 seconds** to avoid repeated dialogs or advisory flickers on screen rotation or dialog-induced lifecycle transitions.
+
+   No other triggers fire the expiry check. In particular, the expiry check does NOT run on every sensor frame or on every location update.
 
 8a. **If the current date is within the valid range:** WMM2025 is used. No warning is displayed.
 
@@ -372,12 +381,13 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 
    3a. The system takes a snapshot of the current heading, confidence, interference state, and all other record fields at the exact moment of the tap. This snapshot is the "capture preview." The heading displayed in the capture dialog is the snapshot value — it does not continue updating.
 
-   3b. **If current confidence is Poor OR interference_flag is true (field deviation ≥15% or inclination deviation ≥3°):** A warning dialog appears before the name entry dialog:
+   3b. **If `InterferenceState` is `MODERATE` or `WARNING` at the instant of the tap, OR `OverallConfidence` is `POOR`:** A warning dialog appears before the name entry dialog:
    - Warning text: "Interference detected or confidence is Poor. Bearing will be saved with a warning flag. Proceed?" (localized)
    - Primary action: **"Save with warning"** (amber button)
    - Secondary action: **"Cancel"** (grey button)
    - If the user taps "Cancel": the capture flow is abandoned. No record is created.
-   - If the user taps "Save with warning": the flow continues to Step 2. The `interference_flag` is set to `true` in the record.
+   - If the user taps "Save with warning": the flow continues to Step 2.
+   - **Important:** `interference_flag` in the saved record is set from interference metrics only (see §6.1 and BR-10 below), NOT from `OverallConfidence`. A Poor-confidence capture where `InterferenceState` is `CLEAR` (field deviation <15% AND inclination deviation <3°) will have `interference_flag=false` in the record even though the pre-capture warning dialog appeared.
 
    3c. **If confidence is High or Moderate AND no interference:** No pre-save warning. Flow proceeds directly to Step 2.
 
@@ -417,7 +427,7 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 - The bearing snapshot is taken at the instant of the capture button tap, not at the instant of the "Save" button tap. The user sees the exact heading that was active when they initiated capture.
 - The GPS toggle defaults to ON on first capture. Its state is preserved across captures within the same session (if the user turns it off, it stays off for subsequent captures in the same session). It resets to ON on each new app session.
 - The first-capture GPS privacy notice (REQ-CAPTURE-06) is shown exactly once per install — on the first time the capture dialog opens with the GPS toggle visible. A SharedPreferences flag tracks whether the notice has been shown.
-- `interference_flag` is set to `true` if the field deviation percentage at capture time is ≥15% OR the inclination deviation at capture time is ≥3°. This is the Moderate interference threshold, not the Warning threshold. The flag captures any meaningful interference, not just the red-warning level.
+- `interference_flag` is set to `true` if `InterferenceState` is `MODERATE` or `WARNING` at the instant of the capture button tap. It is NOT set based on raw deviation thresholds directly, and `OverallConfidence.POOR` does NOT set this flag unless interference is also detected. See BR-10 and §6.1 for the normative definition.
 - The sequential bearing number in the default name is derived from the total count of records in the `bearing_records` table plus one. If the table has 5 records, the next default name is "Bearing 6." This counter never resets (it is not a "within-session" counter).
 - **BR-CAP-08 (concurrent save / double-tap debounce):** The capture button MUST be disabled immediately after the first tap and re-enabled only after the save completes (success or failure). Rapid successive taps on the capture button MUST produce exactly one BearingRecord. The button disable-and-re-enable is handled in the ViewModel before and after the database write.
 - **First-capture consent persistence:** First-capture detection uses a `SharedPreferences` boolean key `bearing_location_consent_shown`. The key is set to `true` after the first capture dialog is confirmed. Once set to `true`, the privacy notice is never shown again. The INSERT to the database is the critical write; the `SharedPreferences` write is best-effort. If `bearing_location_consent_shown` is lost (e.g., SharedPreferences cleared after a force-stop occurring between the DB insert and the prefs write), the privacy notice will appear once more on the next capture — this is acceptable per REQ-CAPTURE-06. Room and SharedPreferences are separate systems; true atomicity between them is not possible. The INSERT is the priority write.
@@ -516,7 +526,7 @@ The following discrete, testable rules are extracted from the functional flows a
 | Rule ID | Rule | Source |
 |---------|------|--------|
 | BR-01 | True North computation is fully offline. No network call is ever made to compute declination. | FSPEC-TNORTH |
-| BR-02 | `calibration_version` in BearingRecord is the WMM model identifier string returned by `MagneticFieldModel.getModelId()` (e.g., `"WMM2025"` or `"AndroidGeoField"`). This field records the magnetic field model used — NOT the CalibrationRecord schema version integer. These are distinct concepts stored in different tables. | FSPEC-CAPTURE, §6.1 |
+| BR-02 | `calibration_version` in BearingRecord is the WMM model identifier string returned by `MagneticFieldModel.getModelId()` (e.g., `"WMM2025"` or `"AndroidGeoField"`). This field records the magnetic field model used — NOT the CalibrationRecord schema version integer. These are distinct concepts stored in different tables. **Cross-reference:** REQ §5.3.1 has been updated (v0.3-draft) to reflect `String` type and WMM model-name semantics for this field, resolving the prior REQ/FSPEC contradiction. | FSPEC-CAPTURE, §6.1, REQ §5.3.1 |
 | BR-03 | The north type toggle offers exactly two choices: TRUE and MAGNETIC. GRID is never shown in any form (no greyed-out option, no "coming soon" label). | FSPEC-TOGGLE |
 | BR-04 | A BearingRecord's `north_type` field must be either `TRUE` or `MAGNETIC`. Writing `GRID` is a programming error and must be asserted against in the capture logic. | FSPEC-CAPTURE |
 | BR-05 | A cached location older than 30 days is treated as absent. It does not enable True North mode automatically. | FSPEC-GPS |
@@ -524,7 +534,7 @@ The following discrete, testable rules are extracted from the functional flows a
 | BR-07 | Altitude is included in the location cache for WMM computation. If altitude is unavailable, 0 m is used. | FSPEC-GPS |
 | BR-08 | The heading change when switching north types must occur within 200 ms of the tap. | FSPEC-TOGGLE |
 | BR-09 | The bearing snapshot is taken at the instant of the capture button tap, not at the "Save" tap. | FSPEC-CAPTURE |
-| BR-10 | `interference_flag` in BearingRecord is set to `true` if field deviation ≥15% OR inclination deviation ≥3° at capture time. This is the Moderate threshold, not the Warning threshold. | FSPEC-CAPTURE |
+| BR-10 | `interference_flag` in BearingRecord is `true` when `InterferenceState` is `MODERATE` or `WARNING` at the instant of the capture button tap. It is NOT derived from raw magnitude or inclination thresholds directly, and `OverallConfidence.POOR` does NOT set `interference_flag=true` unless interference is also detected (i.e., `InterferenceState` is `MODERATE` or `WARNING`). | FSPEC-CAPTURE |
 | BR-11 | The WMM2025 model result (declination, inclination, total field magnitude) is computed once per location update and reused for both true north correction and interference detection baselines. It is not computed twice. | FSPEC-DETECTUPGRADE |
 | BR-12 | Interference detection thresholds (15%/25% magnitude, 3°/8° inclination) are unchanged from Phase 1. Only the expected baseline values become more accurate with WMM2025. | FSPEC-DETECTUPGRADE |
 | BR-13 | Extreme latitude advisory fires when `|WMM_inclination_deg| ≥ 80°`. The confidence badge is capped at Moderate while the advisory is active. | FSPEC-LATITUDE |
@@ -669,7 +679,7 @@ This is the complete schema for the `bearing_records` Room entity introduced in 
 | `calibration_version` | `String` | `TEXT` | No | Non-empty | WMM model identifier active at capture time (e.g., `"WMM2025"` or `"AndroidGeoField"`); provided by `MagneticFieldModel.getModelId(): String`. This field records the magnetic field model used — NOT the CalibrationRecord schema version. See normative note below. |
 | `field_deviation_pct` | `Float` | `REAL` | No | ≥ 0.0 | Field magnitude deviation percentage at capture time |
 | `inclination_deviation_deg` | `Float` | `REAL` | No | ≥ 0.0 | Inclination deviation in degrees at capture time |
-| `interference_flag` | `Int` | `INTEGER` | No | 0 or 1 (Room Boolean) | 1 if field_deviation_pct ≥ 15% OR inclination_deviation_deg ≥ 3° at capture; 0 otherwise |
+| `interference_flag` | `Int` | `INTEGER` | No | 0 or 1 (Room Boolean) | 1 if `InterferenceState` was `MODERATE` or `WARNING` at the instant of capture; 0 otherwise. NOT derived from raw deviation thresholds directly; NOT set by `OverallConfidence.POOR` alone. |
 | `lat` | `Double?` | `REAL` | Yes | [−90.0, 90.0] or NULL | GPS latitude at capture time; NULL if GPS toggle OFF or no fix; `Double` precision required for WMM computation accuracy (≈11 cm at 6 decimal places) |
 | `lon` | `Double?` | `REAL` | Yes | [−180.0, 180.0) or NULL | GPS longitude at capture time; NULL if GPS toggle OFF or no fix; `Double` precision (see `lat`) |
 | `alt_m` | `Double?` | `REAL` | Yes | NULL permitted | GPS altitude in meters; NULL if unavailable |
@@ -684,7 +694,7 @@ This is the complete schema for the `bearing_records` Room entity introduced in 
 - **`lat` / `lon` (canonical types):** `Double?` is the canonical type. GPS coordinates require Double precision (6 decimal places ≈ 11 cm) for accurate WMM input computation. Float would provide only ≈11 km precision, which is insufficient.
 - **`captured_at` (canonical type):** `Long` epoch milliseconds is the canonical internal type. ISO 8601 UTC formatting is applied at the display layer only.
 - **`notes` (max length):** 1000 characters per REQ §5.3.1 (supports professional field note use case).
-- **`interference_flag`:** Stored as `INTEGER` (0 or 1) for SQLite compatibility with Room's `@ColumnInfo` boolean mapping.
+- **`interference_flag`:** Stored as `INTEGER` (0 or 1) for SQLite compatibility with Room's `@ColumnInfo` boolean mapping. Set from `InterferenceState` at capture time — `MODERATE` or `WARNING` maps to `1`; `CLEAR` maps to `0`. `OverallConfidence.POOR` alone does not set this flag.
 - **`display_mode`:** Set to `"MODERN"` for all captures in Phase 2. The field is included now to avoid a schema migration when Phase 3 adds Luopan Mode.
 
 ### 6.2 Clock Interface
@@ -692,6 +702,8 @@ This is the complete schema for the `bearing_records` Room entity introduced in 
 The `Clock` interface is introduced in Phase 2 to allow injection of a testable time source for cache age display and cache expiry calculation.
 
 > **Note:** The production implementation is named `WallClock` (not `SystemClock`) to avoid a naming collision with `android.os.SystemClock`, which is in scope in all Android files. `WallClock` is a distinct class in `com.luopan.compass.util`.
+
+> **Note — `TimeSource` interface compatibility:** The Phase 1 codebase exposes a `TimeSource` interface in `com.luopan.compass.sensor`. Implementers SHOULD reuse the existing `TimeSource` interface if it is structurally compatible (exposes `nowMs(): Long`). If `TimeSource` is not structurally compatible (e.g., it exposes additional methods such as `nowNs()` that create an awkward dependency for non-sensor use sites), a new `Clock` interface is preferred over adding methods to `TimeSource`. The TSPEC author MUST decide which interface to use and document the decision in TSPEC §6 or §9. Until that decision is made, this FSPEC uses `Clock` as the conceptual name; the production type name may resolve to `TimeSource`, `Clock`, or a type alias once the TSPEC is drafted.
 
 ```kotlin
 // com.luopan.compass.util.Clock
@@ -765,7 +777,7 @@ Each test maps to a REQ §8 scenario with precise Given/When/Then assertions.
 
 | # | Given | When | Then | Precise Assertion |
 |---|-------|------|------|-------------------|
-| A-01 | Phase 1 complete (calibrated, interference-free); GPS fix available; Magnetic N active; current declination is D degrees | User taps the north type toggle | Heading value changes by D degrees within 200 ms | `abs(new_heading - (old_heading + D)) < 0.05°` and transition completes in ≤200 ms |
+| A-01 | Phase 1 complete (calibrated, interference-free); GPS fix available; Magnetic N active; current declination is D degrees | User taps the north type toggle | Heading value changes by D degrees within 200 ms | `abs(new_heading - (old_heading + D)) < 0.05°` and transition completes in ≤200 ms. **Measurement method:** Measured with Espresso `IdlingResource` — register an idling resource that idles when `headingTextView.text` has been updated to a value differing from the pre-tap value by ≥ (`D − 0.5°`). Assertion: elapsed wall-clock time from `performClick()` on the toggle to idle ≤ 250 ms (200 ms + 50 ms tolerance on the reference device class defined in REQ-NFR-08). Alternatively: use Robolectric with `ShadowLooper.runToEndOfTasks()` and verify the text update is processed within 1 UI loop. |
 | A-02 | A-01 preconditions; toggle has switched to True N | Toggle label observed | Label reads "True N" (localized) | North reference label in main UI is exactly "True N" (the localized string key `north_label_true`) |
 | A-03 | True N is active (following A-01) | User taps the toggle again to switch back | Heading returns to Magnetic N value | `abs(restored_heading - original_magnetic_heading) < 0.05°`; label reads "Magnetic N" |
 | A-04 | A-03 completed | Switch back confirmed | No dialog is shown when switching back to Magnetic N | No dialog, modal, or bottom sheet appears during the Magnetic N revert |
@@ -791,7 +803,7 @@ Each test maps to a REQ §8 scenario with precise Given/When/Then assertions.
 | # | Given | When | Then | Precise Assertion |
 |---|-------|------|------|-------------------|
 | C-01 | GPS unavailable (provider off or permission denied); cached location exists with age = 15 days; True North activated | System resolves location | Declination computed from cached location | `calibration_version` in session = `"WMM2025"`; declination matches WMM2025 result for cached lat/lon |
-| C-02 | C-01 preconditions | User opens declination info panel | Info panel shows coordinates type "Cached location" and cache age | Coordinates type field reads "Cached location"; "last updated" date is 15 days before `Clock.nowMs()` (±1 day tolerance for display) |
+| C-02 | C-01 preconditions; `FakeClock` injected and set to exactly `15 × 86 400 000 ms` after the cache timestamp | User opens declination info panel | Info panel shows coordinates type "Cached location" and cache age "15 days ago" | Coordinates type field reads "Cached location"; displayed age string equals `R.string.location_cache_age_label` formatted with `15` (whole-day floor division: `floor(elapsed_ms / 86 400 000)`). `FakeClock` eliminates DST and midnight boundary flakiness — no ±1 day tolerance is required or permitted. |
 | C-03 | C-01 preconditions | North label in main UI observed | Heading is labeled "True N" | North reference label is "True N" (not "Magnetic N", not "True N (manual location)") |
 
 ---
@@ -854,8 +866,20 @@ Each test maps to a REQ §8 scenario with precise Given/When/Then assertions.
 | G-06 | `Clock.nowMs()` controlled by FakeClock in test; cache timestamp set to 31 days ago | Location cache expiry evaluated | Cache treated as expired | `isLocationCacheValid() = false` |
 | G-07 | `Clock.nowMs()` controlled by FakeClock; cache timestamp set to exactly 30 days ago | Location cache expiry evaluated | Cache treated as valid | `isLocationCacheValid() = true` |
 | G-08 | GRID option not present in any UI element | Phase 2 build running | GRID never appears in toggle, dialog, or any visible UI | Espresso: no view with text matching `"Grid"` or `"GRID"` exists in the view hierarchy on the main screen or capture dialog |
+| G-09 | `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` both denied at runtime (`shouldShowRequestPermissionRationale()` = `false`); True North toggle tapped then capture button tapped; name entered and Save tapped | Full capture flow executed with both location permissions denied | BearingRecord saved with null location fields; toast confirms save; no crash | (a) No `SecurityException` or crash; (b) manual coordinate entry dialog appears on True North toggle tap; (c) `BearingRecord.lat = null`, `BearingRecord.lon = null`, `BearingRecord.alt_m = null`; (d) GPS toggle is absent from the capture dialog (not disabled — hidden); (e) toast shows "Bearing saved as '[name]'"; (f) informational message shown: "Location not available — bearing saved without coordinates" |
 
 ---
+
+---
+
+### AT-PERSIST: Persistence Integrity
+
+**Linked flow:** FSPEC-CAPTURE §2.5, REQ-CAPTURE-04
+
+| # | Given | When | Then | Precise Assertion |
+|---|-------|------|------|-------------------|
+| PERSIST-01 | A `BearingRecord` has been saved to the encrypted Room database | The `bearing_records.db` file is opened as raw bytes via `targetContext.getDatabasePath("bearing_records.db")` | The file is encrypted and does not expose a plaintext SQLite header | `bytes[0..15] != 'SQLite format 3'` (i.e., the first 16 bytes do NOT match the standard SQLite magic string `53 51 4C 69 74 65 20 66 6F 72 6D 61 74 20 33 00`). This mirrors Phase 1 PROP-PERSIST-02 for the calibration DB. |
+| PERSIST-02 | A bearing capture save is in flight (Room INSERT initiated, not yet committed) | The process is killed via `adb shell am force-stop` (or instrumented test API equivalent) then the app relaunches | The bearing count is either unchanged (write was interrupted before commit) or incremented by exactly 1 (write completed before kill) | On relaunch: `bearing_records` table row count is either equal to the pre-kill count or pre-kill count + 1. A partial write producing a record with any required field null (e.g., `id`, `name`, `bearing_deg`, `captured_at`) is a test FAILURE. Room's transactional guarantees enforce this — no additional application logic is required, but the test must verify the invariant explicitly. |
 
 ---
 
@@ -872,4 +896,4 @@ Each test maps to a REQ §8 scenario with precise Given/When/Then assertions.
 
 ---
 
-*End of FSPEC-luopan-p2-true-north-capture v0.2-draft*
+*End of FSPEC-luopan-p2-true-north-capture v0.3-draft*
