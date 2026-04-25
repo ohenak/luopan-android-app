@@ -27,6 +27,10 @@ import com.google.android.material.snackbar.Snackbar
 import com.luopan.compass.R
 import com.luopan.compass.bearing.BearingSnapshot
 import com.luopan.compass.calibration.ui.CalibrationWizardActivity
+import com.luopan.compass.location.LocationRepository
+import com.luopan.compass.magnetic.AndroidGeoFieldModel
+import com.luopan.compass.magnetic.MagneticFieldModelProvider
+import com.luopan.compass.magnetic.Wmm2025Model
 import com.luopan.compass.model.CalDotColor
 import com.luopan.compass.model.InterferenceState
 import com.luopan.compass.model.NorthType
@@ -38,7 +42,17 @@ import kotlinx.coroutines.launch
 
 class CompassActivity : AppCompatActivity() {
 
-    private val viewModel: CompassViewModel by viewModels()
+    // Single WallClock shared by the factory and the capture-dialog tap-timestamp recording.
+    private val clock = WallClock()
+
+    private val viewModel: CompassViewModel by viewModels {
+        val locationPrefs = getSharedPreferences("location_cache", MODE_PRIVATE)
+        val locationRepository = LocationRepository(locationPrefs, clock)
+        val wmm = try { Wmm2025Model.fromContext(this, clock) } catch (e: Exception) { null }
+        val fallback = AndroidGeoFieldModel(clock)
+        val modelProvider = MagneticFieldModelProvider(wmm = wmm, fallback = fallback)
+        CompassViewModel.Factory(application, modelProvider, locationRepository, clock)
+    }
 
     private lateinit var compassRose: CompassRoseView
     private lateinit var headingText: TextView
@@ -67,9 +81,6 @@ class CompassActivity : AppCompatActivity() {
 
     // P6.3: Bearing capture FAB
     private lateinit var fabSaveBearing: FloatingActionButton
-
-    // P6.3: Clock for tapTimestampMs (PM-T-01)
-    private val clock by lazy { WallClock() }
 
     private var calSnackbar: Snackbar? = null
     private var bannerDismissedThisSession = false

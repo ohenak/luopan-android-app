@@ -1,9 +1,7 @@
 package com.luopan.compass.bearing
 
-import com.luopan.compass.location.LocationRepository
 import com.luopan.compass.model.InterferenceState
 import com.luopan.compass.model.NorthType
-import com.luopan.compass.util.Clock
 import java.util.UUID
 
 /**
@@ -22,9 +20,7 @@ import java.util.UUID
  * - [NorthType.GRID] is rejected as a programming-error guard (AT-G-08).
  */
 class BearingCaptureUseCase(
-    private val bearingRepository: BearingRepository,
-    private val locationRepository: LocationRepository,
-    private val clock: Clock
+    private val bearingRepository: BearingRepository
 ) : BearingCapturePort {
     /**
      * Executes the save. Constructs a [BearingRecord] from the snapshot and persists it.

@@ -1,8 +1,5 @@
 package com.luopan.compass.bearing
 
-import android.content.Context
-import androidx.test.core.app.ApplicationProvider
-import com.luopan.compass.location.LocationRepository
 import com.luopan.compass.model.InterferenceState
 import com.luopan.compass.model.NorthType
 import com.luopan.compass.model.OverallConfidence
@@ -11,8 +8,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for [BearingCaptureUseCase].
@@ -26,32 +21,18 @@ import org.robolectric.RobolectricTestRunner
  *   - GRID throws IllegalStateException
  *   - notes empty string coerced to null
  *   - id is valid UUID format
- *
- * Uses Robolectric to satisfy Android-dependent constructor parameter (SharedPreferences).
- * The use case itself is pure — locationRepository and clock are unused in Phase 2.
  */
-@RunWith(RobolectricTestRunner::class)
 class BearingCaptureUseCaseTest {
 
     private lateinit var fakeClock: FakeClock
     private lateinit var fakeBearingRepository: FakeBearingRepository
-    private lateinit var locationRepository: LocationRepository
     private lateinit var useCase: BearingCaptureUseCase
 
     @Before
     fun setUp() {
         fakeClock = FakeClock(currentMs = 0L)
         fakeBearingRepository = FakeBearingRepository()
-
-        val ctx = ApplicationProvider.getApplicationContext<Context>()
-        val prefs = ctx.getSharedPreferences("test_loc_prefs", Context.MODE_PRIVATE)
-        locationRepository = LocationRepository(prefs, fakeClock)
-
-        useCase = BearingCaptureUseCase(
-            bearingRepository = fakeBearingRepository,
-            locationRepository = locationRepository,
-            clock = fakeClock
-        )
+        useCase = BearingCaptureUseCase(bearingRepository = fakeBearingRepository)
     }
 
     // ── interference_flag derivation (BR-10, AT-E-10) ─────────────────────────

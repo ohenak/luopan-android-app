@@ -30,6 +30,7 @@ import com.luopan.compass.sensor.SensorStateMonitor
 import com.luopan.compass.settings.SettingsRepository
 import com.luopan.compass.bearing.BearingCapturePort
 import com.luopan.compass.bearing.BearingCaptureUseCase
+import com.luopan.compass.bearing.BearingRepositoryImpl
 import com.luopan.compass.bearing.BearingSnapshot
 import com.luopan.compass.util.Clock
 import kotlinx.coroutines.Dispatchers
@@ -197,7 +198,7 @@ class CompassViewModel(
      * @param altM    Altitude in meters (default 0.0 when unknown).
      */
     fun setManualLocation(latDeg: Double, lonDeg: Double, altM: Double = 0.0) {
-        locationRepository?.setManualLocation(latDeg, lonDeg)
+        locationRepository?.setManualLocation(latDeg, lonDeg, altM)
         // Switch to TRUE after setting manual location — location is now available
         northTypeEngine.setNorthType(NorthType.TRUE)
     }
@@ -545,7 +546,12 @@ class CompassViewModel(
             require(modelClass == CompassViewModel::class.java) {
                 "Factory only creates CompassViewModel"
             }
-            return CompassViewModel(application, modelProvider, locationRepository, clock) as T
+            val keyManager = DatabaseKeyManager(application)
+            val db = LuopanDatabase.getInstance(application, keyManager.getOrCreatePassphrase())
+            val captureUseCase = BearingCaptureUseCase(
+                bearingRepository = BearingRepositoryImpl(db.bearingDao())
+            )
+            return CompassViewModel(application, modelProvider, locationRepository, clock, captureUseCase) as T
         }
     }
 }

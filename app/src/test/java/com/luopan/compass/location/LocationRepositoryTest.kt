@@ -187,6 +187,16 @@ class LocationRepositoryTest {
     }
 
     @Test
+    fun `setManualLocation preserves altM when provided`() {
+        repo.setManualLocation(lat = 22.3193, lon = 114.1694, altM = 150.0)
+
+        val result = repo.location.value as LocationResult.ManualEntry
+        assertEquals(22.3193, result.lat, 1e-9)
+        assertEquals(114.1694, result.lon, 1e-9)
+        assertEquals(150.0, result.altM, 1e-9)
+    }
+
+    @Test
     fun `resolveLocation returns ManualEntry when manual is set and no active GPS fix`() {
         repo.setManualLocation(lat = 22.3193, lon = 114.1694)
 

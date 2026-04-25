@@ -50,5 +50,5 @@ data class BearingRecord(
     val notes: String?,                      // TEXT NULL
 
     @ColumnInfo(name = "display_mode")
-    val display_mode: String?                // TEXT NULL; Phase 2 writes "MODERN"
+    val display_mode: String?                // TEXT NULL; nullable for records written before this field existed; Phase 2 always writes "MODERN"
 )
