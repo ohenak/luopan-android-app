@@ -24,6 +24,7 @@
         android:textSize="48sp"
         android:fontFamily="monospace"
         android:text="---"
+        android:contentDescription="@string/heading_content_description"
         app:layout_constraintBottom_toTopOf="@id/northLabel"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />

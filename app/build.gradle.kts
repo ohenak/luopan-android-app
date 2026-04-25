@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.security.crypto)
     implementation(libs.commons.math3)
     implementation(libs.coroutines.android)
+    implementation(libs.profileinstaller)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

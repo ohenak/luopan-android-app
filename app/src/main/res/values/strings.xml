@@ -50,4 +50,7 @@
 
     <!-- P7.2: Cache age label for cached GPS location -->
     <string name="location_cache_age_label">%d days ago</string>
+
+    <!-- P8.6: Macrobenchmark — content description for heading display (used by UiAutomator) -->
+    <string name="heading_content_description">compass heading</string>
 </resources>
