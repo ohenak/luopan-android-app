@@ -28,6 +28,8 @@ import com.luopan.compass.sensor.SensorLayer
 import com.luopan.compass.sensor.SensorRateMonitor
 import com.luopan.compass.sensor.SensorStateMonitor
 import com.luopan.compass.settings.SettingsRepository
+import com.luopan.compass.bearing.BearingCaptureUseCase
+import com.luopan.compass.bearing.BearingSnapshot
 import com.luopan.compass.util.Clock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
@@ -42,7 +44,8 @@ class CompassViewModel(
     application: Application,
     private val modelProvider: MagneticFieldModelProvider?,
     private val locationRepository: LocationRepository?,
-    private val clock: Clock
+    private val clock: Clock,
+    private val captureUseCase: BearingCaptureUseCase? = null
 ) : AndroidViewModel(application) {
 
     private val sensorLayer = SensorLayer(application)
@@ -80,6 +83,17 @@ class CompassViewModel(
      */
     private val _declinationInfo = MutableStateFlow<DeclinationInfo?>(null)
     val declinationInfo: StateFlow<DeclinationInfo?> = _declinationInfo.asStateFlow()
+
+    /**
+     * Capture button enabled state (BR-CAP-08).
+     *
+     * Set to `false` while a [captureBearing] coroutine is running; `true` otherwise.
+     * Prevents concurrent double-tap capture.
+     *
+     * TSPEC §3.7 — exposed as [StateFlow].
+     */
+    private val _captureButtonEnabled = MutableStateFlow(true)
+    val captureButtonEnabled: StateFlow<Boolean> = _captureButtonEnabled.asStateFlow()
 
     private var calibrationAgeDays: Long = -1L
     private var calibrationQuality: CalibrationQuality = CalibrationQuality.POOR
@@ -122,6 +136,30 @@ class CompassViewModel(
         setNorthType(
             if (northType.value == NorthType.TRUE) NorthType.MAGNETIC else NorthType.TRUE
         )
+    }
+
+    /**
+     * Executes a bearing capture asynchronously.
+     *
+     * Records `snapshot.tapTimestampMs` — which the caller must set to `clock.nowMs()`
+     * BEFORE showing any dialog (PM-T-01). Sets [captureButtonEnabled] to `false` for
+     * the duration of the coroutine (BR-CAP-08), restoring it to `true` in a `finally`
+     * block.
+     *
+     * TSPEC §3.7 — the capture dialog calls this method on "Save" confirmation.
+     *
+     * @param snapshot Immutable snapshot built by the capture dialog at tap time.
+     */
+    fun captureBearing(snapshot: BearingSnapshot) {
+        val useCase = captureUseCase ?: return
+        _captureButtonEnabled.value = false
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                useCase.execute(snapshot)
+            } finally {
+                _captureButtonEnabled.value = true
+            }
+        }
     }
 
     /**
