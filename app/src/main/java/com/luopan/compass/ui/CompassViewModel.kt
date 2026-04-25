@@ -14,6 +14,7 @@ import com.luopan.compass.db.LuopanDatabase
 import com.luopan.compass.fusion.FusionEngine
 import com.luopan.compass.location.LocationRepository
 import com.luopan.compass.location.LocationResult
+import com.luopan.compass.magnetic.DeclinationInfo
 import com.luopan.compass.magnetic.MagneticFieldModelProvider
 import com.luopan.compass.model.CalDotColor
 import com.luopan.compass.model.InterferenceState
@@ -68,6 +69,17 @@ class CompassViewModel(
 
     private val _uiState = MutableStateFlow(CompassUiState.INITIAL)
     val uiState: StateFlow<CompassUiState> = _uiState.asStateFlow()
+
+    /**
+     * Declination info panel data.
+     *
+     * Non-null only when [NorthType.TRUE] is active and a resolved location is available.
+     * Null when [NorthType.MAGNETIC] is active or no location has been resolved.
+     *
+     * PLAN §4 P5.1 — exposed as [StateFlow] for the P5.2 declination info panel.
+     */
+    private val _declinationInfo = MutableStateFlow<DeclinationInfo?>(null)
+    val declinationInfo: StateFlow<DeclinationInfo?> = _declinationInfo.asStateFlow()
 
     private var calibrationAgeDays: Long = -1L
     private var calibrationQuality: CalibrationQuality = CalibrationQuality.POOR
@@ -250,6 +262,20 @@ class CompassViewModel(
                     )
                 }
 
+                // P5.1 — Update declination info panel data (null when MAGNETIC or no location).
+                if (activeModel != null) {
+                    val lastUpdatedMs = resolveLastUpdatedMs(locationResult)
+                    _declinationInfo.value = DeclinationInfo.buildOrNull(
+                        northType = northTypeEngine.northType.value,
+                        declinationDeg = headingFields.declination_deg,
+                        model = activeModel,
+                        locationResult = locationResult,
+                        lastUpdatedMs = lastUpdatedMs
+                    )
+                } else {
+                    _declinationInfo.value = null
+                }
+
                 val uiState = buildUiState(
                     heading = headingFields.displayHeading,
                     northLabel = headingFields.northLabel,
@@ -330,6 +356,23 @@ class CompassViewModel(
 
     private fun formatHeading(deg: Double): String {
         return "%05.1f°".format(deg)
+    }
+
+    /**
+     * Derives the `last_updated` UTC epoch-ms from the resolved [LocationResult].
+     *
+     * - [LocationResult.GpsFix]: uses `clock.nowMs()` — the fix is fresh.
+     * - [LocationResult.CachedFix]: `clock.nowMs() - ageMs` — when the cache was written.
+     * - [LocationResult.ManualEntry]: `clock.nowMs()` — best approximation with no stored ts.
+     * - [LocationResult.Unavailable]: `clock.nowMs()` (caller should not reach here; safe default).
+     *
+     * P5.1 — used to populate [DeclinationInfo.last_updated].
+     */
+    private fun resolveLastUpdatedMs(locationResult: LocationResult): Long = when (locationResult) {
+        is LocationResult.GpsFix     -> clock.nowMs()
+        is LocationResult.CachedFix  -> clock.nowMs() - locationResult.ageMs
+        is LocationResult.ManualEntry -> clock.nowMs()
+        is LocationResult.Unavailable -> clock.nowMs()
     }
 
     /**
