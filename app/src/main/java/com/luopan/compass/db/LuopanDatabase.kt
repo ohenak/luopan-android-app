@@ -5,13 +5,19 @@ import androidx.annotation.VisibleForTesting
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.luopan.compass.bearing.BearingDao
+import com.luopan.compass.bearing.BearingRecord
 import com.luopan.compass.calibration.CalibrationRecord
-import net.sqlcipher.database.SQLiteDatabaseHook
 import net.sqlcipher.database.SupportFactory
 
-@Database(entities = [CalibrationRecord::class], version = 1, exportSchema = false)
+@Database(
+    entities = [CalibrationRecord::class, BearingRecord::class],
+    version = 2,
+    exportSchema = true
+)
 abstract class LuopanDatabase : RoomDatabase() {
     abstract fun calibrationDao(): CalibrationDao
+    abstract fun bearingDao(): BearingDao
 
     companion object {
         @Volatile private var INSTANCE: LuopanDatabase? = null
@@ -26,7 +32,7 @@ abstract class LuopanDatabase : RoomDatabase() {
             val factory = SupportFactory(passphrase)
             return Room.databaseBuilder(context.applicationContext, LuopanDatabase::class.java, "luopan.db")
                 .openHelperFactory(factory)
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRATION_1_2)
                 .build()
         }
 
