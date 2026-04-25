@@ -1,8 +1,12 @@
 package com.luopan.compass.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
@@ -10,7 +14,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
 import com.luopan.compass.R
@@ -52,6 +59,33 @@ class CompassActivity : AppCompatActivity() {
     ) { result ->
         if (result.resultCode == RESULT_OK) {
             viewModel.onCalibrationComplete()
+        }
+    }
+
+    /**
+     * P3.2: Launcher for location permission request using RequestMultiplePermissions.
+     *
+     * Result is a map of permission → granted. On grant: location chain proceeds.
+     * On denial: degrade gracefully to Magnetic N and show informational Snackbar.
+     * Permanent denial detection: if permission is denied AND shouldShowRationale returns false,
+     * the permission has been permanently denied ("Don't ask again").
+     */
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissionResults ->
+        val fineGranted = permissionResults[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        if (fineGranted) {
+            onLocationPermissionGranted()
+        } else {
+            val isPermanentDenial = !ActivityCompat.shouldShowRequestPermissionRationale(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
+            if (isPermanentDenial) {
+                showOpenSettingsDialog()
+            } else {
+                showLocationPermissionDeniedSnackbar()
+            }
         }
     }
 
@@ -121,6 +155,136 @@ class CompassActivity : AppCompatActivity() {
     private fun launchCalibrationWizard() {
         val intent = Intent(this, CalibrationWizardActivity::class.java)
         calibrationLauncher.launch(intent)
+    }
+
+    // -------------------------------------------------------------------------
+    // P3.2: Location permission request flow
+    // -------------------------------------------------------------------------
+
+    /**
+     * Entry point called when the user first activates True North mode (P3.2).
+     * This will be wired to the north type toggle in P4.3.
+     *
+     * Flow:
+     * 1. If permission already granted → proceed with location chain
+     * 2. If should show rationale → show rationale dialog → on Continue: launch request
+     * 3. If first-time request or permanent denial state → launch request directly
+     *    (OS determines which case via its own state; permanent denial detected in result callback)
+     */
+    internal fun requestLocationPermissionForTrueNorth() {
+        val fineGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (fineGranted) {
+            onLocationPermissionGranted()
+            return
+        }
+
+        val shouldShowRationale = ActivityCompat.shouldShowRequestPermissionRationale(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+
+        if (shouldShowRationale) {
+            showLocationPermissionRationale(
+                onContinue = { launchLocationPermissionRequest() },
+                onNotNow = { /* Toggle remains on Magnetic N; no action needed */ }
+            )
+        } else {
+            launchLocationPermissionRequest()
+        }
+    }
+
+    /**
+     * Launches the system permission request for location.
+     * Uses RequestMultiplePermissions to request both FINE and COARSE (per P1.4/Manifest).
+     */
+    private fun launchLocationPermissionRequest() {
+        locationPermissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+    }
+
+    /**
+     * Called when ACCESS_FINE_LOCATION permission has been granted.
+     * Stub for P3.2 — P4.3 will wire this to the north type toggle and location chain.
+     */
+    private fun onLocationPermissionGranted() {
+        // P4.3 will call viewModel.setNorthType(NorthType.TRUE) here.
+        // For now, this is the post-grant integration point.
+    }
+
+    /**
+     * Shows a Material AlertDialog explaining why location is needed.
+     * Displayed when shouldShowRequestPermissionRationale is true (user has denied once before).
+     *
+     * Per TSPEC §6.5 and FSPEC §2.4 step 2a / BR-LOC-04.
+     *
+     * @param onContinue invoked when the user taps "Continue" (proceed to system dialog)
+     * @param onNotNow   invoked when the user taps "Not now" (abandon permission request)
+     */
+    internal fun showLocationPermissionRationale(
+        onContinue: () -> Unit,
+        onNotNow: () -> Unit
+    ) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.location_permission_rationale_title)
+            .setMessage(R.string.location_permission_rationale_message)
+            .setPositiveButton(R.string.continue_label) { dialog, _ ->
+                dialog.dismiss()
+                onContinue()
+            }
+            .setNegativeButton(R.string.not_now) { dialog, _ ->
+                dialog.dismiss()
+                onNotNow()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    /**
+     * Shows a Material AlertDialog directing the user to device settings
+     * when location permission has been permanently denied.
+     *
+     * Per TSPEC §6.5 and FSPEC §2.4 step 3c.
+     */
+    internal fun showOpenSettingsDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.location_permission_settings_title)
+            .setMessage(R.string.location_permission_settings_message)
+            .setPositiveButton(R.string.open_settings) { dialog, _ ->
+                dialog.dismiss()
+                openAppSettings()
+            }
+            .setNegativeButton(android.R.string.cancel) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    /**
+     * Launches the app's settings page so the user can manually grant location permission.
+     */
+    private fun openAppSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
+        }
+        startActivity(intent)
+    }
+
+    /**
+     * Shows an informational Snackbar when the user denies the permission.
+     * Informs the user they can use manual coordinate entry as an alternative.
+     */
+    private fun showLocationPermissionDeniedSnackbar() {
+        val root = findViewById<View>(android.R.id.content)
+        Snackbar.make(root, R.string.location_permission_denied_message, Snackbar.LENGTH_LONG)
+            .show()
     }
 
     private fun observeUiState() {

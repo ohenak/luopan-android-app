@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.luopan.compass.db.LuopanDatabase
+import com.luopan.compass.model.CalibrationQuality
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*

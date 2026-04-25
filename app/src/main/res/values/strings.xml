@@ -24,4 +24,14 @@
     <string name="sensor_error">Sensor error</string>
     <string name="sensor_not_responding">Sensor not responding — try restarting the app or device</string>
     <string name="interference_explanation">Magnetic interference detected nearby</string>
+
+    <!-- P3.2: Location permission strings -->
+    <string name="location_permission_rationale_title">Location needed for True North</string>
+    <string name="location_permission_rationale_message">Location is used to compute magnetic declination for True North. Your coordinates are stored on-device only and are never shared.</string>
+    <string name="location_permission_settings_title">Location permission required</string>
+    <string name="location_permission_settings_message">Location permission has been permanently denied. To enable True North, please grant location permission in Settings. You can also enter coordinates manually.</string>
+    <string name="continue_label">Continue</string>
+    <string name="not_now">Not now</string>
+    <string name="open_settings">Open Settings</string>
+    <string name="location_permission_denied_message">Location permission needed for True North. You can enter coordinates manually instead.</string>
 </resources>
