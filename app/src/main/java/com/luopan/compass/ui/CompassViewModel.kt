@@ -191,7 +191,7 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
         val calDotColor = when {
             ageDays < 0 -> CalDotColor.RED
             ageDays <= 7 -> CalDotColor.GREEN
-            ageDays <= 30 -> CalDotColor.YELLOW
+            ageDays <= 30 -> CalDotColor.AMBER
             else -> CalDotColor.RED
         }
         val showCalCta = ageDays < 0 || calDotColor == CalDotColor.RED

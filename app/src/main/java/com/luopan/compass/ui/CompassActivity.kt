@@ -12,7 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.banner.MaterialBanner
+import com.google.android.material.snackbar.Snackbar
 import com.luopan.compass.R
 import com.luopan.compass.calibration.ui.CalibrationWizardActivity
 import com.luopan.compass.model.CalDotColor
@@ -42,7 +42,7 @@ class CompassActivity : AppCompatActivity() {
     private lateinit var sensorStuckText: TextView
     private lateinit var noMagErrorLayout: LinearLayout
 
-    private var calBanner: MaterialBanner? = null
+    private var calSnackbar: Snackbar? = null
     private var bannerDismissedThisSession = false
     private var interferenceBannerDismissed = false
     private val wakeLockManager by lazy { WakeLockManager(this) }
@@ -152,7 +152,7 @@ class CompassActivity : AppCompatActivity() {
                 calDot.setBackgroundColor(
                     when (state.cal_dot_color) {
                         CalDotColor.GREEN -> getColor(R.color.cal_dot_green)
-                        CalDotColor.YELLOW -> getColor(R.color.cal_dot_yellow)
+                        CalDotColor.AMBER -> getColor(R.color.cal_dot_yellow)
                         CalDotColor.RED -> getColor(R.color.cal_dot_red)
                     }
                 )
@@ -222,7 +222,7 @@ class CompassActivity : AppCompatActivity() {
                     powerSavingAdvisoryText.visibility = View.GONE
                 }
 
-                // MaterialBanner for first-launch CTA
+                // Snackbar CTA for first-launch calibration prompt
                 if (state.show_calibration_cta && !bannerDismissedThisSession) {
                     showCalibrationBanner()
                 } else if (!state.show_calibration_cta) {
@@ -233,23 +233,23 @@ class CompassActivity : AppCompatActivity() {
     }
 
     private fun showCalibrationBanner() {
-        if (calBanner != null) return
-        val banner = MaterialBanner(this, null, 0)
-        banner.setContentTextResId(R.string.calibrate_now)
-        banner.addButton(R.string.calibrate_now, 0) { launchCalibrationWizard() }
-        banner.addButton(android.R.string.cancel, 0) {
-            bannerDismissedThisSession = true
-            banner.dismiss()
-            calBanner = null
-        }
-        calBanner = banner
-        // Attach to root layout — simplified: show as a floating overlay
-        // In a real fragment-based implementation, add to coordinator layout
-        banner.show()
+        if (calSnackbar?.isShown == true) return
+        val root = findViewById<View>(android.R.id.content)
+        calSnackbar = Snackbar.make(root, R.string.calibration_cta_title, Snackbar.LENGTH_INDEFINITE)
+            .setAction(R.string.calibrate_now) { launchCalibrationWizard() }
+            .addCallback(object : Snackbar.Callback() {
+                override fun onDismissed(sb: Snackbar, event: Int) {
+                    if (event == DISMISS_EVENT_SWIPE || event == DISMISS_EVENT_ACTION) {
+                        bannerDismissedThisSession = true
+                    }
+                    calSnackbar = null
+                }
+            })
+        calSnackbar?.show()
     }
 
     private fun dismissBannerPermanently() {
-        calBanner?.dismiss()
-        calBanner = null
+        calSnackbar?.dismiss()
+        calSnackbar = null
     }
 }

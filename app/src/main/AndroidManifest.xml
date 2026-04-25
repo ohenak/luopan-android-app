@@ -20,7 +20,7 @@
         android:theme="@style/Theme.LuopanCompass">
 
         <activity
-            android:name=".CompassActivity"
+            android:name=".ui.CompassActivity"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
