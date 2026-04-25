@@ -13,6 +13,13 @@ data class CompassUiState(
     val north_label: String,
     /** Active north reference type: [NorthType.MAGNETIC] or [NorthType.TRUE]. */
     val north_type: NorthType,
+    /**
+     * Current magnetic declination in degrees (positive east, negative west).
+     * Non-zero only when [north_type] == [NorthType.TRUE] and a location is available.
+     * Propagated from [MagneticFieldModel.getDeclination] via [NorthTypeEngine].
+     * Used by the declination info panel (TSPEC §3.7, AT-B).
+     */
+    val declination_deg: Float,
     val confidence: OverallConfidence,
     val interference_state: InterferenceState,
     val interference_metrics: InterferenceMetrics?,
@@ -38,6 +45,7 @@ data class CompassUiState(
             heading_formatted = "---",
             north_label = "Magnetic N",
             north_type = NorthType.MAGNETIC,
+            declination_deg = 0.0f,
             confidence = OverallConfidence.POOR,
             interference_state = InterferenceState.CLEAR,
             interference_metrics = null,

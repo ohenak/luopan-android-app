@@ -89,9 +89,11 @@ class NorthTypeEngine {
         val locationFallbackAdvisory: Boolean
         val fallbackMagAdvisory: Boolean
 
+        val declinationDeg: Float
         if (isTrueNorth && hasLocation && coords != null) {
             val declination = activeModel.getDeclination(coords.lat, coords.lon, coords.alt, epochYears)
             displayHeading = (magneticHeading + declination + 360.0) % 360.0
+            declinationDeg = declination
 
             northLabel = when (locationResult) {
                 is LocationResult.ManualEntry -> "True N (manual location)"
@@ -105,6 +107,7 @@ class NorthTypeEngine {
         } else {
             // Magnetic mode, or True N but no location → identity
             displayHeading = magneticHeading
+            declinationDeg = 0.0f
             northLabel = "Magnetic N"
             locationFallbackAdvisory = false
             fallbackMagAdvisory = false
@@ -114,7 +117,8 @@ class NorthTypeEngine {
             displayHeading = displayHeading,
             northLabel = northLabel,
             locationFallbackAdvisory = locationFallbackAdvisory,
-            fallbackMagAdvisory = fallbackMagAdvisory
+            fallbackMagAdvisory = fallbackMagAdvisory,
+            declination_deg = declinationDeg
         )
     }
 

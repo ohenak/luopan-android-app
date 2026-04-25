@@ -14,5 +14,13 @@ data class HeadingFields(
     /** True when True North is active and the location is a cached GPS fix (not a fresh fix). */
     val locationFallbackAdvisory: Boolean,
     /** True when True North is active and the active magnetic field model is AndroidGeoFieldModel. */
-    val fallbackMagAdvisory: Boolean
+    val fallbackMagAdvisory: Boolean,
+    /**
+     * Magnetic declination in degrees (positive east, negative west) applied to the displayed heading.
+     * Non-zero only when northType=TRUE and a location is available.
+     * Zero when northType=MAGNETIC or no location is available.
+     *
+     * Used by CompassUiState.declination_deg and the declination info panel (TSPEC §3.7, AT-B).
+     */
+    val declination_deg: Float = 0.0f
 )
