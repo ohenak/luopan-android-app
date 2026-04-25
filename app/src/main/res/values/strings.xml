@@ -54,6 +54,25 @@
     <!-- P8.6: Macrobenchmark — content description for heading display (used by UiAutomator) -->
     <string name="heading_content_description">compass heading</string>
 
+    <!-- P6.3: Bearing capture FAB and dialogs -->
+    <string name="fab_save_bearing_content_description">Save bearing</string>
+    <string name="bearing_capture_dialog_title">Save Bearing</string>
+    <string name="bearing_name_hint">Bearing name</string>
+    <string name="bearing_notes_hint">Add notes (optional)</string>
+    <string name="bearing_preview_label">Bearing preview</string>
+    <string name="save_bearing">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="bearing_saved_toast">Bearing saved as \'%1$s\'</string>
+
+    <!-- P6.3: Interference warning dialog -->
+    <string name="interference_warning_dialog_title">Low confidence</string>
+    <string name="interference_warning_dialog_message">Interference detected or confidence is Poor. Bearing will be saved with a warning flag. Proceed?</string>
+    <string name="save_with_warning">Save with warning</string>
+
+    <!-- P6.4: GPS privacy notice and GPS toggle -->
+    <string name="include_gps_toggle_label">Include location with this bearing</string>
+    <string name="location_privacy_notice">Your location will be attached to this bearing and stored only on your device. Location is optional.</string>
+
     <!-- P5.2: Declination info panel -->
     <string name="declination_info_button_content_description">Declination info</string>
     <string name="declination_info_sheet_title">Declination Info</string>

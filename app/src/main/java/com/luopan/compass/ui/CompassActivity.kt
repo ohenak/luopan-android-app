@@ -13,6 +13,7 @@ import android.widget.Button
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -21,8 +22,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButtonToggleGroup
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 import com.luopan.compass.R
+import com.luopan.compass.bearing.BearingSnapshot
 import com.luopan.compass.calibration.ui.CalibrationWizardActivity
 import com.luopan.compass.model.CalDotColor
 import com.luopan.compass.model.InterferenceState
@@ -30,6 +33,7 @@ import com.luopan.compass.model.NorthType
 import com.luopan.compass.model.OverallConfidence
 import com.luopan.compass.model.SensorState
 import com.luopan.compass.sensor.SensorLayer
+import com.luopan.compass.util.WallClock
 import kotlinx.coroutines.launch
 
 class CompassActivity : AppCompatActivity() {
@@ -60,6 +64,12 @@ class CompassActivity : AppCompatActivity() {
 
     // P7.1: Extreme latitude advisory banner
     private lateinit var extremeLatitudeAdvisoryBanner: TextView
+
+    // P6.3: Bearing capture FAB
+    private lateinit var fabSaveBearing: FloatingActionButton
+
+    // P6.3: Clock for tapTimestampMs (PM-T-01)
+    private val clock by lazy { WallClock() }
 
     private var calSnackbar: Snackbar? = null
     private var bannerDismissedThisSession = false
@@ -122,6 +132,7 @@ class CompassActivity : AppCompatActivity() {
         northTypeToggleGroup = findViewById(R.id.northTypeToggleGroup)
         btnDeclinationInfo = findViewById(R.id.btn_declination_info)
         extremeLatitudeAdvisoryBanner = findViewById(R.id.extreme_latitude_advisory_banner)
+        fabSaveBearing = findViewById(R.id.fab_save_bearing)
 
         // T-6-05: Check for magnetometer before proceeding
         val sensorLayer = SensorLayer(this)
@@ -176,6 +187,26 @@ class CompassActivity : AppCompatActivity() {
             showDeclinationInfoSheet()
         }
 
+        // P6.3: Wire capture FAB → bearing capture flow
+        fabSaveBearing.setOnClickListener {
+            onCaptureFabTapped()
+        }
+
+        // P6.3: Observe capture confirmation events → show Toast
+        lifecycleScope.launch {
+            viewModel.captureConfirmation.collect { name ->
+                val message = getString(R.string.bearing_saved_toast, name)
+                Toast.makeText(this@CompassActivity, message, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // P8.3 / BR-CAP-08: Observe captureButtonEnabled → enable/disable FAB
+        lifecycleScope.launch {
+            viewModel.captureButtonEnabled.collect { enabled ->
+                fabSaveBearing.isEnabled = enabled
+            }
+        }
+
         observeUiState()
     }
 
@@ -200,6 +231,7 @@ class CompassActivity : AppCompatActivity() {
         tiltText.visibility = View.GONE
         northTypeToggleGroup.visibility = View.GONE
         btnDeclinationInfo.visibility = View.GONE
+        fabSaveBearing.visibility = View.GONE
         findViewById<View>(R.id.calDotRow).visibility = View.GONE
         calCta.visibility = View.GONE
         confidenceBadge.visibility = View.GONE
@@ -233,6 +265,150 @@ class CompassActivity : AppCompatActivity() {
         val northType = viewModel.northType.value
         val sheet = DeclinationInfoBottomSheet.newInstance(info, northType)
         sheet.show(supportFragmentManager, DeclinationInfoBottomSheet.TAG)
+    }
+
+    // -------------------------------------------------------------------------
+    // P6.3 / P6.4: Bearing capture flow
+    // -------------------------------------------------------------------------
+
+    /**
+     * Entry point when the capture FAB is tapped.
+     *
+     * Records [tapTimestampMs] immediately (PM-T-01) before any dialog is shown.
+     * Then decides whether to show [InterferenceWarningDialogFragment] first (step 3b)
+     * or go directly to [BearingCaptureDialogFragment] (step 3c).
+     *
+     * FSPEC §2.5 step 3: "When the user taps the capture button: 3a snapshot taken,
+     * 3b pre-capture warning dialog if InterferenceState ∈ {MODERATE, WARNING} OR POOR."
+     */
+    private fun onCaptureFabTapped() {
+        // PM-T-01: record tap timestamp BEFORE any dialog is shown
+        val tapTimestampMs = clock.nowMs()
+        val uiState = viewModel.uiState.value
+
+        val needsWarning = uiState.interference_state == InterferenceState.MODERATE
+                || uiState.interference_state == InterferenceState.WARNING
+                || uiState.confidence == OverallConfidence.POOR
+
+        if (needsWarning) {
+            showInterferenceWarningDialog(
+                onSaveWithWarning = { showBearingCaptureDialog(tapTimestampMs) },
+                onCancel = { /* Capture abandoned — no action */ }
+            )
+        } else {
+            showBearingCaptureDialog(tapTimestampMs)
+        }
+    }
+
+    /**
+     * Shows the [InterferenceWarningDialogFragment].
+     *
+     * Exposed as `internal` for [InterferenceWarningCaptureTest] to call directly.
+     *
+     * FSPEC §2.5 step 3b: "pre-capture warning dialog".
+     * PLAN §4 P6.3: "InterferenceWarningDialogFragment".
+     */
+    internal fun showInterferenceWarningDialog(
+        onSaveWithWarning: () -> Unit,
+        onCancel: () -> Unit
+    ) {
+        val dialog = InterferenceWarningDialogFragment.newInstance()
+        dialog.onSaveWithWarning = onSaveWithWarning
+        dialog.onCancel = onCancel
+        dialog.show(supportFragmentManager, InterferenceWarningDialogFragment.TAG)
+    }
+
+    /**
+     * Shows the [BearingCaptureDialogFragment].
+     *
+     * Exposed as `internal` for [InterferenceWarningCaptureTest] to call directly.
+     *
+     * @param tapTimestampMs Wall-clock ms at the capture FAB tap instant (PM-T-01).
+     *                       Defaults to [clock.nowMs()] when called directly from tests.
+     *
+     * FSPEC §2.5 step 4: "A capture dialog appears showing bearing preview, name field,
+     * notes, GPS toggle, first-capture privacy notice."
+     * PLAN §4 P6.3 / P6.4.
+     */
+    internal fun showBearingCaptureDialog(tapTimestampMs: Long = clock.nowMs()) {
+        val uiState = viewModel.uiState.value
+        val bearingPreview = uiState.heading_formatted
+        val bearingMeta = "${uiState.north_label} · ${uiState.confidence.name.lowercase().replaceFirstChar { it.uppercase() }}"
+
+        // Default name "Bearing N+1" — derived from repository count asynchronously
+        // For immediate display, we use the current count from the ViewModel's last known state.
+        // A simple sequential counter — computed on the fly.
+        val consentShown = getSharedPreferences(
+            BearingCaptureDialogFragment.PREFS_FILE,
+            MODE_PRIVATE
+        ).getBoolean(BearingCaptureDialogFragment.KEY_CONSENT_SHOWN, false)
+
+        val dialog = BearingCaptureDialogFragment.newInstance(
+            bearingPreviewText = bearingPreview,
+            bearingMeta = bearingMeta,
+            defaultName = "Bearing",   // simplified default; final name from user
+            consentShown = consentShown
+        )
+
+        dialog.onSave = { name, notes, includeGps ->
+            val currentUiState = viewModel.uiState.value
+
+            // Resolve location at tap time from LocationRepository (TSPEC §3.6)
+            val latDeg: Double?
+            val lonDeg: Double?
+            val altM: Double?
+
+            if (includeGps) {
+                val locationResult = viewModel.resolvedLocation()
+                when (locationResult) {
+                    is com.luopan.compass.location.LocationResult.GpsFix -> {
+                        latDeg = locationResult.lat
+                        lonDeg = locationResult.lon
+                        altM = locationResult.altM
+                    }
+                    is com.luopan.compass.location.LocationResult.CachedFix -> {
+                        latDeg = locationResult.lat
+                        lonDeg = locationResult.lon
+                        altM = locationResult.altM
+                    }
+                    is com.luopan.compass.location.LocationResult.ManualEntry -> {
+                        latDeg = locationResult.lat
+                        lonDeg = locationResult.lon
+                        altM = locationResult.altM
+                    }
+                    is com.luopan.compass.location.LocationResult.Unavailable -> {
+                        latDeg = null
+                        lonDeg = null
+                        altM = null
+                    }
+                }
+            } else {
+                latDeg = null
+                lonDeg = null
+                altM = null
+            }
+
+            val snapshot = BearingSnapshot(
+                bearingDeg = currentUiState.heading_deg.toFloat(),
+                northType = currentUiState.north_type,
+                confidence = currentUiState.confidence,
+                interferenceState = currentUiState.interference_state,
+                fieldDeviationPct = currentUiState.interference_metrics?.fieldDeviation?.times(100f) ?: 0f,
+                inclinationDeviationDeg = currentUiState.interference_metrics?.inclinationDeviation_deg ?: 0f,
+                latDeg = latDeg,
+                lonDeg = lonDeg,
+                altM = altM,
+                name = name,
+                notes = notes,
+                displayMode = "MODERN",
+                includeLocation = includeGps,
+                tapTimestampMs = tapTimestampMs
+            )
+            viewModel.captureBearing(snapshot)
+        }
+
+        dialog.onCancel = { /* Capture abandoned */ }
+        dialog.show(supportFragmentManager, BearingCaptureDialogFragment.TAG)
     }
 
     // -------------------------------------------------------------------------

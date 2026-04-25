@@ -35,6 +35,8 @@ import com.luopan.compass.util.Clock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -105,6 +107,17 @@ class CompassViewModel(
      */
     private val _captureButtonEnabled = MutableStateFlow(true)
     val captureButtonEnabled: StateFlow<Boolean> = _captureButtonEnabled.asStateFlow()
+
+    /**
+     * Event emitted on successful bearing save with the saved bearing name.
+     *
+     * Observed by [CompassActivity] to show the confirmation Toast:
+     * "Bearing saved as '[name]'" (FSPEC §2.5 step 7, TSPEC §7.3).
+     *
+     * P6.3 — emitted from [captureBearing] after a successful [BearingCapturePort.execute] call.
+     */
+    private val _captureConfirmation = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val captureConfirmation: SharedFlow<String> = _captureConfirmation
 
     private var calibrationAgeDays: Long = -1L
     private var calibrationQuality: CalibrationQuality = CalibrationQuality.POOR
@@ -206,7 +219,8 @@ class CompassViewModel(
         _captureButtonEnabled.value = false
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                useCase.execute(snapshot)
+                val record = useCase.execute(snapshot)
+                _captureConfirmation.emit(record.name)
             } finally {
                 _captureButtonEnabled.value = true
             }
@@ -497,6 +511,20 @@ class CompassViewModel(
     private data class Coords(val lat: Double, val lon: Double, val alt: Double)
 
     fun onCalibrationComplete() { loadCalibrationAge() }
+
+    /**
+     * Returns the currently resolved location result from [LocationRepository].
+     *
+     * Used by [CompassActivity.showBearingCaptureDialog] to populate lat/lon/alt in the
+     * [BearingSnapshot] when the GPS toggle is ON (P6.4).
+     *
+     * Returns [LocationResult.Unavailable] when no location repository is injected (test/default).
+     *
+     * P6.3 — TSPEC §3.6 note: "The ViewModel populates the location fields in the snapshot
+     * at tap time from LocationRepository.resolvedLocation()."
+     */
+    fun resolvedLocation(): LocationResult =
+        locationRepository?.location?.value ?: LocationResult.Unavailable
 
     // -----------------------------------------------------------------------
     // Factory for constructor injection (ViewModelProvider.Factory pattern)
