@@ -19,11 +19,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.snackbar.Snackbar
 import com.luopan.compass.R
 import com.luopan.compass.calibration.ui.CalibrationWizardActivity
 import com.luopan.compass.model.CalDotColor
 import com.luopan.compass.model.InterferenceState
+import com.luopan.compass.model.NorthType
 import com.luopan.compass.model.OverallConfidence
 import com.luopan.compass.model.SensorState
 import com.luopan.compass.sensor.SensorLayer
@@ -48,6 +50,9 @@ class CompassActivity : AppCompatActivity() {
     private lateinit var powerSavingAdvisoryText: TextView
     private lateinit var sensorStuckText: TextView
     private lateinit var noMagErrorLayout: LinearLayout
+
+    // P4.3: North type toggle group (binary: TRUE / MAGNETIC only — AT-G-08)
+    private lateinit var northTypeToggleGroup: MaterialButtonToggleGroup
 
     private var calSnackbar: Snackbar? = null
     private var bannerDismissedThisSession = false
@@ -107,6 +112,7 @@ class CompassActivity : AppCompatActivity() {
         powerSavingAdvisoryText = findViewById(R.id.power_saving_advisory_text)
         sensorStuckText = findViewById(R.id.sensor_stuck_text)
         noMagErrorLayout = findViewById(R.id.no_mag_error_layout)
+        northTypeToggleGroup = findViewById(R.id.northTypeToggleGroup)
 
         // T-6-05: Check for magnetometer before proceeding
         val sensorLayer = SensorLayer(this)
@@ -119,6 +125,34 @@ class CompassActivity : AppCompatActivity() {
         interferenceBanner.setOnClickListener {
             interferenceBannerDismissed = true
             interferenceBanner.visibility = View.GONE
+        }
+
+        // P4.3: Wire toggle group → ViewModel north type changes
+        northTypeToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            when (checkedId) {
+                R.id.btn_true_n -> {
+                    // P3.2: trigger permission request flow when switching to TRUE
+                    requestLocationPermissionForTrueNorth()
+                }
+                R.id.btn_magnetic_n -> {
+                    viewModel.setNorthType(NorthType.MAGNETIC)
+                }
+            }
+        }
+
+        // P4.3: Observe northType StateFlow and keep toggle group in sync
+        lifecycleScope.launch {
+            viewModel.northType.collect { northType ->
+                val targetId = when (northType) {
+                    NorthType.TRUE -> R.id.btn_true_n
+                    NorthType.MAGNETIC, NorthType.GRID -> R.id.btn_magnetic_n
+                }
+                // Only update if the checked button differs to avoid listener re-entrancy
+                if (northTypeToggleGroup.checkedButtonId != targetId) {
+                    northTypeToggleGroup.check(targetId)
+                }
+            }
         }
 
         observeUiState()
@@ -143,6 +177,7 @@ class CompassActivity : AppCompatActivity() {
         headingText.visibility = View.GONE
         northLabel.visibility = View.GONE
         tiltText.visibility = View.GONE
+        northTypeToggleGroup.visibility = View.GONE
         findViewById<View>(R.id.calDotRow).visibility = View.GONE
         calCta.visibility = View.GONE
         confidenceBadge.visibility = View.GONE
@@ -211,12 +246,11 @@ class CompassActivity : AppCompatActivity() {
     }
 
     /**
-     * Called when ACCESS_FINE_LOCATION permission has been granted.
-     * Stub for P3.2 — P4.3 will wire this to the north type toggle and location chain.
+     * Called when ACCESS_FINE_LOCATION permission has been granted (P3.2 + P4.3).
+     * Activates True North mode in the ViewModel after permission is confirmed.
      */
     private fun onLocationPermissionGranted() {
-        // P4.3 will call viewModel.setNorthType(NorthType.TRUE) here.
-        // For now, this is the post-grant integration point.
+        viewModel.setNorthType(NorthType.TRUE)
     }
 
     /**

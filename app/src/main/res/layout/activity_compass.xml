@@ -35,9 +35,40 @@
         android:textColor="@android:color/white"
         android:textSize="14sp"
         android:text="@string/magnetic_north"
-        app:layout_constraintBottom_toTopOf="@id/tiltText"
+        app:layout_constraintBottom_toTopOf="@id/northTypeToggleGroup"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- P4.3: North type toggle (TRUE / MAGNETIC only — AT-G-08) -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/northTypeToggleGroup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        app:singleSelection="true"
+        app:selectionRequired="true"
+        app:checkedButton="@id/btn_magnetic_n"
+        app:layout_constraintBottom_toTopOf="@id/tiltText"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_magnetic_n"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/magnetic_north"
+            android:textSize="12sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_true_n"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/true_north"
+            android:textSize="12sp" />
+
+    </com.google.android.material.button.MaterialButtonToggleGroup>
 
     <TextView
         android:id="@+id/tiltText"
