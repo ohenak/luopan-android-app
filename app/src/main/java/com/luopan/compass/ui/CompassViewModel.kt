@@ -49,7 +49,8 @@ class CompassViewModel(
     private val modelProvider: MagneticFieldModelProvider?,
     private val locationRepository: LocationRepository?,
     private val clock: Clock,
-    private val captureUseCase: BearingCapturePort? = null
+    private val captureUseCase: BearingCapturePort? = null,
+    calibrationRepository: CalibrationRepository? = null
 ) : AndroidViewModel(application) {
 
     private val sensorLayer = SensorLayer(application)
@@ -66,7 +67,10 @@ class CompassViewModel(
     private val db by lazy {
         LuopanDatabase.getInstance(application, keyManager.getOrCreatePassphrase())
     }
-    private val calibrationRepo by lazy { CalibrationRepository(db.calibrationDao()) }
+    // Injected by Factory (preferred); falls back to lazy DB construction only when no
+    // CalibrationRepository is provided (e.g. legacy direct construction in tests).
+    private val calibrationRepo: CalibrationRepository =
+        calibrationRepository ?: CalibrationRepository(db.calibrationDao())
 
     /** North-type engine encapsulates the pure declination computation logic. */
     private val northTypeEngine = NorthTypeEngine()
@@ -119,6 +123,11 @@ class CompassViewModel(
      */
     private val _captureConfirmation = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val captureConfirmation: SharedFlow<String> = _captureConfirmation
+
+    // Model ID of the active MagneticFieldModel on the most recent sensor frame (Dispatchers.Default).
+    // Updated in startSensorCollection after each activeModel() call; read by captureBearing on the
+    // main thread via StateFlow — thread-safe without calling activeModel() cross-thread.
+    private val _activeModelId = MutableStateFlow("")
 
     private var calibrationAgeDays: Long = -1L
     private var calibrationQuality: CalibrationQuality = CalibrationQuality.POOR
@@ -218,8 +227,9 @@ class CompassViewModel(
     fun captureBearing(snapshot: BearingSnapshot) {
         val useCase = captureUseCase ?: return
         _captureButtonEnabled.value = false
-        // Enrich with calibration_version at tap time — the use case reads it from the snapshot
-        val calibrationVersion = modelProvider?.activeModel()?.getModelId() ?: ""
+        // Read calibration_version from the StateFlow updated by the sensor loop — avoids calling
+        // activeModel() on the main thread concurrently with the sensor pipeline on Dispatchers.Default.
+        val calibrationVersion = _activeModelId.value
         val enrichedSnapshot = snapshot.copy(calibrationVersion = calibrationVersion)
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -308,6 +318,7 @@ class CompassViewModel(
                 val locationResult: LocationResult = locationRepository?.location?.value
                     ?: LocationResult.Unavailable
                 val activeModel = modelProvider?.activeModel()
+                _activeModelId.value = activeModel?.getModelId() ?: ""
                 val epochYears = clock.toEpochYears()
 
                 // P4.2 — WMM-baseline upgrade (TSPEC §3.8):
@@ -551,7 +562,8 @@ class CompassViewModel(
             val captureUseCase = BearingCaptureUseCase(
                 bearingRepository = BearingRepositoryImpl(db.bearingDao())
             )
-            return CompassViewModel(application, modelProvider, locationRepository, clock, captureUseCase) as T
+            val calibrationRepo = CalibrationRepository(db.calibrationDao())
+            return CompassViewModel(application, modelProvider, locationRepository, clock, captureUseCase, calibrationRepo) as T
         }
     }
 }

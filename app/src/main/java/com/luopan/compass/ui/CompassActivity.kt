@@ -3,7 +3,6 @@ package com.luopan.compass.ui
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -233,6 +232,13 @@ class CompassActivity : AppCompatActivity() {
         wakeLockManager.release()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (viewModel.northType.value == NorthType.TRUE) {
+            viewModel.checkWmmExpiry()
+        }
+    }
+
     private fun showNoMagnetometerError() {
         noMagErrorLayout.visibility = View.VISIBLE
         // Hide all compass UI
@@ -293,21 +299,23 @@ class CompassActivity : AppCompatActivity() {
      * 3b pre-capture warning dialog if InterferenceState ∈ {MODERATE, WARNING} OR POOR."
      */
     private fun onCaptureFabTapped() {
-        // PM-T-01: record tap timestamp BEFORE any dialog is shown
+        // PM-T-01: record tap timestamp AND freeze the full UI state BEFORE any dialog is shown.
+        // The frozen state is threaded through to onSave so the saved snapshot reflects the
+        // compass state at the moment the user tapped the FAB, not when they dismissed the dialog.
         val tapTimestampMs = clock.nowMs()
-        val uiState = viewModel.uiState.value
+        val tapUiState = viewModel.uiState.value
 
-        val needsWarning = uiState.interference_state == InterferenceState.MODERATE
-                || uiState.interference_state == InterferenceState.WARNING
-                || uiState.confidence == OverallConfidence.POOR
+        val needsWarning = tapUiState.interference_state == InterferenceState.MODERATE
+                || tapUiState.interference_state == InterferenceState.WARNING
+                || tapUiState.confidence == OverallConfidence.POOR
 
         if (needsWarning) {
             showInterferenceWarningDialog(
-                onSaveWithWarning = { showBearingCaptureDialog(tapTimestampMs) },
+                onSaveWithWarning = { showBearingCaptureDialog(tapTimestampMs, tapUiState) },
                 onCancel = { /* Capture abandoned — no action */ }
             )
         } else {
-            showBearingCaptureDialog(tapTimestampMs)
+            showBearingCaptureDialog(tapTimestampMs, tapUiState)
         }
     }
 
@@ -341,10 +349,12 @@ class CompassActivity : AppCompatActivity() {
      * notes, GPS toggle, first-capture privacy notice."
      * PLAN §4 P6.3 / P6.4.
      */
-    internal fun showBearingCaptureDialog(tapTimestampMs: Long = clock.nowMs()) {
-        val uiState = viewModel.uiState.value
-        val bearingPreview = uiState.heading_formatted
-        val bearingMeta = "${uiState.north_label} · ${uiState.confidence.name.lowercase().replaceFirstChar { it.uppercase() }}"
+    internal fun showBearingCaptureDialog(
+        tapTimestampMs: Long = clock.nowMs(),
+        tapUiState: CompassUiState = viewModel.uiState.value
+    ) {
+        val bearingPreview = tapUiState.heading_formatted
+        val bearingMeta = "${tapUiState.north_label} · ${tapUiState.confidence.name.lowercase().replaceFirstChar { it.uppercase() }}"
 
         // Default name "Bearing N+1" — derived from repository count asynchronously
         // For immediate display, we use the current count from the ViewModel's last known state.
@@ -362,7 +372,9 @@ class CompassActivity : AppCompatActivity() {
         )
 
         dialog.onSave = { name, notes, includeGps ->
-            val currentUiState = viewModel.uiState.value
+            // Use tapUiState (frozen at FAB tap time) — compass state fields reflect the moment
+            // the user tapped, regardless of how long the dialog was open (BearingSnapshot KDoc).
+            // Only user-entered fields (name, notes, includeGps) come from the save callback.
 
             // Resolve location at tap time from LocationRepository (TSPEC §3.6)
             val latDeg: Double?
@@ -400,12 +412,12 @@ class CompassActivity : AppCompatActivity() {
             }
 
             val snapshot = BearingSnapshot(
-                bearingDeg = currentUiState.heading_deg.toFloat(),
-                northType = currentUiState.north_type,
-                confidence = currentUiState.confidence,
-                interferenceState = currentUiState.interference_state,
-                fieldDeviationPct = currentUiState.interference_metrics?.fieldDeviation?.times(100f) ?: 0f,
-                inclinationDeviationDeg = currentUiState.interference_metrics?.inclinationDeviation_deg ?: 0f,
+                bearingDeg = tapUiState.heading_deg.toFloat(),
+                northType = tapUiState.north_type,
+                confidence = tapUiState.confidence,
+                interferenceState = tapUiState.interference_state,
+                fieldDeviationPct = tapUiState.interference_metrics?.fieldDeviation?.times(100f) ?: 0f,
+                inclinationDeviationDeg = tapUiState.interference_metrics?.inclinationDeviation_deg ?: 0f,
                 latDeg = latDeg,
                 lonDeg = lonDeg,
                 altM = altM,
@@ -662,23 +674,23 @@ class CompassActivity : AppCompatActivity() {
                 when (state.confidence) {
                     OverallConfidence.HIGH -> {
                         confidenceBadge.text = "High accuracy"
-                        confidenceBadge.setBackgroundColor(Color.parseColor("#4CAF50"))
+                        confidenceBadge.setBackgroundColor(getColor(R.color.confidence_high))
                     }
                     OverallConfidence.MODERATE -> {
                         confidenceBadge.text = "Moderate accuracy"
-                        confidenceBadge.setBackgroundColor(Color.parseColor("#FFC107"))
+                        confidenceBadge.setBackgroundColor(getColor(R.color.confidence_moderate))
                     }
                     OverallConfidence.POOR -> {
                         confidenceBadge.text = "Poor accuracy"
-                        confidenceBadge.setBackgroundColor(Color.parseColor("#F44336"))
+                        confidenceBadge.setBackgroundColor(getColor(R.color.confidence_poor))
                     }
                     OverallConfidence.STABILIZING -> {
                         confidenceBadge.text = getString(R.string.stabilizing)
-                        confidenceBadge.setBackgroundColor(Color.parseColor("#FFC107"))
+                        confidenceBadge.setBackgroundColor(getColor(R.color.confidence_moderate))
                     }
                     OverallConfidence.SENSOR_ERROR -> {
                         confidenceBadge.text = getString(R.string.sensor_error)
-                        confidenceBadge.setBackgroundColor(Color.parseColor("#F44336"))
+                        confidenceBadge.setBackgroundColor(getColor(R.color.confidence_poor))
                     }
                 }
                 confidenceBadge.visibility = View.VISIBLE
@@ -692,14 +704,14 @@ class CompassActivity : AppCompatActivity() {
                     InterferenceState.MODERATE -> {
                         if (!interferenceBannerDismissed) {
                             interferenceBanner.text = getString(R.string.interference_explanation)
-                            interferenceBanner.setBackgroundColor(Color.parseColor("#FFC107"))
+                            interferenceBanner.setBackgroundColor(getColor(R.color.confidence_moderate))
                             interferenceBanner.visibility = View.VISIBLE
                         }
                     }
                     InterferenceState.WARNING -> {
                         if (!interferenceBannerDismissed) {
                             interferenceBanner.text = getString(R.string.interference_explanation)
-                            interferenceBanner.setBackgroundColor(Color.parseColor("#F44336"))
+                            interferenceBanner.setBackgroundColor(getColor(R.color.confidence_poor))
                             interferenceBanner.visibility = View.VISIBLE
                         }
                     }
