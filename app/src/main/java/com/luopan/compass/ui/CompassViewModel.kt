@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.luopan.compass.calibration.CalibrationRepository
 import com.luopan.compass.confidence.ConfidenceModel
+import com.luopan.compass.model.CalibrationQuality
 import com.luopan.compass.confidence.NoiseVarianceTracker
 import com.luopan.compass.db.DatabaseKeyManager
 import com.luopan.compass.db.LuopanDatabase
@@ -49,6 +50,7 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
     val uiState: StateFlow<CompassUiState> = _uiState.asStateFlow()
 
     private var calibrationAgeDays: Long = -1L
+    private var calibrationQuality: CalibrationQuality = CalibrationQuality.POOR
     private var lastValidHeading: Double? = null
 
     // Power-saving advisory tracking
@@ -66,6 +68,7 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
             if (record != null) {
                 val ageMs = System.currentTimeMillis() - record.recorded_at
                 calibrationAgeDays = TimeUnit.MILLISECONDS.toDays(ageMs)
+                calibrationQuality = CalibrationQuality.valueOf(record.quality)
             }
         }
     }
@@ -134,7 +137,8 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
                     noiseVariance = noiseVariance,
                     calibrationAgeDays = calibrationAgeDays,
                     hasGyroscope = hasGyro,
-                    sensorState = sensorState
+                    sensorState = sensorState,
+                    calibrationQuality = calibrationQuality
                 )
 
                 // Update lastValidHeading only when sensor is not STUCK
@@ -216,11 +220,7 @@ class CompassViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun formatHeading(deg: Double): String {
-        val d = deg.toInt()
-        return when (settings.displayFormat) {
-            SettingsRepository.FORMAT_DMS -> "%03d°".format(d)
-            else -> "%03d°".format(d)
-        }
+        return "%05.1f°".format(deg)
     }
 
     fun onCalibrationComplete() { loadCalibrationAge() }

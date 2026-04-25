@@ -20,4 +20,8 @@
     <string name="sensor_error">センサーエラー</string>
     <string name="sensor_not_responding">センサーが応答しません——アプリまたは端末を再起動してください</string>
     <string name="interference_explanation">近くに磁場干渉を検出しました</string>
+    <string name="cancel_calibration_title">キャリブレーションをキャンセルしますか？</string>
+    <string name="cancel_calibration_message">データは破棄されます。</string>
+    <string name="poor_quality_confirm_title">キャリブレーション品質が不良です</string>
+    <string name="poor_quality_confirm_message">このキャリブレーションの品質は「不良」です。信頼度レベルが「不良」になり、読み取りが不正確になる可能性があります。それでも保存しますか？</string>
 </resources>

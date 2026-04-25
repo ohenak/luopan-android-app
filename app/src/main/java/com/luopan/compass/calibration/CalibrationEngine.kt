@@ -49,12 +49,26 @@ class CalibrationEngine {
         val xs = sampleList.map { it[0] }
         val ys = sampleList.map { it[1] }
         val zs = sampleList.map { it[2] }
-        val xRange = (xs.max() - xs.min())
-        val yRange = (ys.max() - ys.min())
-        val zRange = (zs.max() - zs.min())
-        val totalRange = xRange + yRange + zRange
-        if (totalRange == 0f) return 0f
-        return xRange / totalRange
+        val xRange = xs.max() - xs.min()
+        val yRange = ys.max() - ys.min()
+        val zRange = zs.max() - zs.min()
+        val maxRange = maxOf(xRange, yRange, zRange)
+        if (maxRange == 0f) return 0f
+        // per-axis coverage = axis_range / max(all axis ranges); return worst axis
+        return minOf(xRange, yRange, zRange) / maxRange
+    }
+
+    fun getPerAxisCoverage(sampleList: List<FloatArray> = samples): Triple<Float, Float, Float> {
+        if (sampleList.isEmpty()) return Triple(0f, 0f, 0f)
+        val xs = sampleList.map { it[0] }
+        val ys = sampleList.map { it[1] }
+        val zs = sampleList.map { it[2] }
+        val xRange = xs.max() - xs.min()
+        val yRange = ys.max() - ys.min()
+        val zRange = zs.max() - zs.min()
+        val maxRange = maxOf(xRange, yRange, zRange)
+        if (maxRange == 0f) return Triple(0f, 0f, 0f)
+        return Triple(xRange / maxRange, yRange / maxRange, zRange / maxRange)
     }
 
     fun applyCorrectedMag(raw: FloatArray, hardIron: FloatArray, softIron: Array<FloatArray>): FloatArray {

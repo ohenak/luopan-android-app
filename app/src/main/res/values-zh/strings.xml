@@ -15,4 +15,13 @@
     <string name="stabilizing">正在稳定…</string>
     <string name="calibration_cta_title">校准您的罗盘以获得准确读数</string>
     <string name="later">稍后</string>
+    <string name="compass_unavailable">指南针不可用</string>
+    <string name="no_magnetometer_explanation">此设备没有磁力计，指南针功能不可用。</string>
+    <string name="sensor_error">传感器错误</string>
+    <string name="sensor_not_responding">传感器无响应——请尝试重启应用或设备</string>
+    <string name="interference_explanation">检测到附近有磁场干扰</string>
+    <string name="cancel_calibration_title">取消校准？</string>
+    <string name="cancel_calibration_message">数据将被丢弃。</string>
+    <string name="poor_quality_confirm_title">校准质量不佳</string>
+    <string name="poor_quality_confirm_message">此校准质量为"不佳"，您的信心等级将为"不佳"，读数可能不准确。仍要保存吗？</string>
 </resources>

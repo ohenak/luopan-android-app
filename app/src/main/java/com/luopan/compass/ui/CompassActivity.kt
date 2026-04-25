@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -43,6 +44,7 @@ class CompassActivity : AppCompatActivity() {
 
     private var calBanner: MaterialBanner? = null
     private var bannerDismissedThisSession = false
+    private var interferenceBannerDismissed = false
     private val wakeLockManager by lazy { WakeLockManager(this) }
 
     private val calibrationLauncher = registerForActivityResult(
@@ -80,17 +82,23 @@ class CompassActivity : AppCompatActivity() {
         }
 
         calCta.setOnClickListener { launchCalibrationWizard() }
+        interferenceBanner.setOnClickListener {
+            interferenceBannerDismissed = true
+            interferenceBanner.visibility = View.GONE
+        }
 
         observeUiState()
     }
 
     override fun onStart() {
         super.onStart()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         wakeLockManager.acquire()
     }
 
     override fun onStop() {
         super.onStop()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         wakeLockManager.release()
     }
 
@@ -124,7 +132,7 @@ class CompassActivity : AppCompatActivity() {
                     val frozenHeading = state.last_valid_heading_deg
                     if (frozenHeading != null) {
                         compassRose.setHeading(frozenHeading.toFloat())
-                        headingText.text = "%03d°".format(frozenHeading.toInt())
+                        headingText.text = "%05.1f°".format(frozenHeading)
                     }
                     sensorStuckText.text = getString(R.string.sensor_not_responding)
                     sensorStuckText.visibility = View.VISIBLE
@@ -180,16 +188,21 @@ class CompassActivity : AppCompatActivity() {
                 when (state.interference_state) {
                     InterferenceState.CLEAR -> {
                         interferenceBanner.visibility = View.GONE
+                        interferenceBannerDismissed = false
                     }
                     InterferenceState.MODERATE -> {
-                        interferenceBanner.text = getString(R.string.interference_explanation)
-                        interferenceBanner.setBackgroundColor(Color.parseColor("#FFC107"))
-                        interferenceBanner.visibility = View.VISIBLE
+                        if (!interferenceBannerDismissed) {
+                            interferenceBanner.text = getString(R.string.interference_explanation)
+                            interferenceBanner.setBackgroundColor(Color.parseColor("#FFC107"))
+                            interferenceBanner.visibility = View.VISIBLE
+                        }
                     }
                     InterferenceState.WARNING -> {
-                        interferenceBanner.text = getString(R.string.interference_explanation)
-                        interferenceBanner.setBackgroundColor(Color.parseColor("#F44336"))
-                        interferenceBanner.visibility = View.VISIBLE
+                        if (!interferenceBannerDismissed) {
+                            interferenceBanner.text = getString(R.string.interference_explanation)
+                            interferenceBanner.setBackgroundColor(Color.parseColor("#F44336"))
+                            interferenceBanner.visibility = View.VISIBLE
+                        }
                     }
                 }
 

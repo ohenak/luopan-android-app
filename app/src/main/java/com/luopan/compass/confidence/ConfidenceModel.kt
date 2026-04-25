@@ -1,5 +1,6 @@
 package com.luopan.compass.confidence
 
+import com.luopan.compass.model.CalibrationQuality
 import com.luopan.compass.model.InterferenceState
 import com.luopan.compass.model.OverallConfidence
 import com.luopan.compass.model.SensorState
@@ -21,12 +22,13 @@ class ConfidenceModel {
         noiseVariance: Double,
         calibrationAgeDays: Long,
         hasGyroscope: Boolean,
-        sensorState: SensorState = SensorState.NORMAL
+        sensorState: SensorState = SensorState.NORMAL,
+        calibrationQuality: CalibrationQuality = CalibrationQuality.GOOD
     ): OverallConfidence {
         return when (sensorState) {
             SensorState.STUCK -> OverallConfidence.SENSOR_ERROR
             SensorState.STABILIZING -> OverallConfidence.STABILIZING
-            SensorState.NORMAL -> normalCompute(interferencState, tilt_deg, noiseVariance, calibrationAgeDays, hasGyroscope)
+            SensorState.NORMAL -> normalCompute(interferencState, tilt_deg, noiseVariance, calibrationAgeDays, hasGyroscope, calibrationQuality)
         }
     }
 
@@ -35,14 +37,15 @@ class ConfidenceModel {
         tilt_deg: Double,
         noiseVariance: Double,
         calibrationAgeDays: Long,
-        hasGyroscope: Boolean
+        hasGyroscope: Boolean,
+        calibrationQuality: CalibrationQuality
     ): OverallConfidence {
         val scores = listOf(
             scoreInterference(interferencState),
             scoreTilt(tilt_deg),
             scoreNoiseVariance(noiseVariance),
             scoreCalibrationAge(calibrationAgeDays),
-            scoreCalibrationQuality(calibrationAgeDays)
+            scoreCalibrationQuality(calibrationAgeDays, calibrationQuality)
         )
 
         val minScore = scores.minOf { it.numericValue }
@@ -85,8 +88,12 @@ class ConfidenceModel {
         else -> ConfidenceScore.GOOD
     }
 
-    internal fun scoreCalibrationQuality(ageDays: Long): ConfidenceScore {
-        // Proxy: uncalibrated (-1) → POOR; otherwise GOOD (actual quality checked by CalibrationEngine)
-        return if (ageDays < 0) ConfidenceScore.POOR else ConfidenceScore.GOOD
+    internal fun scoreCalibrationQuality(ageDays: Long, quality: CalibrationQuality = CalibrationQuality.GOOD): ConfidenceScore {
+        if (ageDays < 0) return ConfidenceScore.POOR
+        return when (quality) {
+            CalibrationQuality.GOOD -> ConfidenceScore.GOOD
+            CalibrationQuality.FAIR -> ConfidenceScore.MODERATE
+            CalibrationQuality.POOR -> ConfidenceScore.POOR
+        }
     }
 }

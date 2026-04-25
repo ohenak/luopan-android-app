@@ -20,5 +20,8 @@
     <string name="sensor_error">感測器錯誤</string>
     <string name="sensor_not_responding">感測器無回應——請嘗試重啟應用程式或裝置</string>
     <string name="interference_explanation">偵測到附近有磁場干擾</string>
-    <string name="calibration_cta_title">校準您的羅盤以獲得準確讀數</string>
+    <string name="cancel_calibration_title">取消校準？</string>
+    <string name="cancel_calibration_message">資料將被捨棄。</string>
+    <string name="poor_quality_confirm_title">校準品質不佳</string>
+    <string name="poor_quality_confirm_message">此校準品質為「不佳」，您的信心等級將為「不佳」，讀數可能不準確。仍要儲存嗎？</string>
 </resources>

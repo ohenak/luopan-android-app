@@ -143,9 +143,7 @@ class CalibrationWizardActivity : AppCompatActivity() {
                 sphereView.addSample(corrX, corrY, corrZ)
 
                 val count = engine.getSampleCount()
-                val coverage = engine.getCoverageScore()
-                // Simplified per-axis coverage (proxy via total coverage thirds)
-                val cx = coverage; val cy = coverage * 0.9f; val cz = coverage * 0.8f
+                val (cx, cy, cz) = engine.getPerAxisCoverage()
 
                 val doneEnabled = count >= MIN_SAMPLES && cx >= MIN_COVERAGE && cy >= MIN_COVERAGE && cz >= MIN_COVERAGE
 
