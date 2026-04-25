@@ -703,16 +703,16 @@ This document specifies testable properties (invariants) for Phase 1 of the Luop
 
 ---
 
-### PROP-DISPLAY-05: Interference warning is non-dismissible
+### PROP-DISPLAY-05: Interference warning is user-dismissible
 **Type:** E2E
 **Test Level:** Espresso
 **Source:** REQ-DETECT-03, TSPEC §7 — T-6-01
 
-**Property:** When the interference warning banner is visible, a user tap on it does not dismiss it. The warning persists until interference clears naturally.
+**Property:** When the interference warning banner is visible, a user tap on it dismisses it immediately. The banner does not reappear until interference clears and re-triggers. Once cleared naturally (state returns to CLEAR), the dismissal flag resets so the banner can show again on the next interference event.
 
 **Given:** `CompassActivity` receiving `InterferenceState.WARNING`; warning banner visible
 **When:** User taps the interference warning banner
-**Then:** `onView(withId(R.id.interference_warning)).check(matches(isDisplayed()))` (still visible after tap)
+**Then:** `onView(withId(R.id.interference_banner)).check(matches(not(isDisplayed())))` (hidden after tap)
 
 ---
 
@@ -1185,7 +1185,7 @@ This document specifies testable properties (invariants) for Phase 1 of the Luop
 | PROP-DISPLAY-02 | Wake lock flag set in onStart | Integration | Instrumented | REQ-DISPLAY-10 |
 | PROP-DISPLAY-03 | Wake lock flag cleared in onStop | Integration | Instrumented | REQ-DISPLAY-10 |
 | PROP-DISPLAY-04 | Mode switcher absent | E2E | Espresso | REQ-DISPLAY-01 |
-| PROP-DISPLAY-05 | Interference warning non-dismissible | E2E | Espresso | REQ-DETECT-03 |
+| PROP-DISPLAY-05 | Interference warning user-dismissible | E2E | Espresso | REQ-DETECT-03 |
 | PROP-DISPLAY-06 | Interference overlay appears within 2 s | Integration | Instrumented | REQ §9 Scenario D |
 | PROP-DISPLAY-07 | Heading continues during interference | Integration | Instrumented | REQ-DETECT-03 |
 | PROP-DISPLAY-08 | CTA shown on first launch | E2E | Espresso | REQ §9 Scenario A |
