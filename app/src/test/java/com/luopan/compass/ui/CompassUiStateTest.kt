@@ -28,7 +28,7 @@ class CompassUiStateTest {
     }
 
     @Test
-    fun `all 19 fields are accessible by name on INITIAL`() {
+    fun `all 20 fields are accessible by name on INITIAL`() {
         val s = CompassUiState.INITIAL
 
         assertEquals(0.0, s.heading_deg, 0.0)
@@ -46,6 +46,7 @@ class CompassUiStateTest {
         assertFalse(s.no_gyroscope_advisory)
         assertFalse(s.fallback_mag_advisory)
         assertFalse(s.location_fallback_advisory)
+        assertFalse(s.extreme_latitude_advisory)
         assertEquals(SensorState.NORMAL, s.sensor_state)
         assertFalse(s.is_stabilizing)
         assertNull(s.last_valid_heading_deg)
@@ -73,6 +74,7 @@ class CompassUiStateTest {
         assertEquals(original.no_gyroscope_advisory, modified.no_gyroscope_advisory)
         assertEquals(original.fallback_mag_advisory, modified.fallback_mag_advisory)
         assertEquals(original.location_fallback_advisory, modified.location_fallback_advisory)
+        assertEquals(original.extreme_latitude_advisory, modified.extreme_latitude_advisory)
         assertEquals(original.sensor_state, modified.sensor_state)
         assertEquals(original.is_stabilizing, modified.is_stabilizing)
         assertEquals(original.last_valid_heading_deg, modified.last_valid_heading_deg)

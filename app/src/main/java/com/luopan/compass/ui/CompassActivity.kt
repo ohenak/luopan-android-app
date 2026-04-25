@@ -54,6 +54,9 @@ class CompassActivity : AppCompatActivity() {
     // P4.3: North type toggle group (binary: TRUE / MAGNETIC only — AT-G-08)
     private lateinit var northTypeToggleGroup: MaterialButtonToggleGroup
 
+    // P7.1: Extreme latitude advisory banner
+    private lateinit var extremeLatitudeAdvisoryBanner: TextView
+
     private var calSnackbar: Snackbar? = null
     private var bannerDismissedThisSession = false
     private var interferenceBannerDismissed = false
@@ -113,6 +116,7 @@ class CompassActivity : AppCompatActivity() {
         sensorStuckText = findViewById(R.id.sensor_stuck_text)
         noMagErrorLayout = findViewById(R.id.no_mag_error_layout)
         northTypeToggleGroup = findViewById(R.id.northTypeToggleGroup)
+        extremeLatitudeAdvisoryBanner = findViewById(R.id.extreme_latitude_advisory_banner)
 
         // T-6-05: Check for magnetometer before proceeding
         val sensorLayer = SensorLayer(this)
@@ -185,6 +189,7 @@ class CompassActivity : AppCompatActivity() {
         noGyroAdvisory.visibility = View.GONE
         powerSavingAdvisoryText.visibility = View.GONE
         sensorStuckText.visibility = View.GONE
+        extremeLatitudeAdvisoryBanner.visibility = View.GONE
     }
 
     private fun launchCalibrationWizard() {
@@ -419,6 +424,11 @@ class CompassActivity : AppCompatActivity() {
                 } else {
                     powerSavingAdvisoryText.visibility = View.GONE
                 }
+
+                // --- P7.1: Extreme latitude advisory banner ---
+                // Non-dismissible; no close button; amber background set in layout.
+                extremeLatitudeAdvisoryBanner.visibility =
+                    if (state.extreme_latitude_advisory) View.VISIBLE else View.GONE
 
                 // Snackbar CTA for first-launch calibration prompt
                 if (state.show_calibration_cta && !bannerDismissedThisSession) {

@@ -264,6 +264,11 @@ class CompassViewModel(
 
                 val hasGyro = sensorLayer.hasGyroscope
 
+                // P7.1 — Extreme latitude advisory: if abs(inclination) >= 80°, near magnetic poles.
+                // Confidence is capped at MODERATE; advisory flag is set in UiState.
+                val extremeLatitudeActive = wmmResult != null &&
+                    kotlin.math.abs(wmmResult.inclination) >= 80.0f
+
                 val confidence = confidenceModel.compute(
                     interferencState = interferenceState,
                     tilt_deg = tilt,
@@ -271,7 +276,8 @@ class CompassViewModel(
                     calibrationAgeDays = calibrationAgeDays,
                     hasGyroscope = hasGyro,
                     sensorState = sensorState,
-                    calibrationQuality = calibrationQuality
+                    calibrationQuality = calibrationQuality,
+                    extremeLatitudeActive = extremeLatitudeActive
                 )
 
                 // Update lastValidHeading only when sensor is not STUCK
@@ -327,7 +333,8 @@ class CompassViewModel(
                     interferenceMetrics = metrics,
                     sensorState = sensorState,
                     hasGyro = hasGyro,
-                    powerSavingAdvisory = powerSavingAdvisory
+                    powerSavingAdvisory = powerSavingAdvisory,
+                    extremeLatitudeAdvisory = extremeLatitudeActive
                 )
                 _uiState.value = uiState
             }
@@ -347,7 +354,8 @@ class CompassViewModel(
         interferenceMetrics: com.luopan.compass.sensor.InterferenceMetrics,
         sensorState: SensorState,
         hasGyro: Boolean,
-        powerSavingAdvisory: Boolean
+        powerSavingAdvisory: Boolean,
+        extremeLatitudeAdvisory: Boolean = false
     ): CompassUiState {
         val isStabilizing = sensorState == SensorState.STABILIZING
         val headingFormatted = if (isStabilizing) "---" else formatHeading(heading)
@@ -385,6 +393,7 @@ class CompassViewModel(
             no_gyroscope_advisory = !hasGyro,
             fallback_mag_advisory = fallbackMagAdvisory,
             location_fallback_advisory = locationFallbackAdvisory,
+            extreme_latitude_advisory = extremeLatitudeAdvisory,
             sensor_state = sensorState,
             is_stabilizing = isStabilizing,
             last_valid_heading_deg = lastValidHeading,

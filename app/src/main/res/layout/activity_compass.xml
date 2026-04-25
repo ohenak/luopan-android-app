@@ -170,6 +170,22 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- P7.1: Extreme latitude advisory banner — shown when abs(WMM inclination) >= 80° -->
+    <TextView
+        android:id="@+id/extreme_latitude_advisory_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:textColor="@android:color/white"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:background="#FFC107"
+        android:text="@string/extreme_latitude_advisory"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/power_saving_advisory_text"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Sensor stuck advisory -->
     <TextView
         android:id="@+id/sensor_stuck_text"

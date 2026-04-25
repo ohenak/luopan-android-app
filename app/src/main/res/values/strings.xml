@@ -25,6 +25,9 @@
     <string name="sensor_not_responding">Sensor not responding — try restarting the app or device</string>
     <string name="interference_explanation">Magnetic interference detected nearby</string>
 
+    <!-- P7.1: Extreme latitude advisory -->
+    <string name="extreme_latitude_advisory">Near magnetic pole — compass accuracy severely reduced</string>
+
     <!-- P4.3: North type toggle -->
     <string name="toggle_north_type_content_description">Toggle north type between Magnetic N and True N</string>
 

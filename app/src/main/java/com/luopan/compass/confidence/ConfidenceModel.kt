@@ -23,12 +23,25 @@ class ConfidenceModel {
         calibrationAgeDays: Long,
         hasGyroscope: Boolean,
         sensorState: SensorState = SensorState.NORMAL,
-        calibrationQuality: CalibrationQuality = CalibrationQuality.GOOD
+        calibrationQuality: CalibrationQuality = CalibrationQuality.GOOD,
+        /**
+         * P7.1 — When true, caps the result at [OverallConfidence.MODERATE].
+         * Set to true when WMM inclination abs >= 80° (near magnetic poles).
+         * Does NOT upgrade POOR → MODERATE; only caps HIGH → MODERATE.
+         */
+        extremeLatitudeActive: Boolean = false
     ): OverallConfidence {
-        return when (sensorState) {
+        val base = when (sensorState) {
             SensorState.STUCK -> OverallConfidence.SENSOR_ERROR
             SensorState.STABILIZING -> OverallConfidence.STABILIZING
             SensorState.NORMAL -> normalCompute(interferencState, tilt_deg, noiseVariance, calibrationAgeDays, hasGyroscope, calibrationQuality)
+        }
+        // P7.1: Cap confidence at MODERATE when near magnetic poles.
+        // Only HIGH is capped — POOR and STABILIZING/SENSOR_ERROR are unaffected.
+        return if (extremeLatitudeActive && base == OverallConfidence.HIGH) {
+            OverallConfidence.MODERATE
+        } else {
+            base
         }
     }
 

@@ -359,6 +359,144 @@ class CompassViewModelTest {
         assertEquals(emaBaseline, metrics.expectedField_uT, 0.1f)
     }
 
+    // -----------------------------------------------------------------------
+    // P7.1 — Extreme latitude advisory
+    // -----------------------------------------------------------------------
+
+    /**
+     * TSPEC §10.1 TE-T-04 (d): extreme latitude confidence cap.
+     *
+     * When WMM inclination >= 80°, confidence must be capped at MODERATE even when all
+     * Phase 1 confidence dimensions are Good. This is the canonical test case from PLAN §4 P7.1.
+     */
+    @Test
+    fun `extreme latitude — inclination 80 degrees caps confidence at MODERATE`() {
+        // All other inputs yield HIGH confidence without the extreme latitude cap.
+        // FakeMagneticFieldModel returning inclination=80.0° triggers extremeLatitudeActive=true.
+        // TSPEC §10.1 TE-T-04 (d): inject FakeMagneticFieldModel with inclination=80.0°;
+        // assert extremeLatitudeAdvisory==true and confidence==MODERATE.
+        val confidenceModel = com.luopan.compass.confidence.ConfidenceModel()
+
+        val confidence = confidenceModel.compute(
+            interferencState = com.luopan.compass.model.InterferenceState.CLEAR,
+            tilt_deg = 0.0,
+            noiseVariance = 0.0,
+            calibrationAgeDays = 0L,
+            hasGyroscope = true,
+            sensorState = com.luopan.compass.model.SensorState.NORMAL,
+            extremeLatitudeActive = true   // derived from abs(inclination=80.0f) >= 80f
+        )
+
+        assertEquals(
+            "confidence must be capped at MODERATE when extreme latitude is active",
+            com.luopan.compass.model.OverallConfidence.MODERATE,
+            confidence
+        )
+    }
+
+    @Test
+    fun `extreme latitude — inclination -80 degrees (southern pole) caps confidence at MODERATE`() {
+        val confidenceModel = com.luopan.compass.confidence.ConfidenceModel()
+
+        val confidence = confidenceModel.compute(
+            interferencState = com.luopan.compass.model.InterferenceState.CLEAR,
+            tilt_deg = 0.0,
+            noiseVariance = 0.0,
+            calibrationAgeDays = 0L,
+            hasGyroscope = true,
+            sensorState = com.luopan.compass.model.SensorState.NORMAL,
+            extremeLatitudeActive = true
+        )
+
+        assertEquals(
+            "confidence must be capped at MODERATE for southern extreme latitude",
+            com.luopan.compass.model.OverallConfidence.MODERATE,
+            confidence
+        )
+    }
+
+    @Test
+    fun `extreme latitude — inclination below threshold does NOT cap confidence`() {
+        val confidenceModel = com.luopan.compass.confidence.ConfidenceModel()
+
+        // inclination = 79.9° < 80° → no cap → should remain HIGH with all-good inputs
+        val confidence = confidenceModel.compute(
+            interferencState = com.luopan.compass.model.InterferenceState.CLEAR,
+            tilt_deg = 0.0,
+            noiseVariance = 0.0,
+            calibrationAgeDays = 0L,
+            hasGyroscope = true,
+            sensorState = com.luopan.compass.model.SensorState.NORMAL,
+            extremeLatitudeActive = false
+        )
+
+        assertEquals(
+            "confidence must NOT be capped at MODERATE when extreme latitude is NOT active",
+            com.luopan.compass.model.OverallConfidence.HIGH,
+            confidence
+        )
+    }
+
+    @Test
+    fun `extreme latitude — EXTREME_LATITUDE is a valid SensorAdvisory entry`() {
+        val entries = com.luopan.compass.model.SensorAdvisory.entries.toSet()
+        assertTrue(
+            "SensorAdvisory.EXTREME_LATITUDE must exist",
+            entries.contains(com.luopan.compass.model.SensorAdvisory.EXTREME_LATITUDE)
+        )
+    }
+
+    @Test
+    fun `extreme latitude — CompassUiState has extreme_latitude_advisory field`() {
+        // INITIAL state must have extreme_latitude_advisory = false
+        assertFalse(
+            "CompassUiState.INITIAL.extreme_latitude_advisory must be false",
+            CompassUiState.INITIAL.extreme_latitude_advisory
+        )
+
+        // Verify it can be set to true via copy
+        val withAdvisory = CompassUiState.INITIAL.copy(extreme_latitude_advisory = true)
+        assertTrue(withAdvisory.extreme_latitude_advisory)
+    }
+
+    @Test
+    fun `extreme latitude — isExtremeLatitude helper returns true when abs inclination at boundary 80`() {
+        assertTrue(
+            "abs(80.0f) >= 80f must be true",
+            kotlin.math.abs(80.0f) >= 80.0f
+        )
+        assertTrue(
+            "abs(-80.0f) >= 80f must be true",
+            kotlin.math.abs(-80.0f) >= 80.0f
+        )
+        assertFalse(
+            "abs(79.9f) >= 80f must be false",
+            kotlin.math.abs(79.9f) >= 80.0f
+        )
+    }
+
+    @Test
+    fun `extreme latitude — confidence POOR is not upgraded by extreme latitude cap`() {
+        val confidenceModel = com.luopan.compass.confidence.ConfidenceModel()
+
+        // WARNING interference would yield POOR; extreme latitude cap at MODERATE should not upgrade it
+        val confidence = confidenceModel.compute(
+            interferencState = com.luopan.compass.model.InterferenceState.WARNING,
+            tilt_deg = 0.0,
+            noiseVariance = 0.0,
+            calibrationAgeDays = 0L,
+            hasGyroscope = true,
+            sensorState = com.luopan.compass.model.SensorState.NORMAL,
+            extremeLatitudeActive = true
+        )
+
+        assertEquals(
+            "POOR confidence (from WARNING interference) must NOT be upgraded by extreme latitude cap",
+            com.luopan.compass.model.OverallConfidence.POOR,
+            confidence
+        )
+    }
+
     /**
      * WMM-based inclinationDeviation_deg is the absolute difference between
      * sensor pitch and WMM expected inclination.

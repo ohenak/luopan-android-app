@@ -34,6 +34,12 @@ data class CompassUiState(
     val fallback_mag_advisory: Boolean,
     /** True when True North is active and using a cached GPS location rather than a fresh fix. */
     val location_fallback_advisory: Boolean,
+    /**
+     * True when WMM inclination abs >= 80° (near magnetic poles).
+     * When true, [confidence] is capped at [OverallConfidence.MODERATE].
+     * P7.1 — PLAN §4 P7.1 / TSPEC §3.7.
+     */
+    val extreme_latitude_advisory: Boolean,
     val sensor_state: SensorState,
     val is_stabilizing: Boolean,
     val last_valid_heading_deg: Double?,
@@ -58,6 +64,7 @@ data class CompassUiState(
             no_gyroscope_advisory = false,
             fallback_mag_advisory = false,
             location_fallback_advisory = false,
+            extreme_latitude_advisory = false,
             sensor_state = SensorState.NORMAL,
             is_stabilizing = false,
             last_valid_heading_deg = null,
