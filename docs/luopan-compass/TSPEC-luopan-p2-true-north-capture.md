@@ -4,9 +4,10 @@
 | Field | Value |
 |-------|-------|
 | **Document ID** | TSPEC-luopan-p2-true-north-capture |
-| **Version** | 0.1-draft |
+| **Version** | 0.2-draft |
 | **Status** | Draft |
 | **Date** | 2026-04-24 |
+| **Revised** | 2026-04-24 (v0.2-draft — addressed PM/TE cross-review findings: TE-T-01 WMM test vector corrected to NOAA-pinned vector; TE-T-02 encryption test DB filename corrected to `bearing_records.db`; TE-T-03 added AT-B/C/D/F test classes; TE-T-04 added `CompassViewModelTest`; TE-T-05 added BR-CAP-08 concurrency test; PM-T-01 added `tapTimestampMs` to `BearingSnapshot` for tap-time `captured_at`; PM-T-03 added `LocationRepository` to `BearingCaptureUseCase` constructor; PM-T-04 clarified WMM lazy-loading init path in §5.2; PM-T-06 removed `NETWORK_PROVIDER`/`PASSIVE_PROVIDER` fallback; TE-T-06 `WallClock` DI contract enforced; TE-T-10 added `LocationPermissionRationaleTest`) |
 | **Phase** | 2 of 5 |
 | **Author** | Engineering |
 | **Parent REQ** | [REQ-luopan-p2-true-north-capture.md](REQ-luopan-p2-true-north-capture.md) |
@@ -35,6 +36,7 @@
 | §4 — Data Layer | REQ-CAPTURE-01, REQ-CAPTURE-04, REQ §10.2 | FSPEC §6.1 |
 | §5 — WMM2025 Bundling | REQ-NORTH-01 | FSPEC-TNORTH §2.1 |
 | §6 — Location Strategy | REQ-NORTH-03, REQ-CAPTURE-06 | FSPEC-GPS §2.4 |
+| §7.2 — Declination Info Panel | REQ-DECL-02 | FSPEC-DECLPANEL §2.3 |
 | §7 — UI Changes | REQ-DECL-01, REQ-DECL-02, REQ-CAPTURE-02 | FSPEC-TOGGLE, FSPEC-DECLPANEL, FSPEC-CAPTURE |
 | §8 — Threading Model | REQ-NFR-08 | FSPEC §7 AT-NFR-01 |
 | §9 — Deferred Decisions | — | FSPEC §6.2, §6.3, FSPEC-GPS |
@@ -96,7 +98,8 @@ CompassViewModel
 
 BearingCaptureUseCase
   ├── BearingRepository → LuopanDatabase (version 2)
-  ├── LocationRepository  (reads resolved location)
+  ├── LocationRepository  (constructor-injected; Phase 2 uses snapshotted location values
+  │                        but the dependency is explicit for future phases)
   └── MagneticFieldModelProvider  (reads getModelId())
 
 LuopanDatabase (v2)
@@ -223,6 +226,7 @@ interface Clock {
 
 // Production implementation.
 // Named WallClock (not SystemClock) to avoid shadowing android.os.SystemClock.
+// WallClock has a no-arg constructor — it simply wraps System.currentTimeMillis().
 class WallClock : Clock {
     override fun nowMs(): Long = System.currentTimeMillis()
 }
@@ -234,6 +238,8 @@ class FakeClock(private var nowMs: Long = 0L) : Clock {
     fun set(ms: Long) { nowMs = ms }
 }
 ```
+
+> **DI contract for `WallClock` (TE-T-06):** `WallClock` has a no-arg constructor and is a concrete class — this is intentional, as it wraps a single `System.currentTimeMillis()` call with no configuration. However, **all production uses of the `Clock` interface MUST be injected via the DI module**. No class other than the DI module (the Hilt/manual module that binds `WallClock` to `Clock`) may instantiate `WallClock()` directly. This is enforced by convention and code review: if a class needs the current time, it declares a `Clock` constructor parameter and receives `WallClock` through DI in production and `FakeClock` in tests. The pattern `class Foo(private val clock: Clock = WallClock())` with a default parameter is **prohibited** — it allows callers to bypass DI silently. Constructor parameters of type `Clock` MUST NOT have default values.
 
 `TimeSource` and `SystemTimeSource` in `com.luopan.compass.sensor` are **not modified** in Phase 2. They remain the time source for the sensor pipeline and `InterferenceDetector` hysteresis timing.
 
@@ -257,7 +263,7 @@ class FakeClock(private var nowMs: Long = 0L) : Clock {
 **Public methods:**
 
 ```kotlin
-class Wmm2025Model(context: Context, private val clock: Clock = WallClock()) : MagneticFieldModel {
+class Wmm2025Model(context: Context, private val clock: Clock) : MagneticFieldModel {
 
     // Eagerly loads coefficients in the constructor. Throws WmmLoadException on failure.
     // Coefficients are stored as two parallel float arrays: g[n][m] and h[n][m], n ∈ [1,12], m ∈ [0,n].
@@ -529,14 +535,18 @@ class BearingRepository(private val dao: BearingDao) {
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `bearingRepository` | `BearingRepository` | Writes the record. |
+| `locationRepository` | `LocationRepository` | Provides the latest resolved location (`lat`, `lon`, `alt_m`) at save time when the GPS toggle is ON. |
 | `modelProvider` | `MagneticFieldModelProvider` | Reads `activeModel().getModelId()` for `calibration_version`. |
-| `clock` | `Clock` | Provides `captured_at` timestamp. |
+| `clock` | `Clock` | Reserved for future use (e.g., clock-skew diagnostics). `captured_at` is carried in `BearingSnapshot.tapTimestampMs` — see PM-T-01 note below. |
+
+> **PM-T-03 resolution:** `LocationRepository` is added to the constructor (aligning §1.3 dependency graph with §3.6). The use case reads `locationRepository.resolvedLocation()` at `execute()` time to populate `lat`/`lon`/`alt_m` when `snapshot.includeLocation == true`. The ViewModel sets `snapshot.latDeg`/`lonDeg`/`altM` from the snapshot taken at tap time; the use case may also validate the resolved location is still the same (or accept the snapshotted value). For Phase 2, the ViewModel populates the location fields in the snapshot at tap time from `LocationRepository.resolvedLocation()` and passes them through; `BearingCaptureUseCase` uses the snapshotted values directly (it does not call `locationRepository.resolvedLocation()` a second time). The `LocationRepository` dependency is present in the constructor to make the contract explicit and to allow future phases to query the live location at save time without a constructor change.
 
 **Public methods:**
 
 ```kotlin
 class BearingCaptureUseCase(
     private val bearingRepository: BearingRepository,
+    private val locationRepository: LocationRepository,
     private val modelProvider: MagneticFieldModelProvider,
     private val clock: Clock
 ) {
@@ -544,6 +554,7 @@ class BearingCaptureUseCase(
      * Executes the save. Constructs a BearingRecord from the snapshot and persists it.
      *
      * @param snapshot  Immutable snapshot taken at capture button tap time.
+     *                  snapshot.tapTimestampMs is used for BearingRecord.captured_at (PM-T-01).
      * @return The saved BearingRecord (with id assigned).
      * @throws IllegalStateException if snapshot.northType == NorthType.GRID (programming error guard).
      * @throws BearingInsertException wrapping the Room exception on storage failure.
@@ -569,7 +580,10 @@ data class BearingSnapshot(
     val name: String,                    // trimmed, length 1–100
     val notes: String?,                  // null if not entered; empty string is coerced to null
     val displayMode: String = "MODERN",  // Phase 2 always writes "MODERN"
-    val includeLocation: Boolean         // from GPS toggle state
+    val includeLocation: Boolean,        // from GPS toggle state
+    val tapTimestampMs: Long             // PM-T-01: wall-clock ms at the instant the capture button was tapped;
+                                        // populated by CompassViewModel.captureBearing() via clock.nowMs()
+                                        // BEFORE showing any dialog; used as BearingRecord.captured_at
 )
 
 enum class NorthType { TRUE, MAGNETIC, GRID }
@@ -580,7 +594,7 @@ enum class NorthType { TRUE, MAGNETIC, GRID }
 - The GRID invariant: `require(snapshot.northType != NorthType.GRID) { "GRID north type must never be written to BearingRecord" }`. This is a programming-error guard, not a user-facing validation.
 - `notes` empty-state: if `snapshot.notes` is an empty string after trimming, `execute()` writes `null` to the record. Only a genuinely entered string (non-empty after trim) is stored.
 - `id` generation: `java.util.UUID.randomUUID().toString()` — UUID v4.
-- `captured_at`: `clock.nowMs()` at the time `execute()` is called. The snapshot captures the heading at tap time; `captured_at` captures the persistence time. These may differ by a few seconds (name entry). This is acceptable — `captured_at` is labeled as "timestamp of capture button tap" in the FSPEC but in practice records the save time. The FSPEC snapshot is taken at tap time; the timestamp is recorded at save time. If exact tap-time recording is required, pass `tapTimestampMs` in `BearingSnapshot` and use it instead of `clock.nowMs()`. For Phase 2, using `clock.nowMs()` at persist time is acceptable.
+- `captured_at` (PM-T-01 resolution): `BearingRecord.captured_at` is set to `snapshot.tapTimestampMs` — the wall-clock milliseconds recorded at the instant the capture button was tapped, populated by `CompassViewModel.captureBearing()` via `clock.nowMs()` before any dialog is shown. This aligns with FSPEC §6.1 and BR-09: "the bearing snapshot is taken at the instant of the capture button tap." The use case does NOT use `clock.nowMs()` at execute time for `captured_at`; the tap timestamp is carried through the snapshot. This ensures a user who taps at 10:00:00 and types a name for 14 seconds still sees the record labeled 10:00:00 in the Phase 4 history screen.
 
 ---
 
@@ -806,6 +820,8 @@ The SQLCipher setup from Phase 1 is unchanged: `DatabaseKeyManager` generates a 
 
 No changes to `DatabaseKeyManager` are required in Phase 2.
 
+> **Canonical database filename (TE-T-02 normative note):** The canonical SQLite database filename is **`bearing_records.db`** as specified in FSPEC AT-PERSIST-01. All tests that open the raw database file MUST use `targetContext.getDatabasePath("bearing_records.db")`. The internal Room `@Database` builder uses this filename (passed to `Room.databaseBuilder(context, LuopanDatabase::class.java, "bearing_records.db")`). References to `"luopan.db"` in Phase 1 documentation referred to the Phase 1 calibration database; Phase 2 the bearing database file is `"bearing_records.db"`. All tests must use this name.
+
 ---
 
 ## 5. WMM2025 Bundling Strategy
@@ -838,7 +854,14 @@ context.resources.openRawResource(R.raw.wmm2025_cof)
 
 The load is performed once (in the constructor) and the coefficient arrays are held as `private val` fields. Loading from disk on the first True North activation would add latency to the toggle; loading in the constructor (called at app startup by `MagneticFieldModelProvider`) amortizes the cost before user interaction.
 
-**Cold-start impact:** The COF file is approximately 3–5 KB of text. Parsing 168 lines on the main thread would add ~2–5 ms on a mid-range device. `Wmm2025Model` is constructed on `Dispatchers.IO` inside `MagneticFieldModelProvider` initialization, which is launched as a coroutine from `CompassViewModel.init {}`. This keeps the main thread unblocked.
+**Cold-start impact and lazy-loading init path (PM-T-04):** The COF file is approximately 3–5 KB of text. Parsing 168 lines on the main thread would add ~2–5 ms on a mid-range device. `Wmm2025Model` is constructed on `Dispatchers.IO` inside `MagneticFieldModelProvider` initialization, which is launched as a coroutine from `CompassViewModel.init {}`. This keeps the main thread unblocked.
+
+The precise init sequence is:
+
+1. `CompassViewModel.init {}` launches `viewModelScope.async(Dispatchers.IO) { Wmm2025Model(context, clock) }` — this is the `Deferred<Wmm2025Model?>` held by the ViewModel.
+2. WMM coefficients are loaded lazily on first access via a `Mutex`-protected `val coefficients` that is populated on `Dispatchers.IO` within the `Wmm2025Model` constructor. `MagneticFieldModelProvider.getModel()` calls `awaitCoefficients()` if the deferred has not yet resolved.
+3. This ensures no blocking on the main thread. Cold starts resolve WMM on first sensor tick, which fires within 100–300 ms of `onStart` (the sensor registration lifecycle trigger). By the time the user can tap the True North toggle, WMM is almost always already loaded.
+4. When `setNorthType(TRUE)` is called and the `Deferred` has not yet completed, `CompassViewModel` calls `wmm.await()` on the deferred inside a `viewModelScope.launch(Dispatchers.IO)` block, ensuring the `await()` never blocks the main thread. If the `await` takes longer than 200 ms (extremely rare cold-start edge case), the heading update budget is not violated because the declination computation runs on `Dispatchers.IO` and posts the result to the UI via `StateFlow`.
 
 ### 5.3 Epoch Year Computation
 
@@ -886,9 +909,13 @@ LocationManager.requestLocationUpdates(
 
 A `Handler.postDelayed(timeout = 5_000L)` cancels the listener if no fix arrives within 5 seconds of the initial request during Step 1a. For the ongoing periodic update (Step 9 in FSPEC §2.4), the listener remains registered while `northType == TRUE` and the activity is started; a separate 10-second timeout applies to the first update delivery.
 
-### 6.3 NETWORK Fallback
+### 6.3 Location Provider Scope (PM-T-06)
 
-If `GPS_PROVIDER` is unavailable (e.g., indoor or location turned off), `SystemLocationProvider.getLastKnownLocation()` is called as a supplementary check using `NETWORK_PROVIDER` and `PASSIVE_PROVIDER`. If the result has age ≤ 60 seconds, it is treated as a fresh fix for `LocationState.GpsFresh`. If older, it is evaluated against the 30-day cache rule for `LocationState.GpsCached`.
+**`NETWORK_PROVIDER` and `PASSIVE_PROVIDER` are NOT used in Phase 2.** The location resolution chain uses only `GPS_PROVIDER` (Step 1/1a in §6.1). The FSPEC §2.4 priority chain is: session GPS fix → 30-day cached location → manual entry. Network and passive providers are explicitly out of scope for Phase 2.
+
+**Rationale:** A network-provider fix could yield significantly lower accuracy (e.g., 1–5 km cell-tower accuracy) than GPS, but would be presented with the same "GPS fix" or "Cached location" label in the declination info panel, misleading users about the declination computation precision. FSPEC §2.4 does not mention `NETWORK_PROVIDER`; engineering additions that change location resolution semantics require FSPEC alignment before implementation.
+
+If `GPS_PROVIDER` is unavailable (e.g., indoor, or location services disabled), the chain falls through Step 1a (timeout), then Step 2 (30-day cache), then Step 3 (manual entry). No network or passive provider is consulted.
 
 ### 6.4 Cache Storage
 
@@ -1048,18 +1075,28 @@ The value written to `BearingRecord.notes` is always either `null` or a non-empt
 
 | Test Class | Target | Key Assertions |
 |-----------|--------|----------------|
-| `Wmm2025ModelTest` | `Wmm2025Model` | WMM test vector: for NOAA-published test coordinates (e.g., lat=0°, lon=0°, alt=0 m, epoch=2025.0), `getDeclination()` matches published value ±0.1°; `getExpectedFieldMagnitude()` matches ±1 µT; `getExpectedInclination()` matches ±0.5°. Also: `isExpired()` with `FakeClock` set to 2030.5 returns `true`; with 2027.0 returns `false`; with 2024.9 returns `true`. |
+| `Wmm2025ModelTest` | `Wmm2025Model` | **Primary NOAA-pinned test vector (TE-T-01 — required; REQ §8 TE-REQ-02):** `lat=40.0, lon=−105.0, altM=0.0, epochYears=2025.5`. Assert: `getDeclination()` == `+8.93° ± 0.1°`; `getExpectedInclination()` == `+66.0° ± 0.5°`; `getExpectedFieldMagnitude()` == `52300 nT ± 200 nT`. This is the canonical vector pinned from the NOAA WMM2025 reference — it MUST remain the primary assertion and MUST NOT be replaced with a call to the live NOAA calculator. **Expiry assertions (inject `FakeClock`):** `isExpired()` returns `true` when clock set to epoch year 2030.5; returns `false` when 2027.0; returns `true` when 2024.9 (pre-validity). **Supplementary vectors (optional, non-blocking):** Additional vectors (e.g., lat=0°, lon=0°, epoch=2025.0; a southern-hemisphere vector) may be added as supplementary cases after the primary pinned assertion to widen coverage, but the primary NOAA-pinned vector must always be present and must be the first assertion. |
 | `MagneticFieldModelProviderTest` | `MagneticFieldModelProvider` | `activeModel()` returns `Wmm2025Model` when `wmm.isExpired() == false`; returns `AndroidGeoFieldModel` when `wmm.isExpired() == true`; returns `AndroidGeoFieldModel` when `wmm == null`. `getLastResult()` returns null before first `evaluate()` call; returns the cached `WmmResult` after. |
-| `BearingCaptureUseCaseTest` | `BearingCaptureUseCase` | `interference_flag = true` when `InterferenceState.MODERATE`; `interference_flag = true` when `InterferenceState.WARNING`; `interference_flag = false` when `InterferenceState.CLEAR` even if `OverallConfidence.POOR` (AT-E-10). `north_type` assertion: `execute()` throws `IllegalStateException` when `snapshot.northType == GRID`. `notes` coercion: empty string input → null in record. `id` is a valid UUID format. |
+| `BearingCaptureUseCaseTest` | `BearingCaptureUseCase` | `interference_flag = true` when `InterferenceState.MODERATE`; `interference_flag = true` when `InterferenceState.WARNING`; `interference_flag = false` when `InterferenceState.CLEAR` even if `OverallConfidence.POOR` (AT-E-10). `north_type` assertion: `execute()` throws `IllegalStateException` when `snapshot.northType == GRID`. `notes` coercion: empty string input → null in record. `id` is a valid UUID format. **`tapTimestampMs` assertion (PM-T-01):** `BearingRecord.captured_at` equals `snapshot.tapTimestampMs` — NOT `clock.nowMs()` at execute time. Verify by setting `FakeClock` to T=1000 at snap time and T=15000 at execute time; assert `captured_at == 1000`. **Concurrent execution test (TE-T-05 — BR-CAP-08):** invoke `captureBearing()` twice rapidly in parallel coroutines (using `async` with `UnconfinedTestDispatcher`); the second invocation must observe `captureButtonEnabled == false` and return without inserting; assert that `BearingRepository.count()` == 1 after both coroutines complete. |
 | `LocationRepositoryTest` | `LocationRepository` (with Robolectric `ShadowLocationManager`) | `isLocationCacheValid()` returns `true` when cache age = 30 days exactly; `false` when age = 30 days + 1 ms (AT-G-06, AT-G-07). Cache age floor division: `floor(elapsed / 86_400_000L)` — verified with `FakeClock`. `LocationState.Unavailable` emitted when no fix, no cache, no manual. |
 | `ClockEpochYearTest` | `Clock.toEpochYears()` extension | 2025-01-01 UTC → 2025.0; 2025-07-02 UTC → ~2025.5; leap year 2028-02-29 is handled correctly. |
+| `CompassViewModelTest` | `CompassViewModel` (TE-T-04) | Four mandatory cases — all using injected `FakeMagneticFieldModel`, `FakeClock`, and `TestCoroutineDispatcher`: (a) **200 ms heading budget:** inject `FakeSensorFusion` emitting a magnetic heading; set `northType = TRUE`; inject `FakeMagneticFieldModel` returning declination = 8.93°; assert that `CompassUiState.heading` reflects the updated true heading within one coroutine dispatch cycle (≤ one 20 Hz sensor frame = 50 ms, well within 200 ms). (b) **60 s WMM expiry debounce:** call `checkWmmExpiry()` twice within 59 999 ms (`FakeClock.advance(59_999L)`); assert that `isExpired()` on the model is called only once. Advance clock to 60 001 ms past the first check; call `checkWmmExpiry()` again; assert `isExpired()` is called a second time. (c) **`captureButtonEnabled` BR-CAP-08:** call `captureBearing(snapshot)` with a slow `FakeBearingCaptureUseCase` that suspends; assert `captureButtonEnabled == false` during the suspend; assert `captureButtonEnabled == true` after completion. (d) **Extreme latitude confidence cap:** inject `FakeMagneticFieldModel` returning inclination = 80.0°; trigger a WMM evaluation; assert `extremeLatitudeAdvisory == true` and `CompassUiState.confidence == MODERATE` even when all Phase 1 confidence dimensions are Good. |
+
+**AT-B, AT-C, AT-D, AT-F unit-level coverage (TE-T-03):**
+
+| Test Class | FSPEC AT | Key Assertions |
+|-----------|----------|----------------|
+| `WmmDeclinationAccuracyTest` | AT-B | Unit test using `FakeMagneticFieldModel` returning the NOAA-pinned vector (declination=8.93°, inclination=66.0°, totalField=52300 nT). Inject into `CompassViewModel` with `northType = TRUE`. Assert `CompassUiState.declination_deg == 8.93 ± 0.1`. Verifies the ViewModel correctly propagates the model's declination value to UI state. |
+| `LocationCacheAgeLabelTest` | AT-C | Unit test using `FakeClock` set to exactly `15 × 86_400_000 ms` after the cache timestamp (15 full days). Assert that the cache age label string produced by `LocationRepository` or the ViewModel equals `R.string.location_cache_age_label` formatted with `15` (whole-day `floor` division: `floor(elapsed_ms / 86_400_000L)`). `FakeClock` eliminates DST and midnight-boundary flakiness — no ±1 day tolerance is permitted. |
+| `NoGpsDialogTest` | AT-D | Robolectric test (or Espresso with `ActivityScenario`): configure `FakeLocationRepository` to emit `LocationState.Unavailable` and return no cache. Tap the True North toggle. Assert that the manual coordinate entry dialog appears (dialog text contains "Enter coordinates for True North or use Magnetic North only"). Assert that mode remains `MAGNETIC` until coordinates are entered and confirmed. |
+| `InterferenceBaselineUpgradeTest` | AT-F | Unit test — inject `FakeMagneticFieldModel` returning WMM values (e.g., `totalField=52300 nT`, `inclination=66.0°`); inject a second `FakeMagneticFieldModel` configured to return Android `GeomagneticField`-equivalent values at the same location (e.g., `totalField=49000 nT` — a value that differs by >5%); hold sensor values constant near a realistic local interference scenario (sensor field = 55000 nT, sensor inclination = 70°). Assert that `InterferenceState` differs between the two model configurations. This verifies that the interference baseline source (WMM2025 vs. GeomagneticField) materially affects the interference classification as required by AT-F-01. |
 
 ### 10.2 Integration Tests (Android Instrumented)
 
 | Test Class | Target | Key Assertions |
 |-----------|--------|----------------|
 | `LuopanDatabaseMigrationTest` | `Migration(1, 2)` via `MigrationTestHelper` | Creates a v1 database with a `calibration_records` row, runs `MIGRATION_1_2`, verifies `bearing_records` table exists with correct schema (all 15 columns, correct types and nullability). Verifies `calibration_records` is untouched. Uses `MigrationTestHelper(instrumentation, LuopanDatabase::class.java.canonicalName)` — requires `exportSchema = true`. |
-| `BearingEncryptionTest` | SQLCipher encryption (AT-PERSIST-01) | After inserting one `BearingRecord`, opens `getDatabasePath("luopan.db")` as raw bytes; asserts `bytes.slice(0..15) != "SQLite format 3".toByteArray()` (encrypted file does not expose plaintext SQLite header). |
+| `BearingEncryptionTest` | SQLCipher encryption (AT-PERSIST-01) | After inserting one `BearingRecord`, opens `targetContext.getDatabasePath("bearing_records.db")` as raw bytes; asserts `bytes.slice(0..15) != "SQLite format 3".toByteArray()` (encrypted file does not expose plaintext SQLite header). **The canonical database filename is `bearing_records.db`. All tests must use this name** (see §4.5 normative note; TE-T-02 resolution). |
 | `BearingForceStopTest` | Force-stop resilience (AT-PERSIST-02) | Uses `ProcessPhoenix` (already in androidTest dependencies) to kill and restart the process mid-insert. On restart: row count is either pre-kill or pre-kill+1; no record with any required field null exists. |
 
 ### 10.3 UI Tests (Espresso)
@@ -1071,6 +1108,7 @@ The value written to `BearingRecord.notes` is always either `null` or a non-empt
 | `InterferenceWarningCaptureTest` | AT-E-04/05 | Injects `MODERATE` interference state; taps capture; asserts warning dialog appears; taps "Save with warning"; asserts `interference_flag = true` in DB. |
 | `PermissionDeniedCaptureTest` | AT-G-09 (Scenario G) | Revokes location permission via `GrantPermissionRule`; taps True North toggle; asserts manual coordinate dialog; enters coordinates; dismisses; taps capture; saves; asserts `lat = null`, `lon = null` in record; GPS toggle absent from capture dialog. |
 | `GridNorthAbsenceTest` | AT-G-08 | Asserts no view with text containing "Grid" or "GRID" exists on main screen or capture dialog. |
+| `LocationPermissionRationaleTest` | BR-LOC-04 (TE-T-10) | Uses `ActivityScenario` with a custom permission handler that makes `shouldShowRequestPermissionRationale(ACCESS_FINE_LOCATION)` return `true` (simulating a prior denial where the OS has not yet set "Don't ask again"). Taps the True North toggle. Asserts that the in-app rationale dialog appears **before** the system permission dialog: the rationale dialog text "Location is used to compute magnetic declination for True North. Your coordinates are stored on-device only and are never shared." is visible. Taps "Continue"; asserts the system permission dialog is then presented (or that `ActivityResultLauncher` was invoked). Taps "Not now"; asserts the rationale dialog is dismissed and the system permission dialog is NOT shown, and the toggle remains on Magnetic N. |
 
 ### 10.4 Macrobenchmark
 
@@ -1083,4 +1121,4 @@ Macrobenchmarks live in the `:macrobenchmark` Gradle module (to be created in Ph
 
 ---
 
-*End of TSPEC-luopan-p2-true-north-capture v0.1-draft*
+*End of TSPEC-luopan-p2-true-north-capture v0.2-draft*
