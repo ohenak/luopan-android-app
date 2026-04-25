@@ -10,6 +10,7 @@ import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,6 +54,9 @@ class CompassActivity : AppCompatActivity() {
 
     // P4.3: North type toggle group (binary: TRUE / MAGNETIC only — AT-G-08)
     private lateinit var northTypeToggleGroup: MaterialButtonToggleGroup
+
+    // P5.2: Declination info icon button
+    private lateinit var btnDeclinationInfo: ImageButton
 
     // P7.1: Extreme latitude advisory banner
     private lateinit var extremeLatitudeAdvisoryBanner: TextView
@@ -116,6 +120,7 @@ class CompassActivity : AppCompatActivity() {
         sensorStuckText = findViewById(R.id.sensor_stuck_text)
         noMagErrorLayout = findViewById(R.id.no_mag_error_layout)
         northTypeToggleGroup = findViewById(R.id.northTypeToggleGroup)
+        btnDeclinationInfo = findViewById(R.id.btn_declination_info)
         extremeLatitudeAdvisoryBanner = findViewById(R.id.extreme_latitude_advisory_banner)
 
         // T-6-05: Check for magnetometer before proceeding
@@ -166,6 +171,11 @@ class CompassActivity : AppCompatActivity() {
             }
         }
 
+        // P5.2: Wire info icon → DeclinationInfoBottomSheet
+        btnDeclinationInfo.setOnClickListener {
+            showDeclinationInfoSheet()
+        }
+
         observeUiState()
     }
 
@@ -189,6 +199,7 @@ class CompassActivity : AppCompatActivity() {
         northLabel.visibility = View.GONE
         tiltText.visibility = View.GONE
         northTypeToggleGroup.visibility = View.GONE
+        btnDeclinationInfo.visibility = View.GONE
         findViewById<View>(R.id.calDotRow).visibility = View.GONE
         calCta.visibility = View.GONE
         confidenceBadge.visibility = View.GONE
@@ -202,6 +213,26 @@ class CompassActivity : AppCompatActivity() {
     private fun launchCalibrationWizard() {
         val intent = Intent(this, CalibrationWizardActivity::class.java)
         calibrationLauncher.launch(intent)
+    }
+
+    // -------------------------------------------------------------------------
+    // P5.2: Declination info panel
+    // -------------------------------------------------------------------------
+
+    /**
+     * Opens [DeclinationInfoBottomSheet] with the current [DeclinationInfo] snapshot.
+     *
+     * The bottom sheet is safe to show whether [CompassViewModel.declinationInfo] is null
+     * (Magnetic-only / no location) or non-null (True North active with a location).
+     * When null, the sheet shows a "no location" state per FSPEC §2.3 step 4.
+     *
+     * PLAN §4 P5.2: "Trigger from info icon near heading label in activity_compass.xml."
+     */
+    internal fun showDeclinationInfoSheet() {
+        val info = viewModel.declinationInfo.value
+        val northType = viewModel.northType.value
+        val sheet = DeclinationInfoBottomSheet.newInstance(info, northType)
+        sheet.show(supportFragmentManager, DeclinationInfoBottomSheet.TAG)
     }
 
     // -------------------------------------------------------------------------

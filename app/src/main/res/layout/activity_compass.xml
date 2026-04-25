@@ -41,6 +41,7 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- P4.3: North type toggle (TRUE / MAGNETIC only — AT-G-08) -->
+    <!-- P5.2: Toggle group is now constrained to end of btn_declination_info guide -->
     <com.google.android.material.button.MaterialButtonToggleGroup
         android:id="@+id/northTypeToggleGroup"
         android:layout_width="wrap_content"
@@ -51,7 +52,7 @@
         app:checkedButton="@id/btn_magnetic_n"
         app:layout_constraintBottom_toTopOf="@id/tiltText"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintEnd_toStartOf="@id/btn_declination_info">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_magnetic_n"
@@ -70,6 +71,20 @@
             android:textSize="12sp" />
 
     </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <!-- P5.2: Declination info icon button — tapping opens DeclinationInfoBottomSheet -->
+    <ImageButton
+        android:id="@+id/btn_declination_info"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@android:drawable/ic_menu_info_details"
+        android:contentDescription="@string/declination_info_button_content_description"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:tint="@android:color/white"
+        android:padding="8dp"
+        app:layout_constraintBottom_toTopOf="@id/tiltText"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/northTypeToggleGroup" />
 
     <TextView
         android:id="@+id/tiltText"

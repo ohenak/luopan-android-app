@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    P5.2 — Declination Info Bottom Sheet layout.
+    Shows all DeclinationInfo fields per TSPEC §7.2 / FSPEC §2.3.
+    Displayed inside DeclinationInfoBottomSheet : BottomSheetDialogFragment.
+-->
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/declination_info_sheet_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="24dp"
+    android:background="?attr/colorSurface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Sheet title -->
+        <TextView
+            android:id="@+id/tv_sheet_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/declination_info_sheet_title"
+            android:textAppearance="?attr/textAppearanceHeadlineSmall"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Declination value row: primary (°E/°W) and secondary (decimal) -->
+        <TextView
+            android:id="@+id/tv_declination_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/declination_value_label"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tv_declination_value"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/tv_declination_decimal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Source label row -->
+        <TextView
+            android:id="@+id/tv_source_label_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/source_label"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tv_source_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Coordinates row -->
+        <TextView
+            android:id="@+id/tv_coordinates_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/coordinates_label"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tv_coordinates"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Last updated row -->
+        <TextView
+            android:id="@+id/tv_last_updated_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/last_updated_label"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tv_last_updated"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Model valid until row (hidden when empty — AndroidGeoField has no expiry) -->
+        <TextView
+            android:id="@+id/tv_valid_until_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/valid_until_label"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginTop="8dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_valid_until"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone" />
+
+        <!-- "True North is off" note — shown when northType == MAGNETIC -->
+        <TextView
+            android:id="@+id/tv_true_north_off_note"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/true_north_off_note"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginTop="12dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+</ScrollView>

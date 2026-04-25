@@ -53,4 +53,20 @@
 
     <!-- P8.6: Macrobenchmark — content description for heading display (used by UiAutomator) -->
     <string name="heading_content_description">compass heading</string>
+
+    <!-- P5.2: Declination info panel -->
+    <string name="declination_info_button_content_description">Declination info</string>
+    <string name="declination_info_sheet_title">Declination Info</string>
+    <string name="declination_value_label">Declination</string>
+    <string name="source_label">Source</string>
+    <string name="coordinates_label">Coordinates</string>
+    <string name="last_updated_label">Last updated</string>
+    <string name="valid_until_label">Model valid until</string>
+    <string name="no_location_source_label">No location available — True North disabled</string>
+    <string name="true_north_off_note">True North is currently off. This declination would be applied if True North is enabled.</string>
+    <string name="declination_east_format">%s° E</string>
+    <string name="declination_west_format">%s° W</string>
+    <string name="declination_decimal_format">(%s°)</string>
+    <string name="coordinates_format">Lat %1$s°, Lon %2$s°</string>
+    <string name="no_data_em_dash">—</string>
 </resources>
