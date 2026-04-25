@@ -42,5 +42,18 @@ abstract class LuopanDatabase : RoomDatabase() {
                 .allowMainThreadQueries()
                 .build()
         }
+
+        /**
+         * Closes the singleton instance and clears the reference.
+         * For instrumented tests only — allows tests to close the real on-disk database
+         * so that WAL frames are checkpointed before reading raw file bytes.
+         */
+        @VisibleForTesting
+        fun closeInstance() {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+            }
+        }
     }
 }
