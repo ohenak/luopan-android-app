@@ -296,6 +296,77 @@ class PropertiesTest {
         assertEquals(CalibrationQuality.GOOD, score)
     }
 
+    /** M-09a: scoreCalibrationQuality maps FAIR -> MODERATE */
+    @Test fun `scoreCalibrationQuality FAIR calibration maps to MODERATE confidence`() {
+        val model = confidenceModel()
+        val result = model.compute(
+            interferencState = InterferenceState.CLEAR,
+            tilt_deg = 0.0,
+            noiseVariance = 0.0,
+            calibrationAgeDays = 0L,
+            hasGyroscope = true,
+            sensorState = SensorState.NORMAL,
+            calibrationQuality = CalibrationQuality.FAIR
+        )
+        assertEquals(OverallConfidence.MODERATE, result)
+    }
+
+    /** M-09b: scoreCalibrationQuality maps POOR -> POOR */
+    @Test fun `scoreCalibrationQuality POOR calibration maps to POOR confidence`() {
+        val model = confidenceModel()
+        val result = model.compute(
+            interferencState = InterferenceState.CLEAR,
+            tilt_deg = 0.0,
+            noiseVariance = 0.0,
+            calibrationAgeDays = 0L,
+            hasGyroscope = true,
+            sensorState = SensorState.NORMAL,
+            calibrationQuality = CalibrationQuality.POOR
+        )
+        assertEquals(OverallConfidence.POOR, result)
+    }
+
+    /** M-09c: uncalibrated (ageDays < 0) overrides quality to POOR regardless of quality enum */
+    @Test fun `scoreCalibrationQuality uncalibrated always returns POOR regardless of quality param`() {
+        val model = confidenceModel()
+        val result = model.compute(
+            interferencState = InterferenceState.CLEAR,
+            tilt_deg = 0.0,
+            noiseVariance = 0.0,
+            calibrationAgeDays = -1L,
+            hasGyroscope = true,
+            sensorState = SensorState.NORMAL,
+            calibrationQuality = CalibrationQuality.GOOD
+        )
+        assertEquals(OverallConfidence.POOR, result)
+    }
+
+    /** M-10a: getPerAxisCoverage returns 1.0 for best axis when all ranges equal */
+    @Test fun `getPerAxisCoverage equal ranges return all ones`() {
+        val engine = calEngine()
+        // Add samples that create equal X, Y, Z ranges of 10 units each
+        for (i in 0..9) {
+            engine.addSample(i.toFloat(), i.toFloat(), i.toFloat())
+        }
+        val (cx, cy, cz) = engine.getPerAxisCoverage()
+        assertEquals(1.0f, cx, 0.01f)
+        assertEquals(1.0f, cy, 0.01f)
+        assertEquals(1.0f, cz, 0.01f)
+    }
+
+    /** M-10b: getPerAxisCoverage returns 0 for compressed axes */
+    @Test fun `getPerAxisCoverage zero range axis returns zero coverage`() {
+        val engine = calEngine()
+        // X varies 0..10, Y and Z constant
+        for (i in 0..10) {
+            engine.addSample(i.toFloat(), 5.0f, 5.0f)
+        }
+        val (cx, cy, cz) = engine.getPerAxisCoverage()
+        assertEquals(1.0f, cx, 0.01f)
+        assertEquals(0.0f, cy, 0.01f)
+        assertEquals(0.0f, cz, 0.01f)
+    }
+
     // ==================== PROP-PERSIST ====================
 
     /** PROP-PERSIST-04: UTC timestamp is timezone-invariant */
