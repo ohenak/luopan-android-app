@@ -3,9 +3,27 @@ package com.luopan.compass.ui
 import com.luopan.compass.location.LocationResult
 import com.luopan.compass.magnetic.MagneticFieldModel
 import com.luopan.compass.model.NorthType
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * Result of a [NorthTypeEngine.requestTrueNorth] call.
+ *
+ * P7.2 — PLAN §4 P7.2 / FSPEC §2.2 step 4c.
+ */
+sealed class TrueNorthRequestResult {
+    /** True North was activated immediately — a location was available. */
+    object Switched : TrueNorthRequestResult()
+    /**
+     * No location is available; the Activity must show the manual coordinate entry dialog.
+     * North type remains [NorthType.MAGNETIC] until the user confirms manual coordinates.
+     */
+    object NeedsManualEntry : TrueNorthRequestResult()
+}
 
 /**
  * Pure, Android-free state machine for true north / magnetic north selection.
@@ -39,6 +57,12 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * `location_fallback_advisory = true` when `northType == TRUE && location is CachedFix`
  * `fallback_mag_advisory = true` when `northType == TRUE && location is available && model.getModelId() == "AndroidGeoField"`
+ *
+ * ## GPS unavailable flow (P7.2)
+ *
+ * [requestTrueNorth] checks the current location before switching to TRUE mode.
+ * When [LocationResult.Unavailable], it emits on [showManualLocationDialog] and keeps
+ * northType as MAGNETIC. The Activity shows the manual coordinate entry dialog.
  */
 class NorthTypeEngine {
 
@@ -48,6 +72,18 @@ class NorthTypeEngine {
     val northType: StateFlow<NorthType> = _northType.asStateFlow()
 
     /**
+     * Event emitted when the user requests True North but no location is available.
+     *
+     * The Activity observes this flow and shows the manual coordinate entry dialog
+     * (FSPEC §2.2 step 4c: "Enter coordinates for True North or use Magnetic North only").
+     * northType remains [NorthType.MAGNETIC] until the user confirms manual coordinates.
+     *
+     * P7.2 — PLAN §4 P7.2.
+     */
+    private val _showManualLocationDialog = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val showManualLocationDialog: SharedFlow<Unit> = _showManualLocationDialog.asSharedFlow()
+
+    /**
      * Updates the active north type.
      *
      * Accepts [NorthType.TRUE] or [NorthType.MAGNETIC]. [NorthType.GRID] is allowed by
@@ -55,6 +91,33 @@ class NorthTypeEngine {
      */
     fun setNorthType(type: NorthType) {
         _northType.value = type
+    }
+
+    /**
+     * Requests switching to True North mode.
+     *
+     * If a location is available (GPS fix, cached fix, or manual entry): switches to TRUE immediately
+     * and returns [TrueNorthRequestResult.Switched].
+     *
+     * If no location is available ([LocationResult.Unavailable]): keeps northType as MAGNETIC,
+     * emits on [showManualLocationDialog], and returns [TrueNorthRequestResult.NeedsManualEntry].
+     * The caller must show the manual coordinate entry dialog (FSPEC §2.2 step 4c).
+     *
+     * P7.2 — PLAN §4 P7.2.
+     *
+     * @param currentLocation  The currently resolved location from [LocationRepository].
+     * @return  The result indicating whether the switch happened or if a dialog is needed.
+     */
+    fun requestTrueNorth(currentLocation: LocationResult): TrueNorthRequestResult {
+        return if (currentLocation is LocationResult.Unavailable) {
+            // No location available — signal the Activity to show manual entry dialog
+            _showManualLocationDialog.tryEmit(Unit)
+            TrueNorthRequestResult.NeedsManualEntry
+        } else {
+            // Location available — switch to TRUE immediately
+            _northType.value = NorthType.TRUE
+            TrueNorthRequestResult.Switched
+        }
     }
 
     /**

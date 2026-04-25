@@ -159,6 +159,13 @@ class CompassActivity : AppCompatActivity() {
             }
         }
 
+        // P7.2: Observe showManualLocationDialog — show manual entry dialog when GPS unavailable
+        lifecycleScope.launch {
+            viewModel.showManualLocationDialog.collect {
+                showManualCoordinateEntryDialog()
+            }
+        }
+
         observeUiState()
     }
 
@@ -253,9 +260,11 @@ class CompassActivity : AppCompatActivity() {
     /**
      * Called when ACCESS_FINE_LOCATION permission has been granted (P3.2 + P4.3).
      * Activates True North mode in the ViewModel after permission is confirmed.
+     * If no location is available, [CompassViewModel.showManualLocationDialog] will fire
+     * and the manual entry dialog will appear (P7.2).
      */
     private fun onLocationPermissionGranted() {
-        viewModel.setNorthType(NorthType.TRUE)
+        viewModel.requestTrueNorth()
     }
 
     /**
@@ -314,6 +323,75 @@ class CompassActivity : AppCompatActivity() {
             data = Uri.fromParts("package", packageName, null)
         }
         startActivity(intent)
+    }
+
+    // -------------------------------------------------------------------------
+    // P7.2: Manual coordinate entry dialog (GPS unavailable flow)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Shows a dialog asking the user to enter manual coordinates for True North when GPS
+     * is unavailable (FSPEC §2.2 step 4c).
+     *
+     * The dialog contains:
+     * - A title: "Enter coordinates for True North or use Magnetic North only"
+     * - Latitude and longitude input fields
+     * - "Use True North" button: activates True N with manual coordinates
+     * - "Use Magnetic North" button: dismisses and keeps Magnetic N
+     *
+     * P7.2 — PLAN §4 P7.2, FSPEC §2.2 step 4c.
+     */
+    internal fun showManualCoordinateEntryDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_manual_coordinates, null)
+        val latInput = dialogView.findViewById<android.widget.EditText>(R.id.et_manual_lat)
+        val lonInput = dialogView.findViewById<android.widget.EditText>(R.id.et_manual_lon)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.manual_coordinates_dialog_title)
+            .setView(dialogView)
+            .setPositiveButton(R.string.use_true_north, null) // set below to prevent auto-dismiss
+            .setNegativeButton(R.string.use_magnetic_north) { d, _ ->
+                // User chose Magnetic North — keep MAGNETIC, do not switch
+                viewModel.setNorthType(NorthType.MAGNETIC)
+                d.dismiss()
+            }
+            .setCancelable(true)
+            .create()
+
+        dialog.setOnCancelListener {
+            // Dialog dismissed without choosing — stay on Magnetic N
+            viewModel.setNorthType(NorthType.MAGNETIC)
+        }
+
+        dialog.setOnShowListener {
+            val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveButton.isEnabled = false  // disabled until valid coordinates entered
+
+            val watcher = object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    val latText = latInput.text.toString().trim()
+                    val lonText = lonInput.text.toString().trim()
+                    val latValid = latText.toDoubleOrNull()?.let { it in -90.0..90.0 } == true
+                    val lonValid = lonText.toDoubleOrNull()?.let { it in -180.0..180.0 } == true
+                    positiveButton.isEnabled = latValid && lonValid
+                }
+            }
+            latInput.addTextChangedListener(watcher)
+            lonInput.addTextChangedListener(watcher)
+
+            positiveButton.setOnClickListener {
+                val lat = latInput.text.toString().trim().toDoubleOrNull()
+                val lon = lonInput.text.toString().trim().toDoubleOrNull()
+                if (lat != null && lon != null) {
+                    viewModel.setManualLocation(lat, lon, 0.0)
+                    dialog.dismiss()
+                }
+            }
+        }
+
+        dialog.show()
     }
 
     /**

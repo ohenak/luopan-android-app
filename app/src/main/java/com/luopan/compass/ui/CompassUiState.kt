@@ -40,6 +40,14 @@ data class CompassUiState(
      * P7.1 — PLAN §4 P7.1 / TSPEC §3.7.
      */
     val extreme_latitude_advisory: Boolean,
+    /**
+     * Human-readable label for the age of the cached GPS location when using [LocationResult.CachedFix].
+     * Format: "N days ago" where N = floor(ageMs / 86_400_000L) per FSPEC §2.3 step 7 (AT-C).
+     * Null when no cached location is active (GPS fix, manual entry, or unavailable).
+     *
+     * P7.2 — PLAN §4 P7.2 / FSPEC §2.3 step 7.
+     */
+    val location_cache_age_label: String?,
     val sensor_state: SensorState,
     val is_stabilizing: Boolean,
     val last_valid_heading_deg: Double?,
@@ -65,6 +73,7 @@ data class CompassUiState(
             fallback_mag_advisory = false,
             location_fallback_advisory = false,
             extreme_latitude_advisory = false,
+            location_cache_age_label = null,
             sensor_state = SensorState.NORMAL,
             is_stabilizing = false,
             last_valid_heading_deg = null,

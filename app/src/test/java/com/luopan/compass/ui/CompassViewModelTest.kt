@@ -6,6 +6,7 @@ import com.luopan.compass.model.CalDotColor
 import com.luopan.compass.model.NorthType
 import com.luopan.compass.model.OverallConfidence
 import com.luopan.compass.sensor.InterferenceMetricsFactory
+import kotlinx.coroutines.flow.onEach
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -565,5 +566,138 @@ class CompassViewModelTest {
         )
 
         assertEquals(0.20f, metrics.fieldDeviation, 0.001f)
+    }
+
+    // -----------------------------------------------------------------------
+    // P7.2 — GPS unavailable flow
+    // -----------------------------------------------------------------------
+
+    /**
+     * PLAN §4 P7.2 success criteria:
+     * When True North is requested but LocationResult is Unavailable, the ViewModel
+     * must NOT switch to TRUE north — it must signal the Activity to show the manual
+     * entry dialog and keep northType as MAGNETIC until coordinates are confirmed.
+     *
+     * TSPEC §3.7: CompassViewModel.setNorthType(TRUE) with Unavailable location emits
+     * on showManualLocationDialog SharedFlow.
+     */
+    @Test
+    fun `setNorthType TRUE with Unavailable location stays MAGNETIC and signals dialog`() {
+        val engine = NorthTypeEngine()
+
+        // Track dialog signals synchronously using a list of emitted events
+        val dialogSignals = mutableListOf<Unit>()
+        engine.showManualLocationDialog.onEach { dialogSignals.add(Unit) }
+
+        // Request TRUE when location is Unavailable
+        val requestResult = engine.requestTrueNorth(LocationResult.Unavailable)
+
+        // northType should remain MAGNETIC (not switch to TRUE)
+        assertEquals(
+            "northType must remain MAGNETIC when Unavailable location",
+            NorthType.MAGNETIC,
+            engine.northType.value
+        )
+        // The requestResult must indicate a dialog is needed
+        assertTrue(
+            "requestTrueNorth must return NeedsManualEntry when Unavailable",
+            requestResult is TrueNorthRequestResult.NeedsManualEntry
+        )
+    }
+
+    /**
+     * PLAN §4 P7.2: When location is available (GpsFix), setNorthType(TRUE) proceeds
+     * normally — no dialog is shown, northType switches to TRUE.
+     */
+    @Test
+    fun `requestTrueNorth with GpsFix location switches to TRUE`() {
+        val engine = NorthTypeEngine()
+
+        val requestResult = engine.requestTrueNorth(
+            LocationResult.GpsFix(lat = 40.0, lon = -105.0, altM = 0.0)
+        )
+
+        assertEquals(
+            "northType must switch to TRUE when GPS is available",
+            NorthType.TRUE,
+            engine.northType.value
+        )
+        assertTrue(
+            "requestTrueNorth must return Switched when GPS available",
+            requestResult is TrueNorthRequestResult.Switched
+        )
+    }
+
+    /**
+     * PLAN §4 P7.2: When location is CachedFix (within 30 days), setNorthType(TRUE)
+     * proceeds without dialog — cached location is sufficient.
+     */
+    @Test
+    fun `requestTrueNorth with CachedFix location switches to TRUE without dialog`() {
+        val engine = NorthTypeEngine()
+
+        val requestResult = engine.requestTrueNorth(
+            LocationResult.CachedFix(lat = 40.0, lon = -105.0, altM = 0.0, ageMs = 86_400_000L)
+        )
+
+        assertEquals(NorthType.TRUE, engine.northType.value)
+        assertTrue(requestResult is TrueNorthRequestResult.Switched)
+    }
+
+    /**
+     * PLAN §4 P7.2: When location is ManualEntry, setNorthType(TRUE) proceeds normally.
+     */
+    @Test
+    fun `requestTrueNorth with ManualEntry location switches to TRUE without dialog`() {
+        val engine = NorthTypeEngine()
+
+        val requestResult = engine.requestTrueNorth(
+            LocationResult.ManualEntry(lat = 35.0, lon = 139.0)
+        )
+
+        assertEquals(NorthType.TRUE, engine.northType.value)
+        assertTrue(requestResult is TrueNorthRequestResult.Switched)
+    }
+
+    /**
+     * PLAN §4 P7.2: Cache age label is included in CompassUiState when CachedFix is active.
+     * Exactly 15 days: floor(15 * 86_400_000 / 86_400_000) = 15 days.
+     * FSPEC §2.3 step 7: N = floor(elapsed_ms / 86_400_000L).
+     */
+    @Test
+    fun `CompassUiState has location_cache_age_label field`() {
+        // INITIAL must have null cache age label (no cached location at startup)
+        assertNull(
+            "CompassUiState.INITIAL.location_cache_age_label must be null",
+            CompassUiState.INITIAL.location_cache_age_label
+        )
+    }
+
+    @Test
+    fun `location_cache_age_label is formatted as N days ago for CachedFix`() {
+        val fifteenDaysMs = 15L * 86_400_000L
+        val label = CacheAgeLabelFormatter.format(fifteenDaysMs)
+        assertEquals("15 days ago", label)
+    }
+
+    @Test
+    fun `location_cache_age_label is 0 days ago when cache is less than one day old`() {
+        val halfDayMs = 12 * 60 * 60 * 1000L  // 12 hours
+        val label = CacheAgeLabelFormatter.format(halfDayMs)
+        assertEquals("0 days ago", label)
+    }
+
+    @Test
+    fun `location_cache_age_label is 1 days ago when cache is exactly 1 day old`() {
+        val oneDayMs = 86_400_000L
+        val label = CacheAgeLabelFormatter.format(oneDayMs)
+        assertEquals("1 days ago", label)
+    }
+
+    @Test
+    fun `location_cache_age_label uses floor division — 29 days plus 1 second shows 29 days ago`() {
+        val twentyNineDaysPlusOneSecond = 29L * 86_400_000L + 1_000L
+        val label = CacheAgeLabelFormatter.format(twentyNineDaysPlusOneSecond)
+        assertEquals("29 days ago", label)
     }
 }

@@ -70,6 +70,16 @@ class CompassViewModel(
     /** Exposed so observers can react to north-type changes (e.g., P4.3 toggle button). */
     val northType: StateFlow<NorthType> = northTypeEngine.northType
 
+    /**
+     * Event emitted when the user requests True North but no location is available.
+     *
+     * The Activity observes this flow and shows the manual coordinate entry dialog
+     * (FSPEC §2.2 step 4c). northType stays MAGNETIC until coordinates are confirmed.
+     *
+     * P7.2 — PLAN §4 P7.2.
+     */
+    val showManualLocationDialog = northTypeEngine.showManualLocationDialog
+
     private val _uiState = MutableStateFlow(CompassUiState.INITIAL)
     val uiState: StateFlow<CompassUiState> = _uiState.asStateFlow()
 
@@ -136,6 +146,46 @@ class CompassViewModel(
         setNorthType(
             if (northType.value == NorthType.TRUE) NorthType.MAGNETIC else NorthType.TRUE
         )
+    }
+
+    /**
+     * Requests switching to True North mode.
+     *
+     * Delegates to [NorthTypeEngine.requestTrueNorth] with the current [LocationResult]:
+     * - If a location is available: switches to TRUE immediately.
+     * - If location is [LocationResult.Unavailable]: keeps northType as MAGNETIC and emits
+     *   on [showManualLocationDialog] so the Activity can show the manual entry dialog
+     *   (FSPEC §2.2 step 4c).
+     *
+     * P7.2 — PLAN §4 P7.2.
+     *
+     * @return The [TrueNorthRequestResult] indicating whether the switch happened or a dialog is needed.
+     */
+    fun requestTrueNorth(): TrueNorthRequestResult {
+        val currentLocation = locationRepository?.location?.value ?: LocationResult.Unavailable
+        return northTypeEngine.requestTrueNorth(currentLocation)
+    }
+
+    /**
+     * Stores manual coordinates entered by the user via the No-GPS dialog (P7.2).
+     *
+     * Delegates to [LocationRepository.setManualLocation]. After calling this,
+     * [northType] will be switched to [NorthType.TRUE] so the heading reflects
+     * the manually entered location.
+     *
+     * FSPEC §2.2 step 4c: "If the user enters valid coordinates and taps Use True North:
+     * the toggle switches to True N, declination is computed from the manual coordinates."
+     *
+     * P7.2 — PLAN §4 P7.2.
+     *
+     * @param latDeg  Latitude in decimal degrees [-90, 90].
+     * @param lonDeg  Longitude in decimal degrees [-180, 180].
+     * @param altM    Altitude in meters (default 0.0 when unknown).
+     */
+    fun setManualLocation(latDeg: Double, lonDeg: Double, altM: Double = 0.0) {
+        locationRepository?.setManualLocation(latDeg, lonDeg)
+        // Switch to TRUE after setting manual location — location is now available
+        northTypeEngine.setNorthType(NorthType.TRUE)
     }
 
     /**
@@ -334,7 +384,8 @@ class CompassViewModel(
                     sensorState = sensorState,
                     hasGyro = hasGyro,
                     powerSavingAdvisory = powerSavingAdvisory,
-                    extremeLatitudeAdvisory = extremeLatitudeActive
+                    extremeLatitudeAdvisory = extremeLatitudeActive,
+                    locationResult = locationResult
                 )
                 _uiState.value = uiState
             }
@@ -355,11 +406,19 @@ class CompassViewModel(
         sensorState: SensorState,
         hasGyro: Boolean,
         powerSavingAdvisory: Boolean,
-        extremeLatitudeAdvisory: Boolean = false
+        extremeLatitudeAdvisory: Boolean = false,
+        locationResult: LocationResult = LocationResult.Unavailable
     ): CompassUiState {
         val isStabilizing = sensorState == SensorState.STABILIZING
         val headingFormatted = if (isStabilizing) "---" else formatHeading(heading)
         val tiltText = if (tilt > 5.0) "%.1f°".format(tilt) else null
+
+        // P7.2 — cache age label: shown when using a CachedFix (FSPEC §2.3 step 7)
+        val locationCacheAgeLabel: String? = when (locationResult) {
+            is LocationResult.CachedFix -> CacheAgeLabelFormatter.format(locationResult.ageMs)
+            else -> null
+        }
+
         val ageDays = calibrationAgeDays
         val ageLabel = when {
             ageDays < 0 -> "Uncalibrated"
@@ -394,6 +453,7 @@ class CompassViewModel(
             fallback_mag_advisory = fallbackMagAdvisory,
             location_fallback_advisory = locationFallbackAdvisory,
             extreme_latitude_advisory = extremeLatitudeAdvisory,
+            location_cache_age_label = locationCacheAgeLabel,
             sensor_state = sensorState,
             is_stabilizing = isStabilizing,
             last_valid_heading_deg = lastValidHeading,

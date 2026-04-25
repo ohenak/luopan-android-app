@@ -40,4 +40,14 @@
     <string name="not_now">Not now</string>
     <string name="open_settings">Open Settings</string>
     <string name="location_permission_denied_message">Location permission needed for True North. You can enter coordinates manually instead.</string>
+
+    <!-- P7.2: GPS unavailable — manual coordinate entry dialog -->
+    <string name="manual_coordinates_dialog_title">Enter coordinates for True North or use Magnetic North only</string>
+    <string name="manual_coordinates_lat_hint">Latitude (e.g. 40.7128)</string>
+    <string name="manual_coordinates_lon_hint">Longitude (e.g. -74.0060)</string>
+    <string name="use_true_north">Use True North</string>
+    <string name="use_magnetic_north">Use Magnetic North</string>
+
+    <!-- P7.2: Cache age label for cached GPS location -->
+    <string name="location_cache_age_label">%d days ago</string>
 </resources>
