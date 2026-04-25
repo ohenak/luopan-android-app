@@ -4,10 +4,10 @@
 | Field | Value |
 |-------|-------|
 | **Document ID** | FSPEC-luopan-p2-true-north-capture |
-| **Version** | 0.3-draft |
+| **Version** | 0.4-draft |
 | **Status** | Draft |
 | **Date** | 2026-04-24 |
-| **Revised** | 2026-04-24 (v0.2-draft — addressed SE/TE cross-review findings: SE-F-01 `calibration_version` type; SE-F-02 permission rationale flow; SE-F-03 Phase 1 baseline correction; SE-F-04 BearingRecord type conflicts; SE-F-05 `WallClock` rename; SE-F-06 `MagneticFieldModel` interface; SE-F-07 `requestLocationUpdates` params; SE-F-11 AT-NFR-01 cold-start; TE concurrent-save debounce; TE first-capture persistence; TE force-stop resilience); 2026-04-24 (v0.3-draft — addressed iteration 2 cross-review findings: SE N-02 REQ cross-ref note for `calibration_version`; SE N-03 `TimeSource`/`Clock` guidance; SE N-05 `onResume` lifecycle trigger for WMM expiry check; SE N-06 AT-A-01 measurement mechanism; SE N-07 AT-C-02 `FakeClock` exact assertion; SE N-09 `interference_flag` derivation via `InterferenceState`; TE N-01 AT-G-07 GPS permission denial; TE N-03 AT-PERSIST-01 encryption check; TE N-04 AT-PERSIST-02 force-stop resilience) |
+| **Revised** | 2026-04-24 (v0.2-draft — addressed SE/TE cross-review findings: SE-F-01 `calibration_version` type; SE-F-02 permission rationale flow; SE-F-03 Phase 1 baseline correction; SE-F-04 BearingRecord type conflicts; SE-F-05 `WallClock` rename; SE-F-06 `MagneticFieldModel` interface; SE-F-07 `requestLocationUpdates` params; SE-F-11 AT-NFR-01 cold-start; TE concurrent-save debounce; TE first-capture persistence; TE force-stop resilience); 2026-04-24 (v0.3-draft — addressed iteration 2 cross-review findings: SE N-02 REQ cross-ref note for `calibration_version`; SE N-03 `TimeSource`/`Clock` guidance; SE N-05 `onResume` lifecycle trigger for WMM expiry check; SE N-06 AT-A-01 measurement mechanism; SE N-07 AT-C-02 `FakeClock` exact assertion; SE N-09 `interference_flag` derivation via `InterferenceState`; TE N-01 AT-G-07 GPS permission denial; TE N-03 AT-PERSIST-01 encryption check; TE N-04 AT-PERSIST-02 force-stop resilience); 2026-04-24 (v0.4-draft — addressed iteration 3 cross-review findings: SE V3-N-01 §2.4 step 1 `onResume`→`onStart`; SE V3-N-02 `altitude_m` type Double? with rationale; SE V3-N-03 `display_mode` String? nullable with normative note; SE V3-N-04 cache age formula standardized to `floor(elapsed_ms / 86_400_000L)`; SE V3-N-05 §1.3 TSPEC cross-reference §10.2→§9; TE V-01 §5.2 diagram decision node corrected; TE V-02 AT-E-10 added) |
 | **Phase** | 2 of 5 |
 | **Parent REQ** | [REQ-luopan-p2-true-north-capture.md](REQ-luopan-p2-true-north-capture.md) |
 | **Master REQ** | [REQ-luopan-compass.md](REQ-luopan-compass.md) |
@@ -68,7 +68,7 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 
 - Phase 1 is complete and stable: sensor fusion, calibration wizard, interference detection, and confidence model are all operational.
 - WMM2025 coefficients file is bundled in the APK assets (licensing resolved per Risk P2-R1 before release).
-- The Room database schema uses `Migration(1,2)` which adds the `bearing_records` table; the `calibration_records` table is not altered (see §10.2 of TSPEC Phase 1).
+- The Room database schema uses `Migration(1,2)` which adds the `bearing_records` table; the `calibration_records` table is not altered (see §9 of TSPEC Phase 1).
 
 ---
 
@@ -265,7 +265,7 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 
 6. **If Magnetic N is currently active** (no declination applied): the panel still shows the computed declination value (so the user can see what the offset would be if they switched to True N) and the source, but adds a note: "True North is currently off. This declination would be applied if True North is enabled." (localized)
 
-7. **Cache age display:** The age is computed using the `Clock` interface (see Business Rules below). For cached locations, the age is shown as "N days ago" where N is floor(cache_age_hours / 24). A cache from earlier today shows "0 days ago" (or equivalently "today").
+7. **Cache age display:** The age is computed using the `Clock` interface (see Business Rules below). For cached locations, the age is shown as "N days ago" where N = `floor((Clock.nowMs() − cache.timestamp_ms) / 86_400_000L)` (integer milliseconds division, no floating-point intermediate). A cache from earlier today shows "0 days ago" (or equivalently "today").
 
 **Business rules:**
 - The panel must show coordinates masked to 2 decimal places (approximately 1.1 km resolution at the equator). Full precision coordinates are never displayed, per REQ-CAPTURE-06 location privacy principles.
@@ -292,7 +292,7 @@ Phase 2 upgrades the Luopan compass from magnetic-only to true north capable by:
 
 **Behavioral flow — location resolution on app launch:**
 
-1. On foreground entry (Activity.onResume), the system initiates the location resolution chain:
+1. On `Activity.onStart` (or on first True North activation within the session), the system initiates the location resolution chain. Using `onStart` rather than `onResume` matches the Phase 1 sensor registration lifecycle and prevents the location chain from restarting on every permission dialog dismissal (which cycles `onPause` → `onResume` without leaving the activity). The chain fires at most once per session start:
 
    **Step 1 — Check current GPS fix:**
    - If `ACCESS_FINE_LOCATION` permission is granted AND a GPS fix is available within the last 60 seconds: use this fix. Cache it to local encrypted storage (lat, lon, alt, UTC timestamp).
@@ -611,15 +611,15 @@ The following discrete, testable rules are extracted from the functional flows a
   [Snapshot taken at tap time]
          │
          ▼
-  interference_flag? ─── NO ──► [Name/Notes dialog — confidence High or Moderate]
-         │                              │
-        YES                         user taps Save
-         │                              │
-         ▼                              ▼
-  [Interference warning dialog]   [BearingRecord written to DB]
-         │                              │
-  "Save with warning" / "Cancel"        ▼
-         │                        [Toast: "Bearing saved as '[name]'"]
+  InterferenceState ∈ {MODERATE, WARNING}? ─── NO ──► [Name/Notes dialog — High or Moderate confidence AND no interference]
+         │                                                     │
+        YES                                               user taps Save
+         │                                                     │
+         ▼                                                     ▼
+  [Interference warning dialog]                    [BearingRecord written to DB, interference_flag=false]
+         │                                                     │
+  "Save with warning" / "Cancel"                               ▼
+         │                                          [Toast: "Bearing saved as '[name]'"]
   Save with warning
          │
          ▼
@@ -633,6 +633,9 @@ The following discrete, testable rules are extracted from the functional flows a
          ▼
   [Toast: "Bearing saved as '[name]'"]
 ```
+> **Annotation — NO path:** The NO branch covers all cases where `InterferenceState == CLEAR`, regardless of `OverallConfidence`. This includes captures where `OverallConfidence == POOR` due to calibration age or other non-interference reasons. Such captures save with `interference_flag=false`.
+>
+> **Annotation — YES path:** The YES branch fires only when `InterferenceState` is `MODERATE` or `WARNING`. The record saves with `interference_flag=true`. `OverallConfidence.POOR` alone (with `InterferenceState.CLEAR`) does NOT take the YES path for `interference_flag`; however, note that if `OverallConfidence == POOR` the pre-capture warning dialog also appears (per §2.5 step 3b) — but the saved record still has `interference_flag=false` in that case. See BR-10 and AT-E-10.
 
 ### 5.3 Location Resolution State Machine
 
@@ -684,7 +687,7 @@ This is the complete schema for the `bearing_records` Room entity introduced in 
 | `lon` | `Double?` | `REAL` | Yes | [−180.0, 180.0) or NULL | GPS longitude at capture time; NULL if GPS toggle OFF or no fix; `Double` precision (see `lat`) |
 | `alt_m` | `Double?` | `REAL` | Yes | NULL permitted | GPS altitude in meters; NULL if unavailable |
 | `notes` | `String?` | `TEXT` | Yes | Length 0–1000 or NULL | Optional user notes; NULL if not entered (professional use case supports longer notes per REQ §5.3.1) |
-| `display_mode` | `String?` | `TEXT` | Yes | `"MODERN"` or NULL (Phase 3 adds `"LUOPAN"`) | Display mode active at capture time; `"MODERN"` in Phase 2 |
+| `display_mode` | `String?` | `TEXT` | Yes (nullable) | `"MODERN"` or NULL; `"LUOPAN"` reserved Phase 3; `"SIGHTING"` reserved Phase 5 | Display mode active at capture time; Phase 2 implementations MUST write `"MODERN"`. NULL permitted when display mode is unknown. |
 
 **Notes on specific fields:**
 
@@ -692,10 +695,11 @@ This is the complete schema for the `bearing_records` Room entity introduced in 
 - **`calibration_version` (normative note):** This field records the WMM model identifier used during the bearing capture session. It is populated by `MagneticFieldModel.getModelId(): String` at capture time. Valid values in Phase 2: `"WMM2025"` (when the WMM2025 bundled model is active) or `"AndroidGeoField"` (when the Android GeomagneticField fallback is active). **This field records the WMM model used, NOT the calibration record schema version.** The `CalibrationRecord.calibration_schema_version` integer (a separate field in the `calibration_records` table defined by the Room migration number) MUST NOT be conflated with this field. The `calibration_records` table is not altered in Migration(1,2).
 - **`bearing_deg` (canonical type):** `Float` is the canonical type per REQ §5.3.1. This is consistent with the sensor fusion pipeline output. Float provides approximately ±0.001° precision for an angle in [0, 360), which is more than sufficient for compass applications.
 - **`lat` / `lon` (canonical types):** `Double?` is the canonical type. GPS coordinates require Double precision (6 decimal places ≈ 11 cm) for accurate WMM input computation. Float would provide only ≈11 km precision, which is insufficient.
+- **`alt_m` (canonical type):** `Double?` is the canonical type. Consistent with GPS altitude precision and the WMM computation interface (`altMeters: Double`). NULL when altitude is unavailable from the GPS fix; in that case 0 m (sea level) is used internally for WMM computation but the stored field is NULL. REQ §5.3.1 has been updated (v0.4-draft) to reflect `Double?` type, resolving the prior REQ `Float` / FSPEC `Double?` conflict. The column name `alt_m` is the canonical SQLite column name; the REQ field name `altitude_m` maps to this column.
 - **`captured_at` (canonical type):** `Long` epoch milliseconds is the canonical internal type. ISO 8601 UTC formatting is applied at the display layer only.
 - **`notes` (max length):** 1000 characters per REQ §5.3.1 (supports professional field note use case).
 - **`interference_flag`:** Stored as `INTEGER` (0 or 1) for SQLite compatibility with Room's `@ColumnInfo` boolean mapping. Set from `InterferenceState` at capture time — `MODERATE` or `WARNING` maps to `1`; `CLEAR` maps to `0`. `OverallConfidence.POOR` alone does not set this flag.
-- **`display_mode`:** Set to `"MODERN"` for all captures in Phase 2. The field is included now to avoid a schema migration when Phase 3 adds Luopan Mode.
+- **`display_mode` (normative note):** `String?` nullable. **Phase 2 implementations MUST write `"MODERN"`**. `null` is permitted when the display mode is unknown at capture time. `"LUOPAN"` is reserved for Phase 3 (REQ-DISPLAY-04–06). `"SIGHTING"` is reserved for Phase 5 and MUST NOT be written in Phase 2 or Phase 3 implementations. The column is nullable to avoid a schema migration when Phase 3 adds Luopan Mode. REQ §5.3.1 has been updated (v0.4-draft) to align on `String?` nullable, resolving the prior REQ required/non-nullable vs FSPEC nullable conflict.
 
 ### 6.2 Clock Interface
 
@@ -836,6 +840,7 @@ Each test maps to a REQ §8 scenario with precise Given/When/Then assertions.
 | E-07 | First-ever capture on this device; GPS permission granted | User opens capture dialog | GPS privacy notice is visible | One-time privacy notice text "Your location is saved on-device only and is never shared" is present in the capture dialog |
 | E-08 | Second or subsequent capture (privacy notice already shown) | User opens capture dialog | GPS privacy notice is NOT visible | Notice text is absent from the dialog |
 | E-09 | Any capture scenario | `north_type` field value inspected | `north_type` is never "GRID" | `BearingRecord.north_type ∈ {"TRUE", "MAGNETIC"}` — assertion throws if "GRID" is attempted |
+| E-10 | `OverallConfidence = POOR` (e.g., calibration confidence dimension is Poor; all other interference metrics CLEAR — `field_deviation_pct < 15`, `inclination_deviation_deg < 3`); `InterferenceState = CLEAR` | User taps capture button; pre-capture warning dialog appears; user taps "Save with warning"; enters name; taps Save | `BearingRecord.interference_flag = false`; `BearingRecord.confidence = "POOR"`; toast shows "Bearing saved as '[name]'" | (a) Pre-capture warning dialog appears with text "Interference detected or confidence is Poor. Bearing will be saved with a warning flag. Proceed?"; (b) user taps "Save with warning"; (c) `BearingRecord.interference_flag = false` in the saved record (NOT true — `InterferenceState` was CLEAR); (d) `BearingRecord.confidence = "POOR"`. This verifies that `OverallConfidence.POOR` alone does NOT set `interference_flag=true` — only `InterferenceState ∈ {MODERATE, WARNING}` does. |
 
 ---
 

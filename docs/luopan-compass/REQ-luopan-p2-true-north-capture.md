@@ -3,9 +3,9 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.3-draft |
+| **Version** | 0.4-draft |
 | **Date** | 2026-04-24 |
-| **Revised** | 2026-04-24 — v0.2-draft: addressed SE/TE cross-review findings (F-01–F-06, F-10, TE-REQ-01–TE-REQ-10); 2026-04-24 — v0.3-draft: addressed iteration 2 cross-review findings N-01 (`calibration_version` type and semantics) and N-02 (`lat`/`lon` precision) |
+| **Revised** | 2026-04-24 — v0.2-draft: addressed SE/TE cross-review findings (F-01–F-06, F-10, TE-REQ-01–TE-REQ-10); 2026-04-24 — v0.3-draft: addressed iteration 2 cross-review findings N-01 (`calibration_version` type and semantics) and N-02 (`lat`/`lon` precision); 2026-04-24 — v0.4-draft: addressed iteration 3 cross-review findings V3-N-02 (`altitude_m` type Float→Double?, rationale) and V3-N-03 (`display_mode` nullability, permitted values, normative note) |
 | **Status** | Draft |
 | **Phase** | 2 of 5 |
 | **Parent REQ** | [REQ-luopan-compass v0.2-draft](REQ-luopan-compass.md) |
@@ -114,9 +114,9 @@ Concrete implementations: `Wmm2025Model` (Phase 2 default) and `GeomagneticField
 | `interference_flag` | Boolean | Yes | `true` if `InterferenceState` was `MODERATE` or `WARNING` at capture time. **Note:** a `POOR` `OverallConfidence` does NOT automatically set this flag — a bearing can be POOR confidence (e.g., due to low calibration quality) without magnetic interference being detected. |
 | `latitude` | Double? | Conditional | Only stored if GPS consent given and a location fix is available. IEEE 754 double precision required for WMM computation accuracy (≈11 cm precision at 6 decimal places vs ≈11 m for Float). |
 | `longitude` | Double? | Conditional | Only stored if GPS consent given and a location fix is available. IEEE 754 double precision required for WMM computation accuracy (≈11 cm precision at 6 decimal places vs ≈11 m for Float). |
-| `altitude_m` | Float | Conditional | Only stored if GPS consent given and a location fix is available. |
+| `altitude_m` | Double? | Conditional | Only stored if GPS consent given and a location fix is available. `Double?` for consistency with GPS altitude precision and the WMM computation interface (`altMeters: Double`). NULL when altitude is unavailable from the GPS fix (0 m sea level is used internally for WMM computation in that case, but the stored field is NULL). |
 | `notes` | String (max 1000 chars) | No | Optional free-text notes. |
-| `display_mode` | Enum: MODERN, LUOPAN, SIGHTING | Yes | Active display mode at capture time. |
+| `display_mode` | String? | OPTIONAL (nullable) | Active display mode at capture time. `null` is permitted when the display mode is unknown. **Phase 2 implementations MUST write `"MODERN"`.** The value `"LUOPAN"` is reserved for Phase 3; `"SIGHTING"` is reserved for Phase 5 (deferred per REQ-DISPLAY-04–06). The column is nullable (`String?`) to maintain forward-compatibility without requiring a schema migration in Phase 3. |
 
 ### 5.4 Non-Functional
 
