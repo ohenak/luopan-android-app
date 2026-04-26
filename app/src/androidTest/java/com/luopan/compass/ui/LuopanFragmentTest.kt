@@ -335,6 +335,64 @@ class LuopanFragmentTest {
     }
 
     // -----------------------------------------------------------------------
+    // Task 4.3 — AC-23: Overlay displays magnetic bearing (TSPEC N-F05)
+    // -----------------------------------------------------------------------
+
+    /**
+     * AC-23 (instrumented): When north type is "Mag N" and 坐向 is locked at True N 45°
+     * with declination −3.5°, the overlay shows the magnetic-adjusted bearing 48.5°.
+     *
+     * Expected overlay text (FSPEC §4d worked example, ES-03):
+     *   tvXiangOverlay = "向: 艮 (48.5° Mag N)"
+     *   tvZuoOverlay   = "坐: 坤 (228.5° Mag N)"
+     *
+     * The display bearing derivation is: displayXiangBearing = xiangBearing − declinationDeg
+     *   = 45.0f − (−3.5f) = 48.5f.
+     *
+     * V3-F01 wiring: luopanView.setLockState() is called with displayXiangBearing (48.5f),
+     * not xiangBearing (45.0f), ensuring the gold tick mark appears at the correct visual
+     * position when viewing Magnetic North.
+     *
+     * NOTE: This test verifies structural overlay wiring (view IDs bound, visibility rules).
+     * The exact "48.5° Mag N" formatting is verified deterministically by the companion
+     * pure-JVM unit tests in LuopanFragmentLogicTest:
+     *   - ac23_overlay_displays_magnetic_bearing
+     *   - v3f01_setLockState_called_with_displayXiangBearing_not_xiangBearing
+     * Full behavioral assertion requires sensor injection (deferred to integration pass).
+     *
+     * TSPEC N-F05, FSPEC §4d / ES-03, PLAN Task 4.3.
+     */
+    @Test
+    fun ac23_northSwitch_overlayDisplaysConvertedBearing() {
+        // Structural: verify overlay container and text views are wired to correct IDs.
+        // At cold start, isLockActive=false → overlay is GONE (visibility = View.GONE).
+        onView(withId(R.id.zuoXiangOverlay))
+            .check(matches(not(isDisplayed()))) // GONE at cold start
+
+        // The tvXiangOverlay and tvZuoOverlay children are also hidden (parent GONE).
+        // Verify the IDs resolve without NoMatchingViewException — confirms layout binding.
+        onView(withId(R.id.tvXiangOverlay))
+            .check(matches(not(isDisplayed()))) // hidden inside GONE parent
+
+        onView(withId(R.id.tvZuoOverlay))
+            .check(matches(not(isDisplayed()))) // hidden inside GONE parent
+
+        // Behavioral assertion:
+        // When state.isLockActive=true, state.xiangMountain="艮", state.zuoMountain="坤",
+        // state.displayXiangBearing=48.5f, state.displayZuoBearing=228.5f,
+        // state.northLabel="Mag N":
+        //   tvXiangOverlay.text = "向: 艮 (48.5° Mag N)"  [verified by unit test ac23_overlay_displays_magnetic_bearing]
+        //   tvZuoOverlay.text   = "坐: 坤 (228.5° Mag N)" [verified by unit test ac23_overlay_displays_magnetic_bearing]
+        //
+        // V3-F01 assertion:
+        // luopanView.setLockState() receives displayXiangBearing=48.5f (not xiangBearing=45f).
+        // [verified by unit test v3f01_setLockState_called_with_displayXiangBearing_not_xiangBearing]
+        //
+        // TODO: inject LuopanState with isLockActive=true, displayXiangBearing=48.5f,
+        //       northLabel="Mag N" via ViewModel seam → assert overlay VISIBLE and text matches.
+    }
+
+    // -----------------------------------------------------------------------
     // Task 5.1 — Pinch-to-zoom instrumented tests (AC-25, AC-26)
     // -----------------------------------------------------------------------
 
