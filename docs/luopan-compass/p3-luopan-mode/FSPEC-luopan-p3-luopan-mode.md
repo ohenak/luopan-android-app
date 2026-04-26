@@ -4,12 +4,13 @@
 | Field | Value |
 |-------|-------|
 | **ID** | FSPEC-LUOPAN-P3 |
-| **Version** | 1.0 |
+| **Version** | 1.1 |
 | **Date** | 2026-04-25 |
 | **Status** | Draft |
 | **Linked REQ** | [REQ-luopan-p3-luopan-mode v0.3-draft](REQ-luopan-p3-luopan-mode.md) |
 | **Parent REQ** | [REQ-luopan-compass v0.3-draft](../REQ-luopan-compass.md) |
 | **Author** | Product |
+| **Revised** | 2026-04-25 — SE/TE cross-review iteration 1 feedback addressed |
 
 ---
 
@@ -40,7 +41,7 @@
 | Luopan Mode — dial | Rotating six-ring dial with fixed pointer; counter-rotates 1:1 with device heading |
 | Six concentric rings | 天池 (needle), 先天八卦, 後天八卦 + 方位, 十二地支, 二十四山, 六十分金 |
 | Numerical readout panel | Six-field panel: 山, 十二地支, 後天八卦 方位, bearing + north type, 分金, confidence badge |
-| 坐向 lock | "Lock 向" button; derives 坐 = (向 + 180°) mod 360°; gold tick mark on dial |
+| 坐向 lock | "Lock 向" button; derives 坐 = (向 + 180°) mod 360°; gold tick mark on Ring 5 |
 | Ring visibility toggle | Long-press opens BottomSheetDialog; per-ring switches; session-only |
 | Pinch-to-zoom | Scale 0.8×–2.0×; session-only, survives config changes |
 | Localization toggles | "Show romanization" (pinyin) and "Show in my language" (English equivalents) |
@@ -62,6 +63,30 @@
 - `OverallConfidence` enum with values `HIGH | MODERATE | POOR | STABILIZING | SENSOR_ERROR` exists in `com.luopan.compass.model.OverallConfidence` from Phase 1.
 - `CompassViewModel` is scoped to `CompassActivity` and shared across fragments via `activityViewModels()`.
 - The sensor pipeline runs continuously in the ViewModel regardless of which mode is active.
+
+### 1.4 Navigation Architecture — Phase 3 Migration Prerequisite
+
+The current codebase uses a single `CompassActivity` with a flat `ConstraintLayout`. Phase 3 requires migrating to a fragment-based navigation architecture before any Phase 3 features can be implemented. This migration is **in-scope for Phase 3**.
+
+**Navigation contract (what is required, not how to implement it):**
+
+| Contract element | Specification |
+|-----------------|---------------|
+| Mode switcher trigger | User taps a tab in the bottom `TabLayout`; this triggers navigation between fragments |
+| Navigation destinations | Two fragments: `ModernCompassFragment` (existing compass logic migrated from Activity) and `LuopanFragment` (new) |
+| Navigation controller | A `NavHostFragment` with a `NavController` manages the back-stack; `NavigationUI.setupWithNavController` wires the `TabLayout` |
+| ViewModel sharing | `CompassViewModel` is scoped to `CompassActivity`; both fragments obtain it via `activityViewModels()` so sensor data is never interrupted during mode transitions |
+| Back-stack behavior | Tapping a tab navigates to that destination with `popUpTo(startDestination, inclusive = false)`; the back stack never grows beyond one entry per destination |
+| Loading state between fragments | While the incoming fragment is inflating (before first `onDraw`), the screen shows a dark background at #2C0E0E; no spinner is required given the 300 ms budget |
+| Persistence | The last-used mode is stored under key `display_mode` in `SettingsRepository` and restored on cold start |
+
+**Files that must be created or modified as part of this migration:**
+- `activity_compass.xml` — restructured to host `NavHostFragment` + bottom `TabLayout`
+- `nav_graph.xml` — created with `dest_modern` and `dest_luopan` destinations
+- `ModernCompassFragment` — new fragment; existing `CompassActivity` UI logic migrates here
+- `LuopanFragment` — new fragment; Phase 3 luopan UI lives here
+
+This section describes the navigation **contract** (triggers, back-stack behavior, loading state). Implementation details are the engineering team's responsibility and belong in the TSPEC.
 
 ---
 
@@ -108,12 +133,12 @@
 
 1. The sensor fusion pipeline in `CompassViewModel` computes a new heading value (`bearingDeg`) and emits an updated `LuopanState` to the UI layer.
 2. `LuopanFragment` observes the `LuopanState` flow. On update, it passes the new `bearingDeg` to `LuopanView` (the custom Canvas view rendering the dial).
-3. `LuopanView` computes the dial rotation angle: `dialRotationDeg = -bearingDeg` (negative because the dial counter-rotates relative to device rotation to keep the physically-north sector aligned under the fixed north pointer).
+3. `LuopanView` computes the dial rotation angle: `dialRotationDeg = -bearingDeg (mod 360°)`. The negative value is required because the dial counter-rotates relative to device rotation so that the physically-north sector stays aligned under the fixed north pointer. The modular reduction ensures the angle remains in `[0°, 360°)`.
 4. `LuopanView` applies the rotation transform to the entire ring assembly (Rings 1–6 and all labels rotate together as a unit). The pointer graphic is drawn outside the rotation transform and remains fixed at screen top center.
 5. The dial rotation happens continuously and smoothly — no snapping to sector boundaries.
 6. The update rate is ≥ 20 Hz on the minimum target device (API 26, mid-range hardware).
 7. The numerical readout panel updates in the same `LuopanState` emission: all six fields update simultaneously with the dial rotation.
-8. If pinch-to-zoom is active, the scale is applied before rotation. The center of the zoom is the center of the dial.
+8. If pinch-to-zoom is active, the scale transform is applied first (scale around dial center), then the rotation transform. This order ensures uniform dial expansion before heading-based rotation.
 
 **Mapping rule:** When the device rotates clockwise by angle θ, the dial counter-rotates by θ. The sector currently pointed at by the fixed pointer reflects the device's current heading. Accuracy: 1:1 mapping ±2° (limited by sensor fusion, not by the rendering logic).
 
@@ -140,8 +165,8 @@
 | 山 char + pinyin | Ring 5 (二十四山) lookup by `bearingDeg` | Static LUT; 24 entries; 15° per sector |
 | 地支 char + pinyin | Ring 4 (十二地支) lookup by `bearingDeg` | Static LUT; 12 entries; 30° per sector; 子 wraps at 0° |
 | Trigram + 卦名 + 方位 | Ring 3 (後天八卦) lookup by `bearingDeg` | Static LUT; 8 entries; 45° per sector; 坎/北 wraps at 0° |
-| Bearing in degrees | `bearingDeg` from `CompassViewModel` | Displayed to 0.1° precision |
-| North type | `northType` from `CompassViewModel` | "True N" or "Mag N" |
+| Bearing in degrees | `bearingDeg` from `LuopanState` | Displayed to 0.1° precision |
+| North type | `northLabel` from `LuopanState` | "True N" or "Mag N" |
 | 分金 field | Ring 6 (六十分金) lookup, confidence-gated | Shown only when confidence is `HIGH`; otherwise shows substitute text |
 | Confidence badge | `confidence` from `LuopanState` | Text label + color; see table below |
 
@@ -181,16 +206,18 @@
 
 1. User rotates device to the desired 向 (facing) direction. The numerical readout panel shows the current bearing and 山 label in real time.
 2. User taps "Lock 向".
-3. `CompassViewModel` records the current `bearingDeg` as `xiangBearing` and looks up the corresponding 山 label from the Ring 5 LUT as `xiangMountain`.
-4. `CompassViewModel` computes `zuoBearing = (xiangBearing + 180.0) mod 360.0` and looks up `zuoMountain` from the Ring 5 LUT.
-5. `isLockActive` is set to `true` in `LuopanState`. This state is held in `CompassViewModel` memory (not persisted to `SettingsRepository`).
-6. `LuopanFragment` observes the updated `LuopanState` and:
+3. `CompassViewModel` records the current `bearingDeg` as `xiangBearing`. This value is **always stored as a True North bearing**, regardless of the current north-type display setting. If the user is currently viewing Magnetic North, the ViewModel converts the displayed magnetic bearing back to True North before storing: `xiangBearing_trueN = displayedBearing_magN + declinationDeg`. The `xiangBearing` field in `LuopanState` always holds a True North value.
+4. `CompassViewModel` looks up the corresponding 山 label from the Ring 5 LUT as `xiangMountain`. The Ring 5 LUT lookup always uses the True North bearing.
+5. `CompassViewModel` computes `zuoBearing_trueN = (xiangBearing_trueN + 180.0) mod 360.0` and looks up `zuoMountain` from the Ring 5 LUT.
+6. `isLockActive` is set to `true` in `LuopanState`. This state is held in `CompassViewModel` memory (not persisted to `SettingsRepository`).
+7. `LuopanFragment` observes the updated `LuopanState` and:
    a. Renders a persistent 坐向 overlay (e.g., a card or banner) showing:
-      - "向: [xiangMountain] ([xiangBearing formatted to 1 decimal]° [northType])"
-      - "坐: [zuoMountain] ([zuoBearing formatted to 1 decimal]° [northType])"
-   b. Draws a gold tick mark on the dial ring at the `xiangBearing` position. The tick mark rotates with the dial (it is anchored at the locked bearing relative to the ring, not to the screen). As the device rotates, the tick mark moves on screen while the fixed pointer continues to show the live heading.
+      - "向: [xiangMountain] ([displayBearing formatted to 1 decimal]° [northType])"
+      - "坐: [zuoMountain] ([zuoDisplayBearing formatted to 1 decimal]° [northType])"
+      where `displayBearing` is converted to the current north reference for display (True N or Mag N).
+   b. Draws a gold tick mark on **Ring 5 (二十四山)** — the outermost labeled ring — at the angular position corresponding to the locked 向 True North bearing. The tick mark rotates with the dial (it is anchored at the locked bearing relative to the ring assembly, not to the screen). As the device rotates, the tick mark moves on screen while the fixed pointer continues to show the live heading. When Ring 5 is hidden, the tick mark is also hidden.
    c. The live dial continues to rotate normally. The live numerical readout panel continues to update.
-7. The "Lock 向" button label changes to "Clear 向".
+8. The "Lock 向" button label changes to "Clear 向".
 
 **Display format for overlay:**
 - North type in overlay matches the current north type setting: "True N" or "Mag N".
@@ -212,7 +239,7 @@
 
 **Steps (mode switch while locked):**
 
-1. User is in Luopan Mode with 坐向 locked at `xiangBearing`.
+1. User is in Luopan Mode with 坐向 locked at `xiangBearing_trueN`.
 2. User taps the "Modern" tab → `LuopanFragment` navigates away. Lock state remains in `CompassViewModel`.
 3. User taps the "Luopan" tab → `LuopanFragment` inflates. On first observation of `LuopanState`, `isLockActive = true` is detected.
 4. The overlay and gold tick mark are rendered immediately on first draw.
@@ -221,19 +248,29 @@
 
 **Trigger:** User changes north type (True N ↔ Mag N) via the north-type toggle while 坐向 is locked.
 
+**Internal storage rule:** `xiangBearing` is always stored as a True North bearing (see §4a step 3). The north-type switch does NOT change the stored True North bearing. Only the display values change.
+
 **Steps:**
 
-1. `CompassViewModel` receives the north type change.
-2. The `bearingDeg` value updates to reflect the new north reference (e.g., magnetic bearing shifts by the declination value).
-3. Because the locked `xiangBearing` is derived from `bearingDeg` at the moment of lock, the 向 bearing **re-derives** its 山 label from the new magnetic-adjusted heading:
-   - `xiangBearing` is updated to the current bearing in the new reference frame.
-   - `xiangMountain` is re-looked up from the Ring 5 LUT using the new `xiangBearing`.
-   - `zuoBearing` is recomputed: `(newXiangBearing + 180.0) mod 360.0`.
-   - `zuoMountain` is re-looked up.
-4. The overlay updates immediately to show the new bearing values and 山 labels, with the updated north type label ("True N" or "Mag N").
-5. If the bearing crosses a 山 boundary after the north type switch, the overlay MUST reflect the corrected 山 labels.
+1. `CompassViewModel` receives the north type change event.
+2. The stored `xiangBearing_trueN` remains unchanged — it is NOT reread from the live device heading.
+3. For display purposes, the bearing shown in the overlay is converted to the new reference:
+   - **True N → Mag N:** `displayBearing = xiangBearing_trueN − declinationDeg`
+   - **Mag N → True N:** `displayBearing = xiangBearing_magN + declinationDeg`
+4. The 山 labels (`xiangMountain`, `zuoMountain`) are derived from the **True North bearing** using the Ring 5 LUT (BR-01). They are NOT recalculated from the display bearing. 山 labels always reflect the True North sector and do NOT change when the north type switches.
+5. The overlay updates immediately to show the new display bearing values and the updated north type label ("True N" or "Mag N"). The 山 labels remain the same.
+6. `LuopanState.bearingDeg` and `LuopanState.northLabel` update to reflect the new north reference for the live readout panel as well.
 
-**Decision point:** If the new magnetic-adjusted bearing results in a different 山 sector for 向, the overlay shows the new 山 label. This is the correct behavior — the lock is relative to the heading direction in the world, not to a stored number.
+**Worked example:**
+- Locked at 向 = 45° True N → `xiangMountain` = 艮, `zuoBearing_trueN` = 225°, `zuoMountain` = 坤
+- User switches to Magnetic North; local declination = −3.5°
+- Display bearing for 向: `45.0° − (−3.5°) = 48.5°` → displayed as "向: 艮 (48.5° Mag N)"
+- Display bearing for 坐: `225.0° − (−3.5°) = 228.5°` → displayed as "坐: 坤 (228.5° Mag N)"
+- 山 labels remain 艮 and 坤 (derived from 45° and 225° True N — unchanged)
+
+**Key principle:** Switching north type changes the DISPLAY of bearing numbers and the northLabel field only. The underlying True North bearing used for 山 sector lookup does not change. 山 labels are invariant to north-type switches.
+
+**Decision point:** If the user was viewing Magnetic North at the time of locking and the displayed magnetic bearing was close to a 山 sector boundary, the True North bearing used for storage may fall in a different sector than the displayed magnetic bearing. The stored True North bearing determines the 山 label.
 
 #### 4e. Button State Table
 
@@ -284,6 +321,7 @@
 | Condition | Behavior |
 |-----------|----------|
 | User hides Ring 6 (分金) | The 分金 ring disappears from the dial but the 分金 field in the numerical readout panel remains visible (when High confidence) |
+| User hides Ring 5 (二十四山) | Ring 5 disappears from the dial; the gold tick mark (if 坐向 is locked) is also hidden because the tick mark is drawn on Ring 5 |
 | User hides all rings | The dial shows only the fixed pointer and the background; heading computation is unaffected |
 | User cold-starts app | All rings reset to visible; previous session's visibility state is not restored |
 
@@ -447,7 +485,7 @@ Two independent toggles control how ring labels and numerical readout fields are
 
 ### BR-06: 坐向 Lock Derivation Rule
 
-**Rule:** When "Lock 向" is tapped at bearing `向` degrees, the system derives 坐 as:
+**Rule:** When "Lock 向" is tapped at bearing `向` degrees (True North), the system derives 坐 as:
 
 ```
 坐 = (向 + 180.0) mod 360.0
@@ -455,7 +493,7 @@ Two independent toggles control how ring labels and numerical readout fields are
 
 **Examples:**
 
-| 向 (locked bearing) | 坐 = (向 + 180) mod 360 |
+| 向 (locked True North bearing) | 坐 = (向 + 180) mod 360 |
 |---------------------|------------------------|
 | 0° | 180° |
 | 45° | 225° |
@@ -464,7 +502,7 @@ Two independent toggles control how ring labels and numerical readout fields are
 | 270° | 90° |
 | 350° | 170° |
 
-**山 label derivation:** Both `xiangMountain` and `zuoMountain` are obtained by applying the Ring 5 (二十四山) LUT lookup to `xiangBearing` and `zuoBearing` respectively, using the BR-01 sector membership rule.
+**山 label derivation:** Both `xiangMountain` and `zuoMountain` are obtained by applying the Ring 5 (二十四山) LUT lookup to `xiangBearing_trueN` and `zuoBearing_trueN` respectively, using the BR-01 sector membership rule. 山 labels always use True North bearings.
 
 ---
 
@@ -486,11 +524,13 @@ Two independent toggles control how ring labels and numerical readout fields are
 
 | Setting Key | Scope | Behavior |
 |-------------|-------|----------|
+| `display_mode` | **Persisted** | Written to `SettingsRepository`; restored on cold start |
 | `luopan_show_romanization` | **Persisted** | Written to `SettingsRepository`; restored on cold start |
 | `luopan_show_my_language` | **Persisted** | Written to `SettingsRepository`; restored on cold start |
 | `luopan_ring_visible_1` through `_6` | **Session-only** | In `CompassViewModel` memory only; reset to `true` on cold start |
 | `luopan_zoom_scale` | **Session-only** | In `CompassViewModel` memory only; reset to `1.0` on cold start; survives config changes |
-| `display_mode` | **Persisted** | Written to `SettingsRepository`; restored on cold start |
+
+**`SettingsRepository` extension required:** Phase 3 requires adding three new keys to `SettingsRepository` (`com.luopan.compass.settings.SettingsRepository`): `display_mode`, `luopan_show_romanization`, and `luopan_show_my_language`. These must be implemented as part of Phase 3 alongside the new fragment and navigation infrastructure.
 
 **Non-normative rationale:** Ring visibility and zoom are moment-to-moment readability aids for a consultation session. Persisting them risks silently hiding rings or leaving the user at an unexpected zoom level on the next launch.
 
@@ -502,9 +542,76 @@ Two independent toggles control how ring labels and numerical readout fields are
 
 ---
 
+### BR-11: Dial Rotation Math
+
+**Rule:** The rendered dial rotation angle equals the negative of the current magnetic heading, reduced modulo 360°:
+
+```
+dialRotationDeg = -bearingDeg (mod 360°)
+```
+
+This ensures the ring assembly counter-rotates relative to device rotation, keeping the physically-north sector aligned under the fixed north pointer. The pointer element does not rotate; only the ring assembly (Rings 1–6 and all labels as a single unit) rotates.
+
+**Examples:**
+
+| Device heading (bearingDeg) | dialRotationDeg |
+|-----------------------------|-----------------|
+| 0° | 0° |
+| 90° (device points East) | 270° (dial rotates 270° CCW = 90° CW of ring assembly CCW) |
+| 180° | 180° |
+| 270° | 90° |
+
+---
+
 ## 4. Data Definitions
 
-### 4.1 Ring Summary
+### 4.1 `LuopanState` Data Contract
+
+`LuopanState` is the complete data contract emitted by `CompassViewModel` for consumption by `LuopanFragment`. All fields required to render the dial, numerical readout panel, and 坐向 overlay are contained within this state object.
+
+```kotlin
+data class LuopanState(
+    // Live bearing and north reference (required for numerical readout panel)
+    val bearingDeg: Float,              // Current bearing in degrees (True N or Mag N per northLabel)
+    val northLabel: String,             // "True N" or "Mag N"
+
+    // Ring 5 — 二十四山
+    val mountainChar: String,          // e.g., "午"
+    val mountainPinyin: String,        // e.g., "Wǔ"
+
+    // Ring 4 — 十二地支
+    val earthlyBranchChar: String,     // e.g., "午"
+    val earthlyBranchPinyin: String,   // e.g., "Wǔ"
+
+    // Ring 3 — 後天八卦
+    val trigramSymbol: String,         // e.g., "☲"
+    val trigramName: String,           // e.g., "離"
+    val trigramDirection: String,      // e.g., "南"
+
+    // Ring 6 — 六十分金 (null when confidence != HIGH)
+    val fenJinLabel: String?,          // e.g., "壬午分金" or null
+
+    // 坐向 lock state (bearings stored as True North internally)
+    val xiangBearing: Double?,         // locked 向 bearing in True North degrees (null = unlocked)
+    val xiangMountain: String?,        // 山 label for 向 (null = unlocked)
+    val zuoBearing: Double?,           // derived 坐 True North bearing = (向 + 180) mod 360 (null = unlocked)
+    val zuoMountain: String?,          // 山 label for 坐 (null = unlocked)
+    val isLockActive: Boolean,         // true when 坐向 is locked
+
+    // Confidence (mirrors CompassUiState.confidence)
+    val confidence: OverallConfidence, // HIGH | MODERATE | POOR | STABILIZING | SENSOR_ERROR
+)
+```
+
+**`bearingDeg` during SENSOR_ERROR:** `LuopanState.bearingDeg` retains the last valid bearing value during `SENSOR_ERROR` — it is not set to null or zero. The View is responsible for suppressing display (showing "—") when `confidence == SENSOR_ERROR`. The last retained `bearingDeg` value is also used to freeze the dial position at the last known heading.
+
+**`northLabel` values:** "True N" when True North correction (WMM declination) is active; "Mag N" when Magnetic North is selected.
+
+**`xiangBearing` and `zuoBearing`:** Always stored as True North bearings. For display, the View converts to the current north reference using the current declination value.
+
+---
+
+### 4.2 Ring Summary
 
 | Ring # | Chinese | English | Type | Divisions | °/Division |
 |--------|---------|---------|------|-----------|-----------|
@@ -515,7 +622,7 @@ Two independent toggles control how ring labels and numerical readout fields are
 | 5 | 二十四山 | Twenty-Four Mountains | 24 Mountains | 24 | 15° |
 | 6 | 六十分金 | Sixty Gold Divisions | 60 Gold Divisions | 60 | 6° |
 
-### 4.2 Ring 2 Label Reference — 先天八卦 (Fuxi / Earlier Heaven Arrangement)
+### 4.3 Ring 2 Label Reference — 先天八卦 (Fuxi / Earlier Heaven Arrangement)
 
 Sectors use the universal inclusive-left, exclusive-right `[start°, end°)` rule (BR-01).
 
@@ -532,7 +639,7 @@ Sectors use the universal inclusive-left, exclusive-right `[start°, end°)` rul
 
 > **Note:** Ring 2 (先天八卦) is a decorative reference ring. Its label is NOT included in the numerical readout panel. Only Ring 3 (後天八卦) contributes the trigram field to the readout.
 
-### 4.3 Ring 3 Label Reference — 後天八卦 (King Wen / Later Heaven Arrangement)
+### 4.4 Ring 3 Label Reference — 後天八卦 (King Wen / Later Heaven Arrangement)
 
 Each sector shows trigram symbol + 卦名 + 方位 direction name.
 
@@ -547,7 +654,7 @@ Each sector shows trigram symbol + 卦名 + 方位 direction name.
 | 7 | ☱ | 兌 | 西 | Duì · Xī | 270° | 247.5°–292.5° |
 | 8 | ☷ | 坤 | 西南 | Kūn · Xīnán | 225° | 202.5°–247.5° |
 
-### 4.4 Ring 4 Label Reference — 十二地支 (Twelve Earthly Branches)
+### 4.5 Ring 4 Label Reference — 十二地支 (Twelve Earthly Branches)
 
 The 子 sector wraps around 0°/360° (BR-02).
 
@@ -566,7 +673,7 @@ The 子 sector wraps around 0°/360° (BR-02).
 | 11 | 戌 | Xū | 300° | 285°–315° |
 | 12 | 亥 | Hài | 330° | 315°–345° |
 
-### 4.5 Ring 5 Label Reference — 二十四山 (Twenty-Four Mountains)
+### 4.6 Ring 5 Label Reference — 二十四山 (Twenty-Four Mountains)
 
 The 子 sector wraps around 0°/360°: `[352.5°, 7.5°)`.
 
@@ -597,9 +704,11 @@ The 子 sector wraps around 0°/360°: `[352.5°, 7.5°)`.
 | 23 | 乾 | Qián | 315° | 307.5°–322.5° |
 | 24 | 亥 | Hài | 330° | 322.5°–337.5° |
 
-### 4.6 Ring 6 Label Reference — 六十分金 (Sixty Gold Divisions)
+### 4.7 Ring 6 Label Reference — 六十分金 (Sixty Gold Divisions)
 
 > **Validation notice (OQ-P3-01):** This table uses the 三元/通用 convention. It MUST be validated by a practicing feng shui consultant before release. The 壬子分金 sector wraps at 0° per BR-04.
+
+> **Note on Parent 山 column:** The `Parent 山` column is **informational metadata only** — it MUST NOT be used for programmatic lookups or cross-ring validation. The column reflects the traditional naming convention for each 分金 division and does not necessarily correspond to the Ring 5 sector at the stated center bearing. Do not derive Ring 5 labels from this column.
 
 | # | 分金 Label | Center Bearing | Range | Parent 山 |
 |---|-----------|---------------|-------|----------|
@@ -669,7 +778,7 @@ The 子 sector wraps around 0°/360°: `[352.5°, 7.5°)`.
 - 0° → 壬子分金 (sector 358°–4°; wraps at 0°)
 - 90° → 壬卯分金 (sector 88°–94°)
 
-### 4.7 "Show in My Language" — English Ring Label Mapping
+### 4.8 "Show in My Language" — English Ring Label Mapping
 
 #### Ring 3 — 後天八卦 方位 English Labels
 
@@ -744,15 +853,17 @@ The 子 sector wraps around 0°/360°: `[352.5°, 7.5°)`.
 
 | Component | State |
 |-----------|-------|
-| Dial | Renders with the last valid bearing; rotation is frozen |
+| Dial | Renders with the last valid bearing (`LuopanState.bearingDeg` retains last valid value); rotation is frozen at last known heading |
 | Numerical readout — 山 field | Displays "—" |
 | Numerical readout — 地支 field | Displays "—" |
 | Numerical readout — 後天八卦 field | Displays "—" |
 | Numerical readout — Bearing field | Displays "—" |
 | Numerical readout — 分金 field | Displays "N/A — calibrate for 分金 precision" |
 | Confidence badge | Displays "Sensor error" in red |
-| "Lock 向" button | Disabled; tooltip "Cannot lock — heading is unreliable" |
-| 坐向 overlay (if active) | Remains visible but bearing values are frozen at last-locked values; badge shows "Sensor error" |
+| "Lock 向" button | Displays "Clear 向"; lock remains active but frozen; tooltip "Cannot lock — heading is unreliable" if user taps |
+| 坐向 overlay (if active) | Remains visible; bearing values are frozen at last-locked True North values; overlay badge (if any) shows "Sensor error" |
+
+**Note on `LuopanState.bearingDeg` during SENSOR_ERROR:** The field retains the last valid bearing — it is not nulled or zeroed. The View layer is responsible for suppressing the display (showing "—") based on `confidence == SENSOR_ERROR`. The retained value freezes the dial position.
 
 **Recovery:** When the sensor begins returning varying values again, the `SENSOR_ERROR` state clears and normal confidence evaluation resumes.
 
@@ -760,7 +871,9 @@ The 子 sector wraps around 0°/360°: `[352.5°, 7.5°)`.
 
 ### ES-02: STABILIZING Display
 
-**Trigger:** `OverallConfidence == STABILIZING` — the device has been rotated faster than 180°/s for > 0.5 seconds.
+**Trigger:** `OverallConfidence == STABILIZING` — the device has been rotated faster than 180°/s for > 0.5 seconds (active fast-rotation calibration in progress).
+
+**Cold-start note:** At cold start, the device is stationary; the confidence model emits `POOR` (not `STABILIZING`). `STABILIZING` occurs only during active fast-rotation calibration. See ES-07 for cold-start behavior.
 
 **Behavior:**
 
@@ -770,7 +883,7 @@ The 子 sector wraps around 0°/360°: `[352.5°, 7.5°)`.
 | Numerical readout — all sector fields | Continue to update normally |
 | Numerical readout — 分金 field | Displays "N/A — calibrate for 分金 precision" |
 | Confidence badge | Displays "Calibrating..." in amber |
-| "Lock 向" button | Disabled |
+| "Lock 向" button | Disabled; tooltip "Cannot lock — heading is unreliable" if user taps |
 
 **Recovery:** When angular velocity drops below 10°/s for > 1 second, confidence resumes normal evaluation. If pre-motion conditions were `HIGH`, the badge returns to "High" after recovery.
 
@@ -782,13 +895,16 @@ The 子 sector wraps around 0°/360°: `[352.5°, 7.5°)`.
 
 **Behavior:**
 
-1. The `bearingDeg` value in `CompassViewModel` updates to the new north reference.
-2. The locked `xiangBearing` is re-derived from the current heading in the new reference frame (see Flow 4d).
-3. The `xiangMountain` and `zuoBearing`/`zuoMountain` are recomputed using the updated `xiangBearing`.
-4. The 坐向 overlay updates immediately with the new values and "Mag N" or "True N" label.
-5. If the new bearing causes 向 to cross a 山 boundary, the overlay shows the updated 山 label. This is correct and expected behavior.
+1. The stored `xiangBearing_trueN` in `CompassViewModel` does NOT change — the True North bearing is the invariant storage format.
+2. `LuopanState.bearingDeg` and `LuopanState.northLabel` update to reflect the new north reference.
+3. The 坐向 overlay display bearing is recalculated for display only: `displayBearing = xiangBearing_trueN ± declinationDeg` depending on direction of switch.
+4. The `xiangMountain` and `zuoMountain` 山 labels remain unchanged — they are derived from the True North bearing and are invariant to north-type switches.
+5. The overlay updates immediately with the new display bearing values and the new north type label ("Mag N" or "True N").
 
-**Edge case:** If the declination at the current location is, for example, 5°E, and the locked 向 was 45° True N, switching to Magnetic North changes the locked bearing to approximately 40° Mag N. If 40° falls in a different 山 sector than 45°, the overlay updates to reflect the new sector.
+**Worked example:** Locked at 45.0° True N (向: 艮, 坐: 坤); declination = −3.5°.
+- Switch to Magnetic North: display bearing = 45.0° − (−3.5°) = 48.5°
+- Overlay shows: "向: 艮 (48.5° Mag N)" and "坐: 坤 (228.5° Mag N)"
+- 山 labels (艮, 坤) are unchanged
 
 ---
 
@@ -811,7 +927,7 @@ The 子 sector wraps around 0°/360°: `[352.5°, 7.5°)`.
 - The dial canvas shows only the fixed pointer graphic and the background (#2C0E0E).
 - The numerical readout panel continues to update normally.
 - Heading computation continues normally.
-- The 坐向 lock (if active) continues to function; the gold tick mark is not shown (the ring it would be drawn on is hidden).
+- The 坐向 lock (if active) continues to function; the gold tick mark is not shown because Ring 5 (二十四山) — the ring the tick mark is drawn on — is hidden.
 
 ---
 
@@ -825,16 +941,19 @@ The 子 sector wraps around 0°/360°: `[352.5°, 7.5°)`.
 
 ---
 
-### ES-07: Luopan Mode Entry While Sensor Pipeline Still Initializing
+### ES-07: Luopan Mode Entry While Sensor Pipeline Still Initializing (Cold Start)
 
 **Trigger:** User navigates to Luopan Mode before the sensor pipeline has delivered the first valid heading (e.g., immediately after cold start).
 
+**Cold-start confidence state:** At cold start, the device is stationary and the confidence model emits `POOR` (the initial state, not `STABILIZING`). `STABILIZING` requires active fast rotation at > 180°/s.
+
 **Behavior:**
 - The dial renders at bearing 0° (default/null heading).
-- The confidence badge shows "Calibrating..." until the first valid heading and confidence evaluation arrive.
+- The confidence badge shows "Poor" (red) until the pipeline produces its first valid confidence evaluation.
 - The "Lock 向" button is disabled.
-- The numerical readout panel shows fields for bearing = 0° but with "Calibrating..." confidence badge.
+- The numerical readout panel shows fields for bearing = 0° but with "Poor" confidence badge and sector fields populated from the 0° bearing.
 - As soon as the first valid `LuopanState` is emitted, the dial updates to the live heading and the panel updates normally.
+- If the user performs the fast-rotation calibration wand, confidence transitions: `POOR` → `STABILIZING` (during wand) → `HIGH` (once calibrated).
 
 ---
 
@@ -850,11 +969,19 @@ Each criterion below is testable, maps to one or more business rules or scenario
 
 ---
 
-### AC-02: Dial Counter-Rotation (BR-dialrotation, Scenario A)
+### AC-02a: Dial Counter-Rotation Math (BR-11, Scenario A)
 
 *Given* Luopan Mode is active and the device is stationary at heading H,  
 *When* the device is rotated clockwise by θ degrees,  
-*Then* the dial rotates counter-clockwise by θ degrees (±2°); the pointer remains fixed at screen top; the sector corresponding to heading H + θ is centered under the pointer.
+*Then* the dial ring assembly is rotated by `−θ` degrees from its reference position (±2°); `dialRotationDeg = -bearingDeg (mod 360°)` as specified in BR-11.
+
+---
+
+### AC-02b: Pointer Fixed (BR-11, Scenario A)
+
+*Given* Luopan Mode is active,  
+*When* the device rotates at any speed or direction,  
+*Then* the pointer element does not rotate; only the ring assembly (Rings 1–6 together) rotates; the pointer remains fixed at screen top center at all times.
 
 ---
 
@@ -894,7 +1021,7 @@ Each criterion below is testable, maps to one or more business rules or scenario
 
 *Given* confidence is `HIGH` and the device points at 45°,  
 *When* the user taps "Lock 向",  
-*Then* the 坐向 overlay shows "向: 艮 (45.0° True N)" and "坐: 坤 (225.0° True N)"; a gold tick mark appears on the dial at 45°; the live dial continues to rotate.
+*Then* the 坐向 overlay shows "向: 艮 (45.0° True N)" and "坐: 坤 (225.0° True N)"; a gold tick mark appears on Ring 5 (二十四山) at 45°; the live dial continues to rotate.
 
 ---
 
@@ -1056,11 +1183,11 @@ Each criterion below is testable, maps to one or more business rules or scenario
 
 ---
 
-### AC-23: North Reference Switch Re-Derives Locked 向 (Scenario J-2)
+### AC-23: North Reference Switch — Locked 向 Display Updates, 山 Labels Unchanged (Scenario J-2)
 
-*Given* 坐向 is locked at True N 45° (向: 艮) and north reference switches to Magnetic North,  
+*Given* 坐向 is locked at True N 45° (向: 艮) and north reference switches to Magnetic North (declination = −3.5°),  
 *When* the Luopan readout updates,  
-*Then* the overlay's bearing value and 山 label update to reflect the magnetic-adjusted heading; the north type label in the overlay changes to "Mag N"; if the magnetic-adjusted bearing crosses a 山 boundary, the corrected 山 label is shown.
+*Then* the overlay bearing values update to reflect the magnetic-adjusted heading (向: 艮 (48.5° Mag N), 坐: 坤 (228.5° Mag N)); the north type label in the overlay changes to "Mag N"; the 山 labels (艮, 坤) do NOT change — they remain derived from the stored True North bearing.
 
 ---
 
@@ -1093,6 +1220,22 @@ Each criterion below is testable, maps to one or more business rules or scenario
 *Given* the user had zoom set to 1.5× in the previous session,  
 *When* the user cold-starts the app and opens Luopan Mode,  
 *Then* the zoom scale is 1.0× (session-only, not persisted).
+
+---
+
+### AC-28: SENSOR_ERROR While 坐向 Locked (ES-01, TE-F03)
+
+*Given* 坐向 is locked and `OverallConfidence` transitions to `SENSOR_ERROR`,  
+*When* Luopan Mode is active,  
+*Then* the 坐向 overlay remains visible and displays the last-valid locked True North bearing values (frozen); the readout panel shows "—" for all computed fields (山, 地支, 後天八卦, bearing); the confidence badge shows "Sensor error" in red; the lock button label shows "Clear 向" (lock remains active but frozen).
+
+---
+
+### AC-29: STABILIZING State — Lock Button Disabled (ES-02, TE-F04)
+
+*Given* `OverallConfidence == STABILIZING` (active fast-rotation calibration in progress),  
+*When* Luopan Mode is active,  
+*Then* the lock button is disabled; the confidence badge shows "Calibrating..." in amber; the 分金 field shows "N/A — calibrate for 分金 precision".
 
 ---
 
