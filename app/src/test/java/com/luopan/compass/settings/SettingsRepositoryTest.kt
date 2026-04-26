@@ -53,4 +53,51 @@ class SettingsRepositoryTest {
         repo.wakeLockEnabled = false
         assertFalse(repo.wakeLockEnabled)
     }
+
+    // Task 2.2 — Phase 3 additions
+
+    @Test fun luopanShowRomanization_default_false() {
+        assertFalse(repo.luopanShowRomanization)
+    }
+
+    @Test fun luopanShowMyLanguage_default_false() {
+        assertFalse(repo.luopanShowMyLanguage)
+    }
+
+    @Test fun displayMode_default_MODERN() {
+        assertEquals(SettingsRepository.DISPLAY_MODE_MODERN, repo.displayMode)
+    }
+
+    @Test fun displayMode_persists_LUOPAN() {
+        repo.displayMode = SettingsRepository.DISPLAY_MODE_LUOPAN
+        assertEquals(SettingsRepository.DISPLAY_MODE_LUOPAN, repo.displayMode)
+    }
+
+    @Test fun luopanShowRomanization_roundtrip() {
+        repo.luopanShowRomanization = true
+        assertTrue(repo.luopanShowRomanization)
+    }
+
+    @Test fun luopanShowMyLanguage_roundtrip() {
+        repo.luopanShowMyLanguage = true
+        assertTrue(repo.luopanShowMyLanguage)
+    }
+
+    @Test fun noSessionOnlyKeysInSharedPreferences() {
+        // Perform normal operations that use the persisted keys
+        repo.displayMode = SettingsRepository.DISPLAY_MODE_LUOPAN
+        repo.luopanShowRomanization = true
+        repo.luopanShowMyLanguage = true
+
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = ctx.getSharedPreferences("luopan_settings", Context.MODE_PRIVATE)
+        val allKeys = prefs.all.keys
+
+        assertFalse("ring_visible key must not be stored in SharedPreferences",
+            allKeys.any { it.contains("ring_visible") })
+        assertFalse("zoom_scale key must not be stored in SharedPreferences",
+            allKeys.any { it.contains("zoom_scale") })
+        assertFalse("lock key must not be stored in SharedPreferences",
+            allKeys.any { it == "lock" })
+    }
 }

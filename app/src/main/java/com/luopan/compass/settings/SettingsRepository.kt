@@ -15,11 +15,19 @@ class SettingsRepository(context: Context) {
         private const val KEY_DISPLAY_FORMAT = "display_format"
         private const val KEY_WAKE_LOCK_ENABLED = "wake_lock_enabled"
 
+        // Phase 3 additions
+        const val KEY_DISPLAY_MODE        = "display_mode"
+        const val KEY_LUOPAN_ROMANIZATION = "luopan_show_romanization"
+        const val KEY_LUOPAN_MY_LANGUAGE  = "luopan_show_my_language"
+
         const val DECLINATION_AUTO = "auto"
         const val DECLINATION_MANUAL = "manual"
         const val DECLINATION_MAGNETIC = "magnetic"
         const val FORMAT_DEGREES = "degrees"
         const val FORMAT_DMS = "dms"
+
+        const val DISPLAY_MODE_MODERN = "MODERN"
+        const val DISPLAY_MODE_LUOPAN = "LUOPAN"
     }
 
     var declinationMode: String
@@ -37,4 +45,18 @@ class SettingsRepository(context: Context) {
     var wakeLockEnabled: Boolean
         get() = prefs.getBoolean(KEY_WAKE_LOCK_ENABLED, true)
         set(value) = prefs.edit { putBoolean(KEY_WAKE_LOCK_ENABLED, value) }
+
+    // Phase 3 additions
+
+    var displayMode: String
+        get() = prefs.getString(KEY_DISPLAY_MODE, DISPLAY_MODE_MODERN) ?: DISPLAY_MODE_MODERN
+        set(value) = prefs.edit { putString(KEY_DISPLAY_MODE, value) }
+
+    var luopanShowRomanization: Boolean
+        get() = prefs.getBoolean(KEY_LUOPAN_ROMANIZATION, false)
+        set(value) = prefs.edit { putBoolean(KEY_LUOPAN_ROMANIZATION, value) }
+
+    var luopanShowMyLanguage: Boolean
+        get() = prefs.getBoolean(KEY_LUOPAN_MY_LANGUAGE, false)
+        set(value) = prefs.edit { putBoolean(KEY_LUOPAN_MY_LANGUAGE, value) }
 }
