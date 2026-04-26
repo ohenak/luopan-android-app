@@ -271,8 +271,12 @@ class LuopanFragment : Fragment() {
         val canLock = state.confidence == OverallConfidence.HIGH ||
                       state.confidence == OverallConfidence.MODERATE
 
-        // PM-Q01 fix: enabled when can lock a new bearing OR when active (to allow "Clear 向")
-        btnLockXiang.isEnabled = isLockButtonEnabled(state.confidence, state.isLockActive)
+        // PM-F02 fix: button is ALWAYS enabled so click events are delivered even when
+        // confidence is POOR/STABILIZING/SENSOR_ERROR — the Toast path must be reachable.
+        // Button appearance (alpha/tint) can still indicate non-lockable state, but
+        // isEnabled stays true so Android delivers the click (disabled buttons get no clicks).
+        btnLockXiang.isEnabled = true
+        btnLockXiang.alpha = if (isLockButtonEnabled(state.confidence, state.isLockActive)) 1.0f else 0.5f
 
         btnLockXiang.text = if (state.isLockActive)
             getString(R.string.clear_xiang) else getString(R.string.lock_xiang)
@@ -280,8 +284,8 @@ class LuopanFragment : Fragment() {
         btnLockXiang.setOnClickListener {
             when {
                 state.isLockActive -> viewModel.clearXiang()
-                canLock -> viewModel.lockXiang()
-                else -> Toast.makeText(
+                canLock            -> viewModel.lockXiang()
+                else               -> Toast.makeText(
                     requireContext(),
                     R.string.cannot_lock_heading_unreliable,
                     Toast.LENGTH_SHORT

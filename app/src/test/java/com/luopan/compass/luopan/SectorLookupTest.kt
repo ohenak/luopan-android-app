@@ -111,6 +111,18 @@ class SectorLookupTest {
         assertEquals(4, SectorLookup.ring3(180f))
     }
 
+    @Test
+    fun `ring3 - bearing 337_4 is in 乾 西北 (index 7)`() {
+        // 337.4° < 337.5° → still in ☰ 乾 [292.5°, 337.5°) → index 7
+        assertEquals(7, SectorLookup.ring3(337.4f))
+    }
+
+    @Test
+    fun `ring3 - bearing exactly at 337_5 enters 坎 北 wrap-around (index 0)`() {
+        // 337.5° = start of ☵ 坎 [337.5°, 22.5°) wrap-around → index 0
+        assertEquals(0, SectorLookup.ring3(337.5f))
+    }
+
     // -------------------------------------------------------------------------
     // Ring 4 — 十二地支 — 12 sectors × 30° — BR-02 wrap-around at 子
     // -------------------------------------------------------------------------
