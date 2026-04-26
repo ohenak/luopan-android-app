@@ -64,6 +64,20 @@ class LuopanView @JvmOverloads constructor(
          */
         const val POINTER_DRAWN_IN_SCREEN_SPACE = true
 
+        /**
+         * Architecture invariant: the zoom scale transform ([canvas.scale]) is applied
+         * BEFORE the bearing rotation transform ([canvas.rotate]) in [onDraw].
+         * This ensures uniform dial expansion before heading-based counter-rotation.
+         * FSPEC Flow 2 step 8, TSPEC §6.1.2.
+         */
+        const val SCALE_APPLIED_BEFORE_ROTATION = true
+
+        // Minimum text size spec values (sp) for legibility on 5-inch 1080p displays.
+        // Verified by PROP-04-045B; sourced from TSPEC §6.1.1 and REQ-NFR-LUOPAN-02.
+        const val RING4_TEXT_SIZE_SP = 12f
+        const val RING5_TEXT_SIZE_SP = 11f
+        const val RING6_TEXT_SIZE_SP = 8f
+
         private var cjkTypeface: Typeface = Typeface.DEFAULT
 
         /**
@@ -749,4 +763,26 @@ class LuopanView @JvmOverloads constructor(
 
     /** Returns the stored display-reference xiang bearing (V3-F01). Visible for testing. */
     internal fun getDisplayXiangBearing(): Float? = displayXiangBearingState
+
+    /**
+     * Returns the number of pre-computed label positions for ring [ringIndex] (1-based).
+     * 0 before [onSizeChanged] has been called. Visible for testing — PROP-04-040.
+     */
+    internal fun getLabelPositionCount(ringIndex: Int): Int = when (ringIndex) {
+        2 -> ring2LabelPositions.size
+        3 -> ring3LabelPositions.size
+        4 -> ring4LabelPositions.size
+        5 -> ring5LabelPositions.size
+        6 -> ring6LabelPositions.size
+        else -> 0
+    }
+
+    /** Returns the configured Ring 4 text size in pixels (set in [onSizeChanged]). */
+    internal fun getRing4TextSizePx(): Float = ring4TextPaint.textSize
+
+    /** Returns the configured Ring 5 text size in pixels (set in [onSizeChanged]). */
+    internal fun getRing5TextSizePx(): Float = ring5TextPaint.textSize
+
+    /** Returns the configured Ring 6 text size in pixels (set in [onSizeChanged]). */
+    internal fun getRing6TextSizePx(): Float = ring6TextPaint.textSize
 }

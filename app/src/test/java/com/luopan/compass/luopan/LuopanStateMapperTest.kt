@@ -631,6 +631,38 @@ class LuopanStateMapperTest {
     }
 
     // -------------------------------------------------------------------------
+    // PROP-03-034: Canonical readout at 90°
+    // At bearing 90°, confidence=HIGH: 卯 (Ring 5), 卯 (Ring 4), ☳ 震 東 (Ring 3),
+    // fenJinLabel="壬卯分金" (Ring 6 index 16 at [88°, 94°))
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_90deg_high_all_fields_correct`() {
+        val state = compassState(headingDeg = 90.0, confidence = OverallConfidence.HIGH)
+
+        val result = LuopanStateMapper.map(
+            compassState = state,
+            lockState = null,
+            showRomanization = false,
+            showMyLanguage = false
+        )
+
+        // Ring 5 at 90° → 卯 [82.5°, 97.5°) → index 7
+        assertEquals("mountainChar at 90° must be '卯'", "卯", result.mountainChar)
+        // Ring 4 at 90° → 卯 [75°, 105°) → index 3
+        assertEquals("earthlyBranchChar at 90° must be '卯'", "卯", result.earthlyBranchChar)
+        // Ring 3 at 90° → ☳ 震 東 [67.5°, 112.5°) → index 2
+        assertTrue("trigramSymbol at 90° must contain '☳'", result.trigramSymbol.contains("☳"))
+        assertEquals("trigramName at 90° must be '震'", "震", result.trigramName)
+        assertEquals("trigramDirection at 90° must be '東'", "東", result.trigramDirection)
+        // Ring 6 at 90° → 壬卯分金 [88°, 94°) → index 16; HIGH → fenJinLabel non-null
+        assertNotNull("fenJinLabel must be non-null at HIGH confidence", result.fenJinLabel)
+        assertEquals("fenJinLabel at 90° must be '壬卯分金'", "壬卯分金", result.fenJinLabel)
+        assertEquals(OverallConfidence.HIGH, result.confidence)
+        assertEquals(90f, result.bearingDeg, 0.001f)
+    }
+
+    // -------------------------------------------------------------------------
     // mapper_locale_independence
     // BR-08: system locale has ZERO influence on ring label language.
     // Setting Locale.setDefault(Locale.ENGLISH) must NOT cause ring labels to appear in English.

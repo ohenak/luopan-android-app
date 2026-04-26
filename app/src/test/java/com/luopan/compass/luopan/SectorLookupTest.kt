@@ -1,6 +1,7 @@
 package com.luopan.compass.luopan
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -302,5 +303,73 @@ class SectorLookupTest {
     @Test
     fun `ring6 - bearing 360 normalises same as 0`() {
         assertEquals(SectorLookup.ring6(0f), SectorLookup.ring6(360f))
+    }
+
+    // =========================================================================
+    // PROP-01-001: Exhaustive coverage — every bearing in [0°, 360°) is assigned
+    // to exactly one sector per ring; no bearing is ever unassigned.
+    // =========================================================================
+
+    @Test
+    fun `ring2 - every bearing in 0 to 360 step 0_5 is assigned to a valid sector`() {
+        var bearing = 0f
+        while (bearing < 360f) {
+            val idx = SectorLookup.ring2(bearing)
+            assertTrue("ring2($bearing) returned invalid index $idx", idx in 0..7)
+            bearing += 0.5f
+        }
+    }
+
+    @Test
+    fun `ring3 - every bearing in 0 to 360 step 0_5 is assigned to a valid sector`() {
+        var bearing = 0f
+        while (bearing < 360f) {
+            val idx = SectorLookup.ring3(bearing)
+            assertTrue("ring3($bearing) returned invalid index $idx", idx in 0..7)
+            bearing += 0.5f
+        }
+    }
+
+    @Test
+    fun `ring4 - every bearing in 0 to 360 step 0_5 is assigned to a valid sector`() {
+        var bearing = 0f
+        while (bearing < 360f) {
+            val idx = SectorLookup.ring4(bearing)
+            assertTrue("ring4($bearing) returned invalid index $idx", idx in 0..11)
+            bearing += 0.5f
+        }
+    }
+
+    @Test
+    fun `ring5 - every bearing in 0 to 360 step 0_5 is assigned to a valid sector`() {
+        var bearing = 0f
+        while (bearing < 360f) {
+            val idx = SectorLookup.ring5(bearing)
+            assertTrue("ring5($bearing) returned invalid index $idx", idx in 0..23)
+            bearing += 0.5f
+        }
+    }
+
+    @Test
+    fun `ring6 - every bearing in 0 to 360 step 0_5 is assigned to a valid sector`() {
+        var bearing = 0f
+        while (bearing < 360f) {
+            val idx = SectorLookup.ring6(bearing)
+            assertTrue("ring6($bearing) returned invalid index $idx", idx in 0..59)
+            bearing += 0.5f
+        }
+    }
+
+    @Test
+    fun `ring4 - no bearing in 0 to 360 throws IllegalStateException`() {
+        var bearing = 0f
+        while (bearing < 360f) {
+            try {
+                SectorLookup.ring4(bearing)
+            } catch (e: IllegalStateException) {
+                throw AssertionError("ring4($bearing) threw IllegalStateException: ${e.message}")
+            }
+            bearing += 1f
+        }
     }
 }

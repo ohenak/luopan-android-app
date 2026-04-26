@@ -228,4 +228,11 @@ object RingLabelProvider {
      *                    Index 31 = 壬午分金 [178°, 184°).
      */
     fun ring6Label(sectorIndex: Int): LabelData = ring6Labels[sectorIndex]
+
+    // ─── Internal size accessors (for unit tests — PROP-01-011) ──────────────
+    internal val ring2LabelCount: Int get() = ring2Labels.size
+    internal val ring3LabelCount: Int get() = ring3Labels.size
+    internal val ring4LabelCount: Int get() = ring4Labels.size
+    internal val ring5LabelCount: Int get() = ring5Labels.size
+    internal val ring6LabelCount: Int get() = ring6Labels.size
 }

@@ -208,4 +208,50 @@ class RingLabelProviderTest {
             assertFalse("Ring 6 sector $i character should not be empty", label.character.isEmpty())
         }
     }
+
+    // ─── PROP-01-011: Exact array counts ──────────────────────────────────────
+    // PROPERTIES §PG-01-011: ring2 has exactly 8, ring3=8, ring4=12, ring5=24,
+    // ring6=60 entries. Uses internal size accessors exposed for testing only.
+
+    @Test
+    fun `ring2_has_exactly_8_entries`() {
+        assertEquals("Ring 2 must have exactly 8 sectors", 8, RingLabelProvider.ring2LabelCount)
+    }
+
+    @Test
+    fun `ring3_has_exactly_8_entries`() {
+        assertEquals("Ring 3 must have exactly 8 sectors", 8, RingLabelProvider.ring3LabelCount)
+    }
+
+    @Test
+    fun `ring4_has_exactly_12_entries`() {
+        assertEquals("Ring 4 must have exactly 12 sectors", 12, RingLabelProvider.ring4LabelCount)
+    }
+
+    @Test
+    fun `ring5_has_exactly_24_entries`() {
+        assertEquals("Ring 5 must have exactly 24 sectors", 24, RingLabelProvider.ring5LabelCount)
+    }
+
+    @Test
+    fun `ring6_has_exactly_60_entries`() {
+        assertEquals("Ring 6 must have exactly 60 sectors", 60, RingLabelProvider.ring6LabelCount)
+    }
+
+    // ─── PROP-01-014: Fuxi vs King Wen arrangement ────────────────────────────
+    // Ring 2 index 4 must be 乾 (NOT 離). Ring 3 index 4 must be 離 (NOT 乾).
+
+    @Test
+    fun `ring2_index4_is_qian_not_li_fuxi_arrangement`() {
+        val label = RingLabelProvider.ring2Label(4)
+        assertEquals("Ring 2 sector 4 must be ☰ 乾 (Fuxi South)", "乾", label.character)
+        assertFalse("Ring 2 must NOT use King Wen (Ring 2 sector 4 must NOT be 離)", label.character == "離")
+    }
+
+    @Test
+    fun `ring3_index4_is_li_not_qian_king_wen_arrangement`() {
+        val label = RingLabelProvider.ring3Label(4)
+        assertTrue("Ring 3 sector 4 must contain ☲ 離 (King Wen South)", label.character.contains("離"))
+        assertFalse("Ring 3 must NOT use Fuxi (Ring 3 sector 4 must NOT be 乾)", label.character.contains("乾"))
+    }
 }
