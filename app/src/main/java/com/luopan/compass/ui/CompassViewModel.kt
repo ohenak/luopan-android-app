@@ -281,10 +281,7 @@ class CompassViewModel(
         else
             displayBearing
         zuoXiangLock.lock(bearingTrueNorth)
-        // Immediately rederive display values when currently showing Magnetic North.
-        if (state.north_type == NorthType.MAGNETIC) {
-            zuoXiangLock.rederive(declinationDeg, isMagneticNorth = true)
-        }
+        zuoXiangLock.rederive(declinationDeg, isMagneticNorth = state.north_type == NorthType.MAGNETIC)
         recomputeLuopanState()
     }
 
@@ -310,6 +307,9 @@ class CompassViewModel(
      * @param type The new [NorthType] that was just applied by [setNorthType].
      */
     fun onNorthTypeChanged(type: NorthType) {
+        // declination_deg is safe to read from the current UI state even though _uiState has not
+        // yet been updated for the new north type: declination changes only on location updates
+        // (seconds-to-minutes timescale), never on the same frame as a north-type toggle.
         val declinationDeg = _uiState.value.declination_deg
         val isMagneticNorth = type == NorthType.MAGNETIC
         zuoXiangLock.rederive(declinationDeg, isMagneticNorth)

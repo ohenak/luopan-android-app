@@ -65,8 +65,8 @@ class ZuoXiangLock {
      *  - `zuoBearing = (xiangBearing + 180) % 360`
      *  - `xiangMountain` and `zuoMountain` from Ring 5 LUT via [SectorLookup.ring5] and
      *    [RingLabelProvider.ring5Label]
-     *  - Display bearings are initialised to the True North values; call [rederive] afterwards
-     *    if the current display is showing Magnetic North.
+     *  - Display bearings are initialised to the True North values. The caller must always
+     *    follow [lock] with [rederive] to set display bearings for the active north reference.
      *
      * @param bearing True North bearing in degrees. The caller (ViewModel [lockXiang]) is
      *                responsible for converting from Magnetic North to True North before calling

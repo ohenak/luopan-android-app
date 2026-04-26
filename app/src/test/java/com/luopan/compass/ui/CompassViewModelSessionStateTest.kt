@@ -76,9 +76,7 @@ class CompassViewModelSessionStateTest {
             else
                 displayBearing
             zuoXiangLock.lock(bearingTrueNorth)
-            if (state.north_type == NorthType.MAGNETIC) {
-                zuoXiangLock.rederive(declinationDeg, isMagneticNorth = true)
-            }
+            zuoXiangLock.rederive(declinationDeg, isMagneticNorth = state.north_type == NorthType.MAGNETIC)
         }
 
         fun clearXiang() {
@@ -328,6 +326,26 @@ class CompassViewModelSessionStateTest {
         assertNotNull(lockState)
         assertEquals("True North bearing must be stored unchanged (no declination added)",
             90.0f, lockState!!.xiangBearing, 0.1f)
+    }
+
+    @Test
+    fun `lockXiang under true north displayXiangBearing equals stored bearing`() {
+        // Invariant: after locking under True North, the display bearing must equal the stored
+        // True North bearing — rederive(isMagneticNorth=false) must not apply declination.
+        val ss = SessionState()
+        val state = makeState(
+            heading_deg = 90.0,
+            north_type = NorthType.TRUE,
+            declination_deg = 5.0f,
+            confidence = OverallConfidence.MODERATE
+        )
+        ss.lockXiang(state)
+
+        val lockState = ss.zuoXiangLock.lockState!!
+        assertEquals(
+            "displayXiangBearing must equal xiangBearing when locked under True North",
+            lockState.xiangBearing, lockState.displayXiangBearing, 0.01f
+        )
     }
 
     @Test
