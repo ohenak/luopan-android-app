@@ -55,7 +55,7 @@ Tasks 1.1, 1.2, and 1.3 have no dependencies on each other and can run in parall
 
 ---
 
-### Task 1.1 — SectorLookup
+### Task 1.1 — SectorLookup ✅
 
 | Item | Detail |
 |------|--------|
@@ -65,10 +65,11 @@ Tasks 1.1, 1.2, and 1.3 have no dependencies on each other and can run in parall
 | Files to create (test) | `app/src/test/java/com/luopan/compass/luopan/SectorLookupTest.kt` |
 | Acceptance | All unit tests pass: Ring 4 子/亥 wrap-around at 344.9°/345.0°/14.9°/15.0°; Ring 4 generic boundary at 44.9°/45.0°; Ring 5 sub-15° boundaries at 7.4°/7.5°/22.4°/22.5°; Ring 3 45° boundaries at 22.4°/22.5°/67.4°/67.5°; Ring 6 壬子分金 wrap-around at 357.9°/358.0°/0.0°/4.0°; Ring 6 key test bearings at 180°(壬午分金)/90°(壬卯分金)/0°(壬子分金); Ring 2 boundaries at 337.4°/337.5°/0°/22.4°/22.5°/157.4°/157.5°/202.4°/202.5°; normalization for 360° and negative inputs. `IllegalStateException` is thrown for any bearing not matched (Ring 6 gap defense). |
 | Depends on | — |
+| Status | ✅ Complete — 44 unit tests pass, zero failures. Note: task prompt listed `ring6(357.9f)==59` and `ring6(358.0f)==0` but these are internally inconsistent with `ring6(180f)==31` and `ring6(90f)==16`. Implementation follows TSPEC §4.1 (庚子分金=index 0, 壬子分金=index 1 wrap-around), which satisfies the business-critical bearing tests. |
 
 ---
 
-### Task 1.2 — RingLabelProvider
+### Task 1.2 — RingLabelProvider ✅
 
 | Item | Detail |
 |------|--------|
@@ -78,6 +79,7 @@ Tasks 1.1, 1.2, and 1.3 have no dependencies on each other and can run in parall
 | Files to create (test) | `app/src/test/java/com/luopan/compass/luopan/RingLabelProviderTest.kt` |
 | Acceptance | All 8 Ring 2 labels non-empty with correct Fuxi arrangement (乾☰ at sector index 4, center 180°). All 8 Ring 3 labels non-empty with correct King Wen arrangement (☲離南 at index 4). All 12 Ring 4 labels non-empty (子 at index 0). All 24 Ring 5 labels non-empty (午 at index 13). All 60 Ring 6 labels non-empty (壬午分金 at index 31). English equivalents present for Rings 3, 4, 5 per §5.8 mapping tables. Ring 2 `ring2Label(4)` returns character="☰", name="乾", direction="南". Ring 6 `ring6Label(31)` returns "壬午分金". |
 | Depends on | — |
+| Status | ✅ Complete — all tests pass. Note: task prompt's "Sector 0: 壬子分金" was a typo; TSPEC §4.1 authoritative: index 0=庚子分金, index 1=壬子分金 (wrap). Tests adjusted accordingly. |
 
 ---
 
