@@ -180,17 +180,19 @@ class CompassViewModel(
     /**
      * Changes the active north reference type.
      *
-     * Updates [northType] StateFlow and triggers a heading recomputation on the next
-     * sensor frame (guaranteed ≤50 ms / one 20 Hz frame, well within the 200 ms budget).
+     * Updates [northType] StateFlow and immediately rederives the 坐向 lock display bearings
+     * so that the overlay reflects the new north reference without waiting for the next sensor
+     * frame (AC-23 / TSPEC §8.2).
      *
-     * Also calls [onNorthTypeChanged] so that any active 坐向 lock rederives its display
-     * bearings immediately (AC-23 / TSPEC §8.2 / PM-F01 fix).
+     * PM2-F01 fix: passes [type] explicitly to [onNorthTypeChanged] so the `isMagneticNorth`
+     * flag is derived from the NEW type, not the stale [_uiState.value.north_type] which has
+     * not yet been updated by the sensor pipeline.
      *
      * TSPEC §3.7: `setNorthType()` is the only entry point for north type changes.
      */
     fun setNorthType(type: NorthType) {
         northTypeEngine.setNorthType(type)
-        onNorthTypeChanged()
+        onNorthTypeChanged(type)
     }
 
     /**
@@ -300,11 +302,16 @@ class CompassViewModel(
      * The stored True North [ZuoXiangLock.LockState.xiangBearing] is NEVER changed
      * by this call — only [ZuoXiangLock.LockState.displayXiangBearing] and
      * [ZuoXiangLock.LockState.displayZuoBearing] are updated (FSPEC §4d / TSPEC §8.2).
+     *
+     * PM2-F01 fix: accepts the new [type] explicitly so that [isMagneticNorth] is derived
+     * from the just-applied type rather than the stale [_uiState.value.north_type] (which
+     * has not yet been updated by the sensor pipeline at the time of this call).
+     *
+     * @param type The new [NorthType] that was just applied by [setNorthType].
      */
-    fun onNorthTypeChanged() {
-        val state = _uiState.value
-        val declinationDeg = state.declination_deg
-        val isMagneticNorth = state.north_type == NorthType.MAGNETIC
+    fun onNorthTypeChanged(type: NorthType) {
+        val declinationDeg = _uiState.value.declination_deg
+        val isMagneticNorth = type == NorthType.MAGNETIC
         zuoXiangLock.rederive(declinationDeg, isMagneticNorth)
         recomputeLuopanState()
     }
@@ -534,7 +541,7 @@ class CompassViewModel(
                     // No model provider: magnetic mode only
                     HeadingFields(
                         displayHeading = rawHeading,
-                        northLabel = "Magnetic N",
+                        northLabel = "Mag N",
                         locationFallbackAdvisory = false,
                         fallbackMagAdvisory = false
                     )

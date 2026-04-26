@@ -9,7 +9,7 @@ package com.luopan.compass.ui
 data class HeadingFields(
     /** True heading in degrees [0, 360) — equals magnetic heading when MAGNETIC mode or no location. */
     val displayHeading: Double,
-    /** North reference label for the heading readout — "True N", "True N (manual location)", or "Magnetic N". */
+    /** North reference label for the heading readout — "True N", "True N (manual location)", or "Mag N". */
     val northLabel: String,
     /** True when True North is active and the location is a cached GPS fix (not a fresh fix). */
     val locationFallbackAdvisory: Boolean,

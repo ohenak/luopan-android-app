@@ -166,35 +166,35 @@ class CompassViewModelTest {
     }
 
     @Test
-    fun `when MAGNETIC, north_label is "Magnetic N" regardless of location state`() {
+    fun `when MAGNETIC, north_label is "Mag N" regardless of location state`() {
         val engine = NorthTypeEngine() // default MAGNETIC
         val model = FakeMagneticFieldModel(declination = 5.0f, modelId = "WMM2025")
 
         // GPS fix
         val resultGps = engine.computeHeadingFields(100.0, LocationResult.GpsFix(40.0, -105.0, 0.0), model, 2025.5)
-        assertEquals("Magnetic N", resultGps.northLabel)
+        assertEquals("Mag N", resultGps.northLabel)
 
         // Cached
         val resultCached = engine.computeHeadingFields(
             100.0, LocationResult.CachedFix(40.0, -105.0, 0.0, 86_400_000L), model, 2025.5
         )
-        assertEquals("Magnetic N", resultCached.northLabel)
+        assertEquals("Mag N", resultCached.northLabel)
 
         // Unavailable
         val resultUnavailable = engine.computeHeadingFields(100.0, LocationResult.Unavailable, model, 2025.5)
-        assertEquals("Magnetic N", resultUnavailable.northLabel)
+        assertEquals("Mag N", resultUnavailable.northLabel)
     }
 
     @Test
-    fun `when TRUE with Unavailable location, north_label falls back to "Magnetic N"`() {
+    fun `when TRUE with Unavailable location, north_label falls back to "Mag N"`() {
         val engine = NorthTypeEngine()
         engine.setNorthType(NorthType.TRUE)
 
         val model = FakeMagneticFieldModel(declination = 5.0f, modelId = "WMM2025")
         val result = engine.computeHeadingFields(100.0, LocationResult.Unavailable, model, 2025.5)
 
-        // No location → cannot apply True North → show "Magnetic N"
-        assertEquals("Magnetic N", result.northLabel)
+        // No location → cannot apply True North → show "Mag N"
+        assertEquals("Mag N", result.northLabel)
     }
 
     // ---------- NorthTypeEngine: location_fallback_advisory ----------

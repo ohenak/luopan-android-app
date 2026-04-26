@@ -60,7 +60,7 @@ data class CompassUiState(
         val INITIAL = CompassUiState(
             heading_deg = 0.0,
             heading_formatted = "---",
-            north_label = "Magnetic N",
+            north_label = "Mag N",
             north_type = NorthType.MAGNETIC,
             declination_deg = 0.0f,
             confidence = OverallConfidence.POOR,

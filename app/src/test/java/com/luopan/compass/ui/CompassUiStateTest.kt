@@ -33,7 +33,7 @@ class CompassUiStateTest {
 
         assertEquals(0.0, s.heading_deg, 0.0)
         assertEquals("---", s.heading_formatted)
-        assertEquals("Magnetic N", s.north_label)
+        assertEquals("Mag N", s.north_label)
         assertEquals(OverallConfidence.POOR, s.confidence)
         assertEquals(InterferenceState.CLEAR, s.interference_state)
         assertNull(s.interference_metrics)
