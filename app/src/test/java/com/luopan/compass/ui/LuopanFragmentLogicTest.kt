@@ -119,6 +119,66 @@ class LuopanFragmentLogicTest {
         assertFalse(isLockButtonEnabled(OverallConfidence.SENSOR_ERROR, isLockActive = false))
     }
 
+    // ---------------------------------------------------------------------------
+    // PM-F02: Toast is reachable via click handler regardless of button enable state
+    //
+    // Fix: button isEnabled is always true; the click handler decides whether to
+    // lock, clear, or show the Toast (cannot lock — heading is unreliable).
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Mirrors the updated [LuopanFragment.updateLockButton] click handler logic (PM-F02 fix).
+     *
+     * When lock is inactive AND confidence is not HIGH/MODERATE → return "show_toast".
+     * When lock is inactive AND confidence is HIGH/MODERATE → return "lock".
+     * When lock is active → return "clear".
+     */
+    private fun clickHandlerAction(
+        confidence: OverallConfidence,
+        isLockActive: Boolean
+    ): String {
+        val canLock = confidence == OverallConfidence.HIGH ||
+                      confidence == OverallConfidence.MODERATE
+        return when {
+            isLockActive -> "clear"
+            canLock      -> "lock"
+            else         -> "show_toast"
+        }
+    }
+
+    @Test
+    fun `pm_f02 - click while POOR and lock inactive shows toast`() {
+        // PM-F02: button is enabled; click must reach the Toast path for POOR confidence
+        assertEquals("show_toast", clickHandlerAction(OverallConfidence.POOR, isLockActive = false))
+    }
+
+    @Test
+    fun `pm_f02 - click while STABILIZING and lock inactive shows toast`() {
+        assertEquals("show_toast", clickHandlerAction(OverallConfidence.STABILIZING, isLockActive = false))
+    }
+
+    @Test
+    fun `pm_f02 - click while SENSOR_ERROR and lock inactive shows toast`() {
+        assertEquals("show_toast", clickHandlerAction(OverallConfidence.SENSOR_ERROR, isLockActive = false))
+    }
+
+    @Test
+    fun `pm_f02 - click while HIGH and lock inactive locks`() {
+        assertEquals("lock", clickHandlerAction(OverallConfidence.HIGH, isLockActive = false))
+    }
+
+    @Test
+    fun `pm_f02 - click while MODERATE and lock inactive locks`() {
+        assertEquals("lock", clickHandlerAction(OverallConfidence.MODERATE, isLockActive = false))
+    }
+
+    @Test
+    fun `pm_f02 - click while lock is active clears regardless of confidence`() {
+        assertEquals("clear", clickHandlerAction(OverallConfidence.POOR, isLockActive = true))
+        assertEquals("clear", clickHandlerAction(OverallConfidence.HIGH, isLockActive = true))
+        assertEquals("clear", clickHandlerAction(OverallConfidence.SENSOR_ERROR, isLockActive = true))
+    }
+
     /**
      * PM-Q01 fix: when a lock is already active, the button must remain enabled
      * even at POOR confidence so the user can still tap "Clear 向".

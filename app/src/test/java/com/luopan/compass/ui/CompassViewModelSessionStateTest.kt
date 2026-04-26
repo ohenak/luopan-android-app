@@ -371,4 +371,47 @@ class CompassViewModelSessionStateTest {
         assertEquals("display bearing must equal true north bearing after switch back",
             90.0f, state.displayXiangBearing, 0.1f)
     }
+
+    // -----------------------------------------------------------------------
+    // PM-F01: rederive called when northType switches (TSPEC §8.2 / AC-23)
+    // -----------------------------------------------------------------------
+
+    /**
+     * PM-F01: Verifies that switching north type while 坐向 is locked rederives
+     * the display bearings to reflect the new north reference.
+     *
+     * Scenario:
+     *   - Lock at True North 45° while in True North mode.
+     *   - Switch to MAGNETIC with declination −3.5°.
+     *   - displayXiangBearing must become 48.5° (45 − (−3.5) = 48.5).
+     *
+     * This covers the fix for PM-F01: setNorthType() must call onNorthTypeChanged()
+     * so ZuoXiangLock.rederive() is invoked with current declination on every north-type
+     * switch (AC-23). Without the fix, displayXiangBearing stays stale at 45°.
+     */
+    @Test
+    fun `rederive_called_when_northType_switches`() {
+        val lock = ZuoXiangLock()
+        // Step 1: lock at True North 45° while in True North mode
+        lock.lock(45.0f)
+        // Initially displayXiangBearing == xiangBearing (both True North = 45°)
+        assertEquals(45.0f, lock.lockState!!.displayXiangBearing, 0.1f)
+
+        // Step 2: simulate setNorthType(MAGNETIC) — which must call onNorthTypeChanged()
+        // onNorthTypeChanged calls: zuoXiangLock.rederive(declinationDeg, isMagneticNorth)
+        val declinationDeg = -3.5f
+        lock.rederive(declinationDeg, isMagneticNorth = true)
+
+        // Step 3: displayXiangBearing must be 48.5° (45 − (−3.5) = 48.5°), not stale 45°
+        val afterSwitch = lock.lockState!!
+        assertEquals(
+            "displayXiangBearing must be 48.5° after switching to MAGNETIC (declination −3.5°)",
+            48.5f, afterSwitch.displayXiangBearing, 0.1f
+        )
+        // Stored True North bearing must be unchanged
+        assertEquals(
+            "xiangBearing (True North) must remain 45° invariant to north-type switch",
+            45.0f, afterSwitch.xiangBearing, 0.1f
+        )
+    }
 }

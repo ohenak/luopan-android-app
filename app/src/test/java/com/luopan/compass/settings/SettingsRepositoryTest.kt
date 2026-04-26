@@ -93,10 +93,10 @@ class SettingsRepositoryTest {
         val prefs = ctx.getSharedPreferences("luopan_settings", Context.MODE_PRIVATE)
         val allKeys = prefs.all.keys
 
-        assertFalse("ring_visible key must not be stored in SharedPreferences",
-            allKeys.any { it.contains("ring_visible") })
-        assertFalse("zoom_scale key must not be stored in SharedPreferences",
-            allKeys.any { it.contains("zoom_scale") })
+        assertFalse("No key containing 'ring' should be present in SharedPreferences",
+            allKeys.any { it.contains("ring") })
+        assertFalse("No key containing 'zoom' should be present in SharedPreferences",
+            allKeys.any { it.contains("zoom") })
         assertFalse("lock key must not be stored in SharedPreferences",
             allKeys.any { it == "lock" })
     }

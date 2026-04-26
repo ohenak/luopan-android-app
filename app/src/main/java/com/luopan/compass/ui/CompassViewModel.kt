@@ -183,10 +183,14 @@ class CompassViewModel(
      * Updates [northType] StateFlow and triggers a heading recomputation on the next
      * sensor frame (guaranteed ≤50 ms / one 20 Hz frame, well within the 200 ms budget).
      *
+     * Also calls [onNorthTypeChanged] so that any active 坐向 lock rederives its display
+     * bearings immediately (AC-23 / TSPEC §8.2 / PM-F01 fix).
+     *
      * TSPEC §3.7: `setNorthType()` is the only entry point for north type changes.
      */
     fun setNorthType(type: NorthType) {
         northTypeEngine.setNorthType(type)
+        onNorthTypeChanged()
     }
 
     /**
