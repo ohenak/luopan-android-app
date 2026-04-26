@@ -3,14 +3,14 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.2-draft |
+| **Version** | 0.3-draft |
 | **Date** | 2026-04-25 |
 | **Status** | Draft |
 | **Phase** | 3 of 5 |
 | **Parent REQ** | [REQ-luopan-compass v0.3-draft](../REQ-luopan-compass.md) |
 | **Prerequisite** | Phase 2 complete and stable |
 | **Delivery plan** | [DELIVERY-PLAN.md](../DELIVERY-PLAN.md) |
-| **Revised** | 2026-04-25 — addressed SE/TE cross-review iteration 1 |
+| **Revised** | 2026-04-25 — addressed SE/TE cross-review iteration 2 |
 
 ---
 
@@ -91,11 +91,49 @@ Engineering MUST implement exactly these six rings in this radial order:
 
 Full reference tables in [master REQ §10.2a, §10.2b, §10.2c](../REQ-luopan-compass.md#102a-ring-label-reference--後天八卦-ring-3).
 
+### 5.3a Ring 2 Label Reference — 先天八卦 (Fuxi / Earlier Heaven Arrangement)
+
+Ring 2 uses the Fuxi / Earlier Heaven (先天) trigram arrangement. This arrangement differs from the King Wen (後天) arrangement used in Ring 3. The sector-to-label mapping is fixed and MUST be implemented as a static look-up table keyed by sector index (0–7), not by dynamic computation.
+
+Each sector spans **45°** with the same inclusive-left, exclusive-right `[start°, end°)` rule that governs all rings (see §5.3b). The standard assignment places **乾 (☰) at South (180°)**:
+
+| Sector # | Trigram | 卦名 | 方位 | Pinyin | Center Bearing | Sector Range |
+|----------|---------|------|------|--------|---------------|--------------|
+| 1 | ☰ | 乾 | 南 | Qián · Nán | 180° | 157.5°–202.5° |
+| 2 | ☱ | 兌 | 東南 | Duì · Dōngnán | 135° | 112.5°–157.5° |
+| 3 | ☲ | 離 | 東 | Lí · Dōng | 90° | 67.5°–112.5° |
+| 4 | ☳ | 震 | 東北 | Zhèn · Dōngběi | 45° | 22.5°–67.5° |
+| 5 | ☴ | 巽 | 北 | Xùn · Běi | 0° | 337.5°–22.5° |
+| 6 | ☵ | 坎 | 西北 | Kǎn · Xīběi | 315° | 292.5°–337.5° |
+| 7 | ☶ | 艮 | 西 | Gèn · Xī | 270° | 247.5°–292.5° |
+| 8 | ☷ | 坤 | 西南 | Kūn · Xīnán | 225° | 202.5°–247.5° |
+
+**Note:** Ring 2 (先天八卦) is a decorative / traditional reference ring. Its label is NOT included in the numerical readout panel. Only Ring 3 (後天八卦) contributes the trigram field to the numerical readout.
+
+### 5.3b Universal Sector Boundary Membership Rule
+
+**Normative rule (applies to all rings — Rings 2, 3, 4, 5, and 6):**
+
+> All sectors use **inclusive-left, exclusive-right** `[start°, end°)` intervals. A bearing exactly equal to the start boundary belongs to that sector. A bearing exactly equal to the end boundary belongs to the *next* sector (or wraps to the first sector if at 360°).
+
+**The one exception — 子 wrap-around (Ring 4):** The 子 sector in Ring 4 straddles 0°/360° and spans `[345°, 15°)` in modular space. This is equivalent to `[345°, 360°) ∪ [0°, 15°)`. A bearing of exactly 345.0° belongs to 子; a bearing of exactly 15.0° belongs to 丑 (the next sector). Rings 3 and 5 have analogous wrap-around sectors (e.g., Ring 3's ☵ 坎 北 spans `[337.5°, 22.5°)` modularly; Ring 5's 壬 spans `[337.5°, 352.5°)` and 子 spans `[352.5°, 7.5°)`).
+
+**Example — Ring 4:**
+
+| Bearing | Sector | Rule Applied |
+|---------|--------|-------------|
+| 344.9° | 亥 `[315°, 345°)` | 344.9 < 345, belongs to 亥 |
+| 345.0° | 子 `[345°, 15°)` | 345.0 = start of 子, inclusive-left |
+| 14.9° | 子 `[345°, 15°)` | 14.9 < 15, within 子 |
+| 15.0° | 丑 `[15°, 45°)` | 15.0 = start of 丑, inclusive-left |
+
+This rule governs all Scenario H boundary assertions and MUST be implemented uniformly in the sector-lookup utility.
+
 ### 5.4 Localization for Luopan Mode
 
 | ID | Title | Priority | Key Spec |
 |----|-------|----------|----------|
-| REQ-L10N-02 | Luopan terminology | P0 | Ring labels in zh-Hant by default regardless of system locale; "Show romanization" toggle shows pinyin below each character; "Show in my language" toggle maps to English equivalents per §5.8 |
+| REQ-L10N-02 | Luopan terminology | P0 | Ring labels in zh-Hant by default regardless of system locale; "Show romanization" toggle shows pinyin below each character; "Show in my language" toggle maps to English equivalents per §5.8. **Both toggles apply uniformly to ring labels on the dial AND to all character fields in the numerical readout panel** (e.g., when "Show in my language" is on, the 後天八卦 field in the readout shows "Zhen · East" rather than "☳ 震 東"). |
 
 ### 5.5 Canonical Numerical Readout Field Order
 
@@ -106,7 +144,7 @@ The numerical readout panel MUST display fields in the following canonical order
 ```
 
 **Example at 180°, High confidence, True North:**
-> 午 (Wǔ) · 午 (Wǔ) · ☲ 離 南 · 180.0° · True N · 丙子分金 · High
+> 午 (Wǔ) · 午 (Wǔ) · ☲ 離 南 · 180.0° · True N · 壬午分金 · High
 
 **Example at 180°, Moderate confidence:**
 > 午 (Wǔ) · 午 (Wǔ) · ☲ 離 南 · 180.0° · True N · N/A — calibrate for 分金 precision · Moderate
@@ -189,20 +227,22 @@ The 六十分金 ring assigns four 6° sub-divisions to each of the 24 Mountains
 
 ### 5.7 Settings Persistence Contract
 
-The following boolean flags MUST be persisted in `SettingsRepository` (implemented as `SharedPreferences` or `DataStore`). Engineering MUST use the exact key names below for cross-component consistency.
+> **Important distinction:** Only settings marked **Persisted** are stored in `SettingsRepository` (SharedPreferences / DataStore). Settings marked **Session-only** MUST be held in `CompassViewModel` in-memory state and MUST NOT be written to `SettingsRepository`. Engineering MUST NOT add session-only keys to SharedPreferences — doing so would inadvertently persist state across restarts, contradicting the PM decision in §5.7.1.
+
+The following boolean flags MUST use the exact key names below for cross-component consistency (persisted settings) or for ViewModel property naming (session-only settings):
 
 | Setting Key | Type | Default | Scope | Description |
 |-------------|------|---------|-------|-------------|
-| `luopan_show_romanization` | Boolean | `false` | **Persisted across app restarts** | Show pinyin below each ring character |
-| `luopan_show_my_language` | Boolean | `false` | **Persisted across app restarts** | Show English equivalents instead of zh-Hant ring labels |
-| `luopan_ring_visible_1` | Boolean | `true` | **Session-only** (not persisted) | Visibility of Ring 1 (天池) — see §5.7.1 |
-| `luopan_ring_visible_2` | Boolean | `true` | **Session-only** (not persisted) | Visibility of Ring 2 (先天八卦) |
-| `luopan_ring_visible_3` | Boolean | `true` | **Session-only** (not persisted) | Visibility of Ring 3 (後天八卦) |
-| `luopan_ring_visible_4` | Boolean | `true` | **Session-only** (not persisted) | Visibility of Ring 4 (十二地支) |
-| `luopan_ring_visible_5` | Boolean | `true` | **Session-only** (not persisted) | Visibility of Ring 5 (二十四山) |
-| `luopan_ring_visible_6` | Boolean | `true` | **Session-only** (not persisted) | Visibility of Ring 6 (六十分金) |
-| `luopan_zoom_scale` | Float (0.8–2.0) | `1.0` | **Session-only** (not persisted) | Pinch-to-zoom scale factor — see §5.7.2 |
-| `display_mode` | Enum | `MODERN` | **Persisted across app restarts** | Last-used display mode (from Phase 1) |
+| `luopan_show_romanization` | Boolean | `false` | **Persisted** — `SettingsRepository` | Show pinyin below each ring character |
+| `luopan_show_my_language` | Boolean | `false` | **Persisted** — `SettingsRepository` | Show English equivalents instead of zh-Hant ring labels (applies to ring labels AND numerical readout panel — see §5.4) |
+| `luopan_ring_visible_1` | Boolean | `true` | **Session-only** — ViewModel memory only | Visibility of Ring 1 (天池) — see §5.7.1 |
+| `luopan_ring_visible_2` | Boolean | `true` | **Session-only** — ViewModel memory only | Visibility of Ring 2 (先天八卦) |
+| `luopan_ring_visible_3` | Boolean | `true` | **Session-only** — ViewModel memory only | Visibility of Ring 3 (後天八卦) |
+| `luopan_ring_visible_4` | Boolean | `true` | **Session-only** — ViewModel memory only | Visibility of Ring 4 (十二地支) |
+| `luopan_ring_visible_5` | Boolean | `true` | **Session-only** — ViewModel memory only | Visibility of Ring 5 (二十四山) |
+| `luopan_ring_visible_6` | Boolean | `true` | **Session-only** — ViewModel memory only | Visibility of Ring 6 (六十分金) |
+| `luopan_zoom_scale` | Float (0.8–2.0) | `1.0` | **Session-only** — ViewModel memory only | Pinch-to-zoom scale factor — see §5.7.2 |
+| `display_mode` | Enum | `MODERN` | **Persisted** — `SettingsRepository` | Last-used display mode (from Phase 1) |
 
 #### 5.7.1 Ring Visibility Persistence Decision
 
@@ -406,11 +446,26 @@ data class LuopanState(
     val isLockActive: Boolean,         // true when 坐向 is locked
 
     // Confidence (mirrors CompassUiState.confidence — included here for LuopanFragment independence)
-    val confidence: Confidence,        // HIGH | MODERATE | POOR
+    // Uses the existing OverallConfidence enum from Phase 1 (com.luopan.compass.model.OverallConfidence)
+    val confidence: OverallConfidence,  // HIGH | MODERATE | POOR | STABILIZING | SENSOR_ERROR
 )
 ```
 
 `CompassUiState` gains a `val luopan: LuopanState` field. When `LuopanFragment` is not active, the ViewModel may still compute `luopan` (computation is cheap) or compute it lazily — engineering decision.
+
+**`OverallConfidence` type:** `LuopanState.confidence` MUST use `com.luopan.compass.model.OverallConfidence` — the existing enum from Phase 1. The type name `Confidence` used in earlier drafts does not exist in the codebase and MUST NOT be introduced.
+
+**Behavior for `STABILIZING` and `SENSOR_ERROR` states:**
+
+| `OverallConfidence` value | "Lock 向" button | Confidence badge in readout panel | 分金 field |
+|--------------------------|-----------------|-----------------------------------|-----------|
+| `HIGH` | Enabled | "High" | Shown (e.g., "壬午分金") |
+| `MODERATE` | Enabled | "Moderate" | "N/A — calibrate for 分金 precision" |
+| `POOR` | **Disabled** | "Poor" | "N/A — calibrate for 分金 precision" |
+| `STABILIZING` | **Disabled** | "Calibrating..." | "N/A — calibrate for 分金 precision" |
+| `SENSOR_ERROR` | **Disabled** | "Sensor error" | "N/A — calibrate for 分金 precision" |
+
+`STABILIZING` and `SENSOR_ERROR` are treated like `POOR` for the purposes of the "Lock 向" button (disabled). The confidence badge text differs to give the user actionable context.
 
 **Sector-lookup responsibility:** The mapping from `bearingDeg` to ring characters MUST live in `CompassViewModel` (or a domain use-case called by the ViewModel), not in the View. This keeps the View as a pure renderer of the state.
 
@@ -458,7 +513,13 @@ In addition to the global NFRs in master REQ §7, the following NFRs apply speci
 - Ring 4 shows "卯" under the pointer
 - Ring 5 shows "卯" under the pointer
 - Ring 3 shows "☳ 震 東" under the pointer
-- Numerical panel shows (canonical order): "卯 (Mǎo) · 卯 (Mǎo) · ☳ 震 東 · 90.0° · True N · [分金 per confidence] · [confidence]"
+
+*Case C-1: High confidence*
+- Numerical panel shows (canonical order): "卯 (Mǎo) · 卯 (Mǎo) · ☳ 震 東 · 90.0° · True N · 壬卯分金 · High"
+  - (90° falls in sector 88°–94°, 分金 #17 = 壬卯分金, per §5.6 key test bearings)
+
+*Case C-2: Moderate confidence*
+- Numerical panel shows (canonical order): "卯 (Mǎo) · 卯 (Mǎo) · ☳ 震 東 · 90.0° · True N · N/A — calibrate for 分金 precision · Moderate"
 
 **Scenario D — 分金 visibility**
 
@@ -537,41 +598,43 @@ In addition to the global NFRs in master REQ §7, the following NFRs apply speci
 
 The following boundary cases MUST pass. These test the sector-lookup LUT logic for Rings 3, 4, and 5.
 
+**Boundary rule:** All sectors use `[start°, end°)` — inclusive-left, exclusive-right. A bearing exactly on a boundary belongs to the sector whose start equals that bearing (i.e., the next sector). See §5.3b for the normative rule and the 子 wrap-around exception.
+
 *Ring 4 (十二地支) — 子/亥 wrap-around:*
 
-| Bearing | Expected Ring 4 Label |
-|---------|-----------------------|
-| 344.9° | 亥 (sector 315°–345°) |
-| 345.0° | 子 (sector 345°–15°, start boundary) |
-| 15.0° | 子 (sector 345°–15°, end boundary — inclusive) |
-| 15.1° | 丑 (sector 15°–45°) |
+| Bearing | Expected Ring 4 Label | Rule |
+|---------|-----------------------|------|
+| 344.9° | 亥 `[315°, 345°)` | 344.9 < 345, inside 亥 |
+| 345.0° | 子 `[345°, 15°)` | 345.0 = start of 子, inclusive-left |
+| 14.9° | 子 `[345°, 15°)` | 14.9 < 15, inside 子 |
+| 15.0° | 丑 `[15°, 45°)` | 15.0 = start of 丑, exclusive end of 子 |
 
 *Ring 4 — generic boundary:*
 
-| Bearing | Expected Ring 4 Label |
-|---------|-----------------------|
-| 29.9° | 丑 |
-| 30.0° | 丑 (center of 丑 sector) |
-| 44.9° | 丑 |
-| 45.0° | 寅 |
+| Bearing | Expected Ring 4 Label | Rule |
+|---------|-----------------------|------|
+| 29.9° | 丑 `[15°, 45°)` | inside 丑 |
+| 30.0° | 丑 `[15°, 45°)` | center of 丑 sector |
+| 44.9° | 丑 `[15°, 45°)` | inside 丑 |
+| 45.0° | 寅 `[45°, 75°)` | 45.0 = start of 寅, exclusive end of 丑 |
 
 *Ring 5 (二十四山) — sub-15° boundaries:*
 
-| Bearing | Expected Ring 5 Label |
-|---------|-----------------------|
-| 7.4° | 子 (sector 352.5°–7.5°) |
-| 7.5° | 癸 (sector 7.5°–22.5°, start) |
-| 22.4° | 癸 |
-| 22.5° | 丑 (sector 22.5°–37.5°) |
+| Bearing | Expected Ring 5 Label | Rule |
+|---------|-----------------------|------|
+| 7.4° | 子 `[352.5°, 7.5°)` | 7.4 < 7.5, inside 子 |
+| 7.5° | 癸 `[7.5°, 22.5°)` | 7.5 = start of 癸, exclusive end of 子 |
+| 22.4° | 癸 `[7.5°, 22.5°)` | inside 癸 |
+| 22.5° | 丑 `[22.5°, 37.5°)` | 22.5 = start of 丑, exclusive end of 癸 |
 
 *Ring 3 (後天八卦) — 45° boundaries:*
 
-| Bearing | Expected Ring 3 Label |
-|---------|-----------------------|
-| 22.4° | ☵ 坎 北 (sector 337.5°–22.5°) |
-| 22.5° | ☶ 艮 東北 (sector 22.5°–67.5°, start) |
-| 67.4° | ☶ 艮 東北 |
-| 67.5° | ☳ 震 東 (sector 67.5°–112.5°) |
+| Bearing | Expected Ring 3 Label | Rule |
+|---------|-----------------------|------|
+| 22.4° | ☵ 坎 北 `[337.5°, 22.5°)` | 22.4 < 22.5, inside 坎 |
+| 22.5° | ☶ 艮 東北 `[22.5°, 67.5°)` | 22.5 = start of 艮, exclusive end of 坎 |
+| 67.4° | ☶ 艮 東北 `[22.5°, 67.5°)` | inside 艮 |
+| 67.5° | ☳ 震 東 `[67.5°, 112.5°)` | 67.5 = start of 震, exclusive end of 艮 |
 
 **Scenario I — Mode switch while 坐向 locked**
 
@@ -582,6 +645,33 @@ The following boundary cases MUST pass. These test the sector-lookup LUT logic f
 *Given* the user then switches back to Luopan Mode in the same session,
 *When* LuopanFragment resumes,
 *Then*: The 坐向 overlay is restored showing "向: 艮 (45.0° True N)" and "坐: 坤 (225.0° True N)"
+
+**Scenario J — North reference switch mid-session**
+
+The north-type field in the numerical readout MUST display one of two values:
+- **"True N"** — when True North correction (WMM declination) is active (Phase 2 capability)
+- **"Mag N"** — when Magnetic North is selected
+
+*Case J-1: Switch from True North to Magnetic North while Luopan Mode active*
+
+*Given* Luopan Mode is active, north reference is True North, device pointing at 182°,
+*When* user navigates to Settings and switches north reference to Magnetic North and returns to Luopan Mode,
+*Then*:
+- The bearing in degrees in the numerical readout updates immediately to reflect the magnetic bearing (e.g., 182° True N may become a different value in Mag N, depending on local declination)
+- The north-type field changes from "True N" to "Mag N"
+- All ring positions (山, 地支, 後天八卦) update to reflect the new bearing
+- If 坐向 is locked, the lock is re-derived from the new bearing: 坐 and 向 山 labels are recomputed using `(newBearing + 180°) mod 360°`; the overlay updates immediately to show the new 山 labels and the "Mag N" north type
+
+*Case J-2: 坐向 lock re-derivation after north reference switch*
+
+*Given* 坐向 is locked at True N 45° (向: 艮), north reference then switches to Magnetic North,
+*When* the Luopan numerical readout updates,
+*Then*:
+- The locked 向 bearing re-derives its 山 label from the magnetic-adjusted heading
+- The overlay north-type field shows "Mag N"
+- If the magnetic-adjusted bearing crosses a 山 boundary (e.g., falls into 甲 sector instead of 艮), the overlay MUST update to show the corrected 山 label
+
+*Note:* The north reference toggle is a Phase 2 capability (REQ-NORTH-01 / REQ-NORTH-02). The requirement here is that Luopan Mode correctly responds to changes in this setting with immediate live update — it does not own the toggle.
 
 ---
 
