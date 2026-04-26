@@ -3,13 +3,13 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Date** | 2026-04-25 |
 | **Status** | Draft |
 | **Linked REQ** | [REQ-luopan-p3-luopan-mode v0.3-draft](REQ-luopan-p3-luopan-mode.md) |
 | **Linked FSPEC** | [FSPEC-luopan-p3-luopan-mode v1.1](FSPEC-luopan-p3-luopan-mode.md) |
 | **Author** | Engineering |
-| **Revised** | 2026-04-25 — PM/TE cross-review iteration 1: Ring 2 LUT corrected (TE-F01), Float? lock-bearing decision formalised (TE-F02), AC-23 tests added (TE-F03), ZuoXiangLock thread-safety hardened (TE-F04), Medium test gaps filled (TE-F05–F09/F11), lock-button P0 bug fixed (PM-Q01), northLabel corrected (PM), AC-23 traceability added (PM) |
+| **Revised** | 2026-04-25 — PM/TE cross-review iteration 1: Ring 2 LUT corrected (TE-F01), Float? lock-bearing decision formalised (TE-F02), AC-23 tests added (TE-F03), ZuoXiangLock thread-safety hardened (TE-F04), Medium test gaps filled (TE-F05–F09/F11), lock-button P0 bug fixed (PM-Q01), northLabel corrected (PM), AC-23 traceability added (PM) — 2026-04-25 — TE cross-review iteration 2: rederive() contract fixed — no longer calls lock() (N-F01/N-F03), lockXiang() Mag-N→True-N conversion added (N-F02), northSwitch_doesNotChangeShanLabels test uses distinct bearings (N-F04), AC-23 overlay instrumented test added (N-F05) |
 
 ---
 
@@ -413,10 +413,12 @@ class ZuoXiangLock {
 
     data class LockState(
         val isLockActive: Boolean = false,
-        val xiangBearing: Float? = null,   // True North Float degrees; null = unlocked
-        val xiangMountain: String? = null, // Ring 5 山 char, e.g. "艮"
-        val zuoBearing: Float? = null,     // True North Float degrees; null = unlocked
-        val zuoMountain: String? = null
+        val xiangBearing: Float? = null,        // ALWAYS True North Float degrees; null = unlocked
+        val xiangMountain: String? = null,      // Ring 5 山 char, e.g. "艮" (derived from True N)
+        val zuoBearing: Float? = null,          // ALWAYS True North Float degrees; null = unlocked
+        val zuoMountain: String? = null,        // Ring 5 山 char for 坐 (derived from True N)
+        val displayXiangBearing: Float? = null, // Display bearing (current north ref); null = same as xiangBearing
+        val displayZuoBearing: Float? = null    // Display bearing (current north ref); null = same as zuoBearing
     )
 
     // AtomicReference ensures safe publication across coroutine dispatchers (TE-F04).
@@ -426,9 +428,12 @@ class ZuoXiangLock {
     val lockState: LockState get() = _lockState.get()
 
     /** Lock 向 at the given True North bearing. Derives 坐 and looks up both 山 labels.
+     *  The bearing parameter MUST always be a True North bearing (FSPEC §4a step 3).
+     *  [displayXiangBearing] and [displayZuoBearing] are initialised to the True North values;
+     *  call [rederive] afterwards if the current north-type display is Magnetic North.
      *  Always called from ViewModel scope — single-writer guarantee. */
-    fun lock(bearing: Float) {
-        val xiang = ((bearing % 360f) + 360f) % 360f
+    fun lock(bearingTrueNorth: Float) {
+        val xiang = ((bearingTrueNorth % 360f) + 360f) % 360f
         val zuo = (xiang + 180f) % 360f
         val xiangMtn = RingLabelProvider.ring5Label(SectorLookup.ring5(xiang)).character
         val zuoMtn = RingLabelProvider.ring5Label(SectorLookup.ring5(zuo)).character
@@ -437,7 +442,9 @@ class ZuoXiangLock {
             xiangBearing = xiang,
             xiangMountain = xiangMtn,
             zuoBearing = zuo,
-            zuoMountain = zuoMtn
+            zuoMountain = zuoMtn,
+            displayXiangBearing = xiang,  // initialised to True N; rederive() adjusts for Mag N
+            displayZuoBearing = zuo
         ))
     }
 
@@ -446,14 +453,40 @@ class ZuoXiangLock {
         _lockState.set(LockState())
     }
 
-    /** Re-derive display bearing when north type changes while locked.
-     *  The stored True North xiangBearing does NOT change — only display values change.
-     *  Per FSPEC §4d: the bearing passed here is the TRUE NORTH bearing re-read from the
-     *  sensor pipeline after the north-type switch. Mountain labels are re-looked-up from
-     *  the True North bearing. Called from ViewModel on northType change. */
-    fun rederive(trueBearing: Float) {
-        if (!_lockState.get().isLockActive) return
-        lock(trueBearing)
+    /** Recalculates display values for 向 and 坐 based on the current north reference and
+     *  declination. The stored [xiangBearing] (True North) is never modified by this method.
+     *
+     *  When the user switches north type while locked, only the DISPLAY bearings change —
+     *  the underlying True North [xiangBearing] is invariant (FSPEC §4d). This method does
+     *  NOT call [lock]: doing so would overwrite [xiangBearing]. Instead it derives
+     *  [displayXiangBearing] and [displayZuoBearing] purely from the stored True North value
+     *  and the supplied declination, then writes a new [LockState] that preserves [xiangBearing].
+     *
+     *  Called from ViewModel on northType change. Always called from ViewModel scope —
+     *  single-writer guarantee.
+     *
+     * @param declinationDeg East-positive declination (degrees). Positive = mag east of True N.
+     * @param isMagneticNorth true when the display is currently showing Magnetic North.
+     */
+    fun rederive(declinationDeg: Float, isMagneticNorth: Boolean) {
+        val current = _lockState.get()
+        if (!current.isLockActive) return
+        val xiangTrueN = current.xiangBearing ?: return
+        val zuoTrueN   = current.zuoBearing   ?: return
+        // Display bearings shift by ±declination; True North stored values are unchanged.
+        val displayXiang = if (isMagneticNorth)
+            ((xiangTrueN - declinationDeg + 360f) % 360f)
+        else
+            xiangTrueN
+        val displayZuo = if (isMagneticNorth)
+            ((zuoTrueN - declinationDeg + 360f) % 360f)
+        else
+            zuoTrueN
+        // Preserve stored True North bearings and 山 labels — only display fields change.
+        _lockState.set(current.copy(
+            displayXiangBearing = displayXiang,
+            displayZuoBearing   = displayZuo
+        ))
     }
 }
 ```
@@ -462,13 +495,17 @@ class ZuoXiangLock {
 
 **North-type switch behavior (FSPEC §4d / ES-03 / AC-23):** When the user switches north type while the lock is active:
 
-1. `CompassViewModel` receives the north-type change, which triggers re-computation of `heading_deg` in the sensor pipeline.
-2. The newly computed `heading_deg` (now in the new north reference frame) is passed to `zuoXiangLock.rederive(newHeading.toFloat())`.
-3. `rederive()` calls `lock()` with the new True North bearing, updating `xiangBearing`, `zuoBearing`, `xiangMountain`, and `zuoMountain`.
-4. `LuopanStateMapper` reads the updated `lockState` and produces the correct display values.
-5. The overlay updates immediately.
+1. `CompassViewModel` receives the north-type change event.
+2. The stored `xiangBearing` (True North) is **NOT changed** — it is invariant to north-type switches (FSPEC §4d step 2).
+3. `CompassViewModel` calls `zuoXiangLock.rederive(declinationDeg, isMagneticNorth)` to update the display bearings.
+4. `rederive()` computes `displayXiangBearing` and `displayZuoBearing` from the stored True North values and the new declination. It does **NOT** call `lock()` and does NOT overwrite `xiangBearing` or `zuoBearing`.
+5. `LuopanStateMapper` reads `lockState.displayXiangBearing` and `lockState.displayZuoBearing` for the overlay display.
+6. 山 labels (`xiangMountain`, `zuoMountain`) are unchanged — they are derived from the True North bearing and are invariant to north-type switches (FSPEC §4d step 4).
+7. The overlay updates immediately with the new display bearing values and the updated north type label.
 
-**Display-bearing conversion for overlay:** When `isLockActive == true`, the overlay shows `xiangBearing` converted to the current north reference: `displayBearing = xiangBearing_trueN ± declinationDeg`. This conversion is performed in `LuopanFragment.updateZuoXiangOverlay()` using `LuopanState.declinationDeg`. The stored `xiangBearing` is always True North.
+**Display-bearing fields in `LockState`:** `displayXiangBearing` and `displayZuoBearing` hold the bearing converted to the current north reference. They are initialised to the True North values at lock time and updated by `rederive()` on each north-type switch. The stored `xiangBearing` and `zuoBearing` (True North) are never overwritten after the initial `lock()` call.
+
+**Overlay rendering:** `LuopanFragment.updateZuoXiangOverlay()` reads `lockState.displayXiangBearing` and `lockState.displayZuoBearing` directly — no arithmetic is performed in the View layer for the overlay bearing values.
 
 ---
 
@@ -524,10 +561,12 @@ data class LuopanState(
     // ---- 坐向 lock state ----
     // All bearing fields use Float? (see §2.1 — TE-F02 formal resolution).
     val isLockActive: Boolean,
-    val xiangBearing: Float?,          // True North bearing at lock time; null = unlocked
-    val xiangMountain: String?,        // Ring 5 山 for 向 (null = unlocked)
-    val zuoBearing: Float?,            // (xiangBearing + 180f) % 360f; null = unlocked
-    val zuoMountain: String?,          // Ring 5 山 for 坐 (null = unlocked)
+    val xiangBearing: Float?,          // ALWAYS True North bearing at lock time; null = unlocked
+    val xiangMountain: String?,        // Ring 5 山 for 向 (null = unlocked); derived from True N
+    val zuoBearing: Float?,            // ALWAYS True North: (xiangBearing + 180f) % 360f; null = unlocked
+    val zuoMountain: String?,          // Ring 5 山 for 坐 (null = unlocked); derived from True N
+    val displayXiangBearing: Float?,   // Display bearing (current north ref); null = unlocked
+    val displayZuoBearing: Float?,     // Display bearing (current north ref); null = unlocked
 
     // ---- Confidence (mirrors CompassUiState.confidence) ----
     val confidence: OverallConfidence  // HIGH | MODERATE | POOR | STABILIZING | SENSOR_ERROR
@@ -550,6 +589,8 @@ data class LuopanState(
             xiangMountain = null,
             zuoBearing = null,
             zuoMountain = null,
+            displayXiangBearing = null,
+            displayZuoBearing = null,
             confidence = OverallConfidence.POOR
         )
     }
@@ -609,12 +650,31 @@ fun setZoomScale(scale: Float) {
 
 **Lock functions:**
 
+`CompassViewModel.heading_deg` (exposed as `bearingDeg` in `LuopanState`) is ALWAYS in the current
+display reference frame: True North when `northType == TRUE_N`, Magnetic North when
+`northType == MAGNETIC`. Therefore `lockXiang()` must convert the display bearing to True North
+before passing it to `ZuoXiangLock.lock()` (FSPEC §4a step 3):
+
 ```kotlin
 fun lockXiang() {
-    val currentBearing = uiState.value.heading_deg.toFloat()
-    val confidence = uiState.value.confidence
+    val state = uiState.value
+    val confidence = state.confidence
     if (confidence == OverallConfidence.HIGH || confidence == OverallConfidence.MODERATE) {
-        zuoXiangLock.lock(currentBearing)
+        val displayBearing = state.heading_deg.toFloat()
+        val declinationDeg = state.declination_deg  // East-positive, Float
+        // Convert display bearing to True North before storing (FSPEC §4a step 3).
+        // When True North is active, heading_deg IS already True North — no adjustment.
+        // When Magnetic North is active, heading_deg is the magnetic bearing:
+        //   True North = magnetic bearing + declinationDeg  (East-positive sign convention, §2.2)
+        val bearingTrueNorth = if (state.northType == NorthType.MAGNETIC)
+            ((displayBearing + declinationDeg + 360f) % 360f)
+        else
+            displayBearing
+        zuoXiangLock.lock(bearingTrueNorth)
+        // If currently displaying Magnetic North, rederive display bearings immediately.
+        if (state.northType == NorthType.MAGNETIC) {
+            zuoXiangLock.rederive(declinationDeg, isMagneticNorth = true)
+        }
         recomputeLuopanState()
     }
 }
@@ -1037,18 +1097,23 @@ This ensures sector-lookup computation happens on `Dispatchers.Default` (sensor 
 
 ### 8.2 North Type Change → Lock Re-derivation
 
-When `northType` changes, the locked bearing must re-derive. Since the sensor pipeline recomputes `heading_deg` on every frame, and `lockXiang()` records the bearing at the moment of lock, a north type change produces a new `heading_deg` on the next frame. The lock re-derivation is implemented by re-running `LuopanStateMapper.map()` with the updated `CompassUiState` — the mapper reads `compassState.heading_deg.toFloat()` as the input for lock re-derivation when `isLockActive == true`.
+When `northType` changes while the lock is active, only the **display** bearings change — the stored True North `xiangBearing` and `zuoBearing` are invariant (FSPEC §4d). The re-derivation updates `displayXiangBearing` and `displayZuoBearing` in `LockState` without touching `xiangBearing` or `zuoBearing`.
 
-The `ZuoXiangLock` is updated in `recomputeLuopanState()` after a north type change:
+`rederive()` is called from the `northType` StateFlow observer inside `CompassViewModel.init {}`:
 
 ```kotlin
 fun onNorthTypeChanged() {
-    val currentBearing = uiState.value.heading_deg.toFloat()
-    zuoXiangLock.rederive(currentBearing)
+    val state = uiState.value
+    val declinationDeg = state.declination_deg
+    val isMagneticNorth = state.northType == NorthType.MAGNETIC
+    zuoXiangLock.rederive(declinationDeg, isMagneticNorth)
+    recomputeLuopanState()
 }
 ```
 
-This is called from the `northType` StateFlow observer inside `CompassViewModel.init {}`.
+**Key contract:** `rederive()` does NOT call `lock()`. It only updates `displayXiangBearing` and `displayZuoBearing` via `_lockState.set(current.copy(...))`. The stored `xiangBearing` (True North) is never overwritten by this path.
+
+`LuopanStateMapper` reads `lockState.displayXiangBearing` and `lockState.displayZuoBearing` for the overlay. 山 labels are read from `lockState.xiangMountain` and `lockState.zuoMountain`, which remain unchanged.
 
 ### 8.3 Localization Settings Read
 
@@ -1323,9 +1388,19 @@ Tests for all `OverallConfidence` states and representative bearings:
 // Assert: result.isLockActive=true, result.mountainChar="—", result.fenJinLabel=null
 @Test fun mapper_sensorError_while_locked_fieldsAreDashes_lockRemains()
 
-// North-switch while locked does not change 山 labels (AC-23 — TE-F03)
-// Given: lockState with xiangBearing=45f (True N, mountainChar="艮"), compassState northLabel="Mag N"
-// Then: state.xiangMountain="艮", state.zuoMountain="坤" (labels derived from True N bearing, unchanged)
+// North-switch while locked does not change 山 labels (AC-23 — TE-F03, N-F04 fix)
+// Uses DISTINCT bearings for lockState.xiangBearing vs. compassState.heading_deg to prove
+// the mapper uses the stored lock bearing (not the live sensor bearing) for 山 lookup.
+// Given: lockState.xiangBearing = 45.0f True N (艮 sector [37.5°–52.5°)),
+//        lockState.displayXiangBearing = 48.5f (post rederive, Mag N),
+//        compassState.heading_deg = 50.0 (live sensor bearing — different from lockState.xiangBearing)
+//        compassState.northLabel = "Mag N"
+// Then: state.xiangMountain = "艮"  (from stored True N bearing 45.0f — NOT from live 50.0°)
+//       state.zuoMountain = "坤"    (from stored True N zuoBearing 225.0f)
+// If the mapper mistakenly used heading_deg (50.0°) for 山 lookup it would still return "艮"
+// (50° is in 艮 [37.5°–52.5°)), so use heading_deg = 60.0° (寅 sector) to detect the bug:
+// Given (revised): lockState.xiangBearing = 45.0f (艮), compassState.heading_deg = 60.0 (寅 sector)
+// Then: state.xiangMountain MUST equal "艮" (not "寅") — proves mapper reads lockState, not live heading
 @Test fun northSwitch_doesNotChangeShanLabels()
 ```
 
@@ -1355,26 +1430,47 @@ Tests for all `OverallConfidence` states and representative bearings:
 // Clear removes lock state
 @Test fun clear_resets_lock()
 
-// Rederive updates 山 labels
-@Test fun rederive_updates_mountains()
+// Rederive updates display bearings (not stored True N values).
+// Given: lock at 45.0f True N. Then rederive with declinationDeg = -3.5f, MAGNETIC.
+// Asserts displayXiangBearing ≈ 48.5f, displayZuoBearing ≈ 228.5f.
+// xiangBearing and zuoBearing (True N) are unchanged.
+@Test fun rederive_updates_displayBearings_notStoredTrueNorth()
 
-// AC-23 — north-reference switch while locked (TE-F03):
-// Given: xiangBearing locked at 45.0f True N (xiangMountain="艮", zuoMountain="坤")
-// When: northType switches to MAGNETIC — rederive() is NOT called (True N bearing unchanged)
-// Then: lock.xiangBearing == 45.0f (stored True N bearing is invariant)
-//       lock.xiangMountain == "艮", lock.zuoMountain == "坤" (山 labels from True N — unchanged)
-// The display conversion (45.0f − (−3.5f) = 48.5f for Mag N) is done in the View layer,
-// NOT in ZuoXiangLock. This test verifies the stored state is unchanged.
+// AC-23 — north-reference switch while locked (N-F01 fix):
+// This test verifies the rederive() contract end-to-end:
+// Step 1: lock(45.0f) — stores xiangBearing=45.0f True N (艮 sector), zuoBearing=225.0f True N
+// Step 2: rederive(declinationDeg=-3.5f, isMagneticNorth=true)
+// Step 3: Assert stored True N bearing is unchanged:
+//           lock.xiangBearing == 45.0f, lock.zuoBearing == 225.0f
+//           lock.xiangMountain == "艮", lock.zuoMountain == "坤"  (山 labels invariant)
+// Step 4: Assert display bearings are updated:
+//           lock.displayXiangBearing == 48.5f  (45.0 - (-3.5))
+//           lock.displayZuoBearing == 228.5f   (225.0 - (-3.5))
 @Test fun rederive_northSwitch_doesNotChangeStoredTrueNorthBearing() {
     val lock = ZuoXiangLock()
     lock.lock(45.0f)
-    // Simulate: north type switches to Mag N — ViewModel does NOT call rederive() because
-    // the stored True N bearing is invariant. Only the display layer converts.
-    // Assert stored state is unchanged:
+    lock.rederive(declinationDeg = -3.5f, isMagneticNorth = true)
+    // Stored True North values are invariant:
     assertEquals(45.0f, lock.lockState.xiangBearing)
+    assertEquals(225.0f, lock.lockState.zuoBearing)
     assertEquals("艮", lock.lockState.xiangMountain)
     assertEquals("坤", lock.lockState.zuoMountain)
+    // Display values reflect the Magnetic North conversion:
+    assertEquals(48.5f, lock.lockState.displayXiangBearing!!, 0.01f)
+    assertEquals(228.5f, lock.lockState.displayZuoBearing!!, 0.01f)
 }
+
+// lockXiang under Magnetic North converts to True North before storing (N-F02):
+// Given: display bearing = 41.5f Mag N, declinationDeg = -3.5f (East-positive, magnetic east of True N)
+// Then:  True North = 41.5f + (-3.5f) = 38.0f. Sector at 38.0f True N is 艮 [37.5°–52.5°).
+// NOTE: This test exercises ViewModel.lockXiang() logic, not ZuoXiangLock.lock() directly.
+//       It is placed here for proximity; the actual test may be in CompassViewModelSessionStateTest.
+// Given: compassState.heading_deg = 41.5 (Magnetic North), compassState.northType = MAGNETIC,
+//        compassState.declination_deg = -3.5f, confidence = HIGH
+// When:  viewModel.lockXiang() is called
+// Then:  zuoXiangLock.lockState.xiangBearing == 38.0f (True North)
+//        zuoXiangLock.lockState.xiangMountain == "艮"
+@Test fun lockXiang_magneticMode_convertsToTrueNorth()
 
 // Thread-safety (TE-F04): concurrent lock() and clear() must not produce inconsistent state.
 // Uses 100 iterations of alternating lock/clear from two coroutines on Dispatchers.Default.
@@ -1518,6 +1614,26 @@ Uses Robolectric (already in `build.gradle.kts`) to test View rendering math wit
 // Then: northLabel TextView shows "Mag N"; bearing field updates; all ring sector fields update
 @Test fun ac22_northTypeSwitch_updatesReadoutImmediately()
 
+// AC-23 (N-F05): North-reference switch while locked — overlay shows converted bearing values.
+// This is the ONLY test that exercises the full display-bearing conversion path end-to-end
+// in the UI layer. It cannot be replaced by a unit test because updateZuoXiangOverlay() is
+// a View-layer function in LuopanFragment.
+//
+// Setup:
+//   1. Inject lock at 45.0f True N (xiangMountain="艮", zuoMountain="坤")
+//      via StateFlow emission: LockState(isLockActive=true, xiangBearing=45.0f, zuoBearing=225.0f,
+//                                        displayXiangBearing=45.0f, displayZuoBearing=225.0f)
+//   2. Set declinationDeg = -3.5f (East-positive; mag north is west of True N)
+//   3. Switch northType to MAGNETIC — emit rederived LockState:
+//      LockState(isLockActive=true, xiangBearing=45.0f, zuoBearing=225.0f,
+//                displayXiangBearing=48.5f, displayZuoBearing=228.5f)
+//
+// Assert:
+//   - Overlay TextView xiangLabel shows exactly "向: 艮 (48.5° Mag N)"
+//   - Overlay TextView zuoLabel shows exactly "坐: 坤 (228.5° Mag N)"
+//   - 山 labels (艮, 坤) are unchanged from the pre-switch values
+@Test fun ac23_northSwitch_overlayDisplaysConvertedBearing()
+
 // AC-28 (TE-F06): SENSOR_ERROR while lock active — overlay frozen, readout shows "—"
 // Given: lock active at 45° True N, confidence transitions to SENSOR_ERROR
 // Then: 坐向 overlay remains visible (向: 艮, 坐: 坤); readout 山/地支/後天八卦/bearing fields show "—"
@@ -1562,8 +1678,12 @@ Uses Robolectric (already in `build.gradle.kts`) to test View rendering math wit
 | Open Issue 4 — `declinationDeg` in View | §2.4, §5.1 | `LuopanState.declinationDeg` field exposed; not used for conversion | |
 | TE-F01 — Ring 2 LUT corrected | §4.1 | Fuxi/Earlier Heaven: 乾(☰) at South (157.5°–202.5°); full correct table specified | |
 | TE-F02 — Float? lock bearing formal | §2.1, §5.1 | Formal rationale and FSPEC divergence documented; all bearing fields `Float?` | |
-| TE-F03 — AC-23 tests | §12.1.2, §12.1.3, §12.5 | `ZuoXiangLockTest.rederive_northSwitch_*`, `LuopanStateMapperTest.northSwitch_*`, `LuopanFragmentTest.ac22_*` | |
+| TE-F03 — AC-23 tests | §12.1.2, §12.1.3, §12.5 | `ZuoXiangLockTest.rederive_northSwitch_doesNotChangeStoredTrueNorthBearing`, `LuopanStateMapperTest.northSwitch_doesNotChangeShanLabels`, `LuopanFragmentTest.ac23_northSwitch_overlayDisplaysConvertedBearing` | |
 | TE-F04 — ZuoXiangLock thread-safety | §4.4 | `AtomicReference<LockState>`; single-writer contract documented; concurrency test specified | |
+| N-F01/N-F03 — rederive() contract | §4.4, §8.2 | `rederive()` no longer calls `lock()`. Adds `displayXiangBearing` / `displayZuoBearing` fields to `LockState`. `ZuoXiangLockTest.rederive_northSwitch_doesNotChangeStoredTrueNorthBearing` now calls `rederive()` and asserts all four invariants | |
+| N-F02 — lockXiang() Mag-N conversion | §5.3 | `lockXiang()` converts display bearing to True North before calling `lock()`: `bearingTrueN = (displayBearing + declinationDeg + 360f) % 360f` when `northType == MAGNETIC`. New test: `lockXiang_magneticMode_convertsToTrueNorth` | |
+| N-F04 — northSwitch_doesNotChangeShanLabels uses distinct bearings | §12.1.2 | Test uses `lockState.xiangBearing=45.0f` (艮) and `compassState.heading_deg=60.0` (寅) to prove mapper reads lock state, not live heading | |
+| N-F05 — AC-23 overlay instrumented test | §12.5 | `LuopanFragmentTest.ac23_northSwitch_overlayDisplaysConvertedBearing` added; verifies overlay shows "向: 艮 (48.5° Mag N)" and "坐: 坤 (228.5° Mag N)" | |
 | PM-Q01 — lock button P0 bug | §6.2 | Corrected: `canLock \|\| state.isLockActive`; "Clear 向" always clickable when lock active | |
 
 ---
