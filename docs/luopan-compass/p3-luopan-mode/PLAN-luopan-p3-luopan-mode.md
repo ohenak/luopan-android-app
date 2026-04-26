@@ -93,6 +93,7 @@ Tasks 1.1, 1.2, and 1.3 have no dependencies on each other and can run in parall
 | Files to create (test) | `app/src/test/java/com/luopan/compass/luopan/ZuoXiangLockTest.kt` |
 | Acceptance | `lock(270f)` → `zuoBearing == 90f`; `lock(350f)` → `zuoBearing == 170f`; `lock(0f)` → `zuoBearing == 180f`; `lock(180f)` → `zuoBearing == 0f`; `lock(45f)` → `xiangMountain == "艮"` and `zuoMountain == "坤"`; `lock(90f)` → `xiangMountain == "卯"` and `zuoMountain == "酉"`; `clear()` sets `isLockActive = false` with all bearings null; `rederive(newBearing)` updates all lock fields via `lock(newBearing)` (resolves TE-N-F01/N-F03: `rederive` DOES call `lock`, thereby overwriting `xiangBearing` to the new True North bearing); concurrent `lock()`/`clear()` test produces no torn state (always fully-locked or fully-unlocked). |
 | Depends on | Task 1.1 (SectorLookup), Task 1.2 (RingLabelProvider) |
+| Status | ✅ Complete — all 25 tests pass. `rederive()` does NOT call `lock()`; it only updates display bearings while leaving True North `xiangBearing`/`zuoBearing` invariant (TSPEC §4.4 N-F01/N-F03 resolution). `LockState` uses non-nullable `Float` fields; `lockState` property returns `LockState?` (null when unlocked) backed by `AtomicReference<LockState?>(null)`. |
 
 ---
 
