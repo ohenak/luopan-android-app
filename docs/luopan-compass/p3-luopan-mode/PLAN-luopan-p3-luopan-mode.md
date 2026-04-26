@@ -278,7 +278,7 @@ Task 6.1 can start after Batch 2 (Task 2.2 for SettingsRepository keys, Task 2.3
 
 ## Navigation & Mode-Switch Integration Test
 
-### Task 7.1 — Navigation integration tests
+### Task 7.1 — Navigation integration tests ✅
 
 | Item | Detail |
 |------|--------|
@@ -287,6 +287,7 @@ Task 6.1 can start after Batch 2 (Task 2.2 for SettingsRepository keys, Task 2.3
 | Files to create (test, instrumented) | `app/src/androidTest/java/com/luopan/compass/ui/ModeSwitcherTest.kt` |
 | Acceptance | `mode_switch_luopan_under_300ms`: tap-to-first-frame within 300 ms (measured via `SystemClock.elapsedRealtime()` before/after navigate call); `lock_preserved_across_mode_switch`: AC-21 — lock at 45° (艮→坤), switch to Modern, switch back → overlay restored; `fragments_share_viewmodel_instance`: both fragments obtain identical ViewModel instance via `activityViewModels()`. |
 | Depends on | Task 3.1 (nav graph), Task 3.2 (LuopanFragment shell), Task 4.2 (NumericReadout — overlay visible) |
+| Status | ✅ Complete — `ModeSwitcherTest.kt` created with three instrumented tests: `mode_switch_luopan_under_300ms` (measures elapsed via `SystemClock.elapsedRealtime()`, asserts < 300 ms), `lock_preserved_across_mode_switch` (AC-21: calls `viewModel.lockXiang()`, round-trips Modern→Luopan, asserts overlay VISIBLE with "向:"/"坐:" prefixes when lock activated or GONE when POOR), `fragments_share_viewmodel_instance` (uses `ViewModelProvider(activity)` — same mechanism as `activityViewModels()` — asserts `assertSame` across both mode switches). `ac21_lock_state_preserved_across_mode_switch` added to `LuopanFragmentTest.kt`. New files compile cleanly (no errors in `ModeSwitcherTest` or `LuopanFragmentTest`; pre-existing failures in `InterferenceWarningCaptureTest`, `LocationPermissionTest`, etc. are unrelated). Committed as `feat(p3-task-7.1): add ModeSwitcherTest navigation integration tests` and pushed to `origin/feat-luopan-p3-luopan-mode`. |
 
 ---
 
