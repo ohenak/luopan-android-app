@@ -129,7 +129,7 @@ Tasks 2.1, 2.2, and 2.3 can run in parallel after Batch 1 completes.
 
 ---
 
-### Task 2.3 — CompassViewModel extensions
+### Task 2.3 — CompassViewModel extensions ✅
 
 | Item | Detail |
 |------|--------|
@@ -139,6 +139,7 @@ Tasks 2.1, 2.2, and 2.3 can run in parallel after Batch 1 completes.
 | Files to create (test) | `app/src/test/java/com/luopan/compass/ui/CompassViewModelSessionStateTest.kt` |
 | Acceptance | `ringVisibility_initializes_allTrue_on_viewModelCreation`: fresh ViewModel has `ringVisibility.value == BooleanArray(6) { true }`; `ringVisibility_notRestoredFromSettings`: no ring-visible keys read from SharedPreferences; `zoomScale_initializes_to_1f_on_viewModelCreation`: `zoomScale.value == 1.0f`; `zoomScale_notRestoredFromSettings`: no zoom key read from SharedPreferences; `lockXiang_under_magnetic_north_stores_true_north_bearing`: when `north_type == MAGNETIC` and `declination_deg == -3.5f` and `heading_deg == 48.5`, `lockXiang()` stores `xiangBearing ≈ 45.0f` (48.5 + (-3.5) = 45.0 True N); `lockXiang_at_moderate_confidence_locks`; `lockXiang_at_poor_confidence_does_not_lock`; `clearXiang_clears_lock_state`. |
 | Depends on | Task 1.1 (SectorLookup), Task 1.2 (RingLabelProvider), Task 1.3 (ZuoXiangLock), Task 2.1 (LuopanState+Mapper), Task 2.2 (SettingsRepository) |
+| Status | ✅ Complete — all 17 unit tests in `CompassViewModelSessionStateTest` pass, zero regressions in full suite. `CompassUiState` extended with `val luopan: LuopanState = LuopanState.INITIAL`. `CompassViewModel` extended with ring visibility, zoom scale, ZuoXiangLock, localization vars, `lockXiang()`/`clearXiang()`, `setRingVisible()`, `setZoomScale()`, `setShowRomanization()`, `setShowMyLanguage()`, `setDisplayMode()`, `onNorthTypeChanged()`, `recomputeLuopanState()`, and `LuopanStateMapper.map()` wired into `startSensorCollection()`. |
 
 ---
 

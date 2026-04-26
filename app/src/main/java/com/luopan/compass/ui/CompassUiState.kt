@@ -1,5 +1,6 @@
 package com.luopan.compass.ui
 
+import com.luopan.compass.luopan.LuopanState
 import com.luopan.compass.model.CalDotColor
 import com.luopan.compass.model.InterferenceState
 import com.luopan.compass.model.NorthType
@@ -51,7 +52,9 @@ data class CompassUiState(
     val sensor_state: SensorState,
     val is_stabilizing: Boolean,
     val last_valid_heading_deg: Double?,
-    val show_calibration_cta: Boolean
+    val show_calibration_cta: Boolean,
+    /** Luopan-mode UI state. Updated in sensor pipeline via [LuopanStateMapper]. TSPEC §5.2. */
+    val luopan: LuopanState = LuopanState.INITIAL
 ) {
     companion object {
         val INITIAL = CompassUiState(
@@ -77,7 +80,8 @@ data class CompassUiState(
             sensor_state = SensorState.NORMAL,
             is_stabilizing = false,
             last_valid_heading_deg = null,
-            show_calibration_cta = true
+            show_calibration_cta = true,
+            luopan = LuopanState.INITIAL
         )
     }
 }
