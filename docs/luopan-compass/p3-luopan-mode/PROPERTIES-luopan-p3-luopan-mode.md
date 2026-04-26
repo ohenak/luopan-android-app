@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Version | 1.0 |
+| Version | 1.1 |
 | Date | 2026-04-25 |
-| Based on | TSPEC v1.1, FSPEC v1.1, REQ v0.3-draft |
+| Based on | TSPEC v1.2, FSPEC v1.1, REQ v0.3-draft |
 | Status | Draft |
 
-> **Note on input documents:** The task referenced TSPEC v1.2 and PLAN v1.0; at time of authoring, TSPEC v1.1 is the latest available version and no PLAN document exists in the repository. This document is based on TSPEC v1.1, FSPEC v1.1, and REQ v0.3-draft. The PROPERTIES document will be updated when TSPEC v1.2 and PLAN v1.0 are published.
+> **Revision 1.1 (2026-04-25):** Addressed SE and PM cross-review feedback (iteration 1). Updated PROP-02-017 to the correct TSPEC v1.2 `rederive()` contract (SE-F01); added PROP-02-026A–E covering `displayXiangBearing`/`displayZuoBearing` fields and `lockXiang()` Mag-N conversion (SE-F02, SE-F03); corrected PROP-02-018 to attribute declination conversion to `rederive()` not the View layer (SE-F04); corrected PROP-02-025 thread-safety test to single-writer model (SE-F05); removed duplicate PROP-08-067 (SE-F07); added PROP-04-045A (pointer-sector alignment, PM-F02), PROP-04-045B (legibility, PM-F03), PROP-04-045C (initial ring visibility, PM-LOW), and PROP-07-065A (north reference switch while active, PM-F01). Updated gap analysis to reference N-F01–N-F05.
 
 ---
 
@@ -16,13 +16,13 @@
 | Group | Properties | Test Level | REQ / AC Coverage |
 |-------|-----------|------------|-------------------|
 | PG-01: Sector Assignment | 001–014 | Unit | BR-01, BR-02, BR-03, BR-04, Scenario H, REQ §5.3b |
-| PG-02: ZuoXiangLock Invariants | 015–025 | Unit | BR-06, BR-10, AC-07–11, AC-21, AC-23, FSPEC §4a–4d |
+| PG-02: ZuoXiangLock Invariants | 015–025, 026A–026E | Unit | BR-06, BR-10, AC-07–11, AC-21, AC-23, FSPEC §4a–4d, TSPEC §4.4 N-F01–N-F03 |
 | PG-03: LuopanState Mapper Invariants | 026–036 | Unit | BR-05, BR-07, BR-08, AC-03–06, AC-22, AC-24, AC-29 |
-| PG-04: LuopanView Rendering | 037–044 | Unit/Integration | BR-11, AC-02a, AC-02b, REQ §5.3, FSPEC Flow 2, §6.1 |
+| PG-04: LuopanView Rendering | 037–044, 045A–045C | Unit/Integration | BR-11, AC-02a, AC-02b, REQ §5.3, FSPEC Flow 2, §6.1, TSPEC §6.1.7 |
 | PG-05: Settings Persistence | 045–052 | Integration | BR-09, AC-15, AC-26, AC-27, REQ §5.7, FSPEC §7 |
 | PG-06: Navigation | 053–057 | Integration/E2E | AC-01, AC-21, Scenario I, REQ §9 |
-| PG-07: Localization | 058–064 | Integration | BR-08, AC-12, AC-13, REQ-L10N-02, FSPEC Flow 7 |
-| PG-08: Performance | 065–068 | E2E | REQ-NFR-LUOPAN-01–04 |
+| PG-07: Localization | 058–064, 065A | Integration/E2E | BR-08, AC-12, AC-13, AC-23, REQ-L10N-02, FSPEC Flow 7, Scenario J |
+| PG-08: Performance | 065–067 | E2E | REQ-NFR-LUOPAN-01–04 |
 | PG-09: 坐向 Lock UI | 069–076 | E2E | AC-07–09, AC-28, BR-05, FSPEC §4e, §6.2 |
 
 ---
@@ -231,10 +231,12 @@ Properties of `ZuoXiangLock` — the lock state machine that records 向 bearing
 
 | Item | Detail |
 |------|--------|
-| Property | `rederive(trueBearing)` does NOT modify `LockState.xiangBearing` to a different stored value — it calls `lock(trueBearing)` with the new True North bearing as the updated stored anchor; the stored bearing is always the authoritative True North value |
+| Property | `rederive(declinationDeg, isMagneticNorth)` updates `displayXiangBearing` and `displayZuoBearing` without modifying the stored `xiangBearing` or `zuoBearing` True North values — it does NOT call `lock()` and writes only the display fields via `_lockState.set(current.copy(...))` |
+| Negative | `rederive()` must NOT overwrite `xiangBearing` or `zuoBearing`; it must NOT call `lock()` (which would reset the True North anchor) |
+| Test | `ZuoXiangLockTest.rederive_doesNotOverwriteStoredTrueNorthBearing` — lock at 45.0f, call `rederive(-3.5f, true)`, assert `xiangBearing == 45.0f` (unchanged) and `displayXiangBearing == 48.5f` (updated) |
 | Test level | Unit |
 | Test class | `ZuoXiangLockTest` |
-| REQ / AC | FSPEC §4d, AC-23, TSPEC §4.4 |
+| REQ / AC | FSPEC §4d, AC-23, TSPEC v1.2 §4.4 (N-F01/N-F03) |
 
 ---
 
@@ -242,11 +244,11 @@ Properties of `ZuoXiangLock` — the lock state machine that records 向 bearing
 
 | Item | Detail |
 |------|--------|
-| Property | When north type switches to Magnetic while lock is active, the stored `xiangBearing` (True North) does NOT change; only display conversion (`displayBearing = xiangBearing_trueN ± declinationDeg`) changes in the View layer |
-| Negative | `ZuoXiangLock` must NOT apply declination to the stored `xiangBearing` field |
+| Property | When north type switches to Magnetic while lock is active, the stored `xiangBearing` (True North) does NOT change; the declination conversion is performed inside `ZuoXiangLock.rederive()` and stored in `displayXiangBearing`/`displayZuoBearing` — `LuopanFragment.updateZuoXiangOverlay()` reads `lockState.displayXiangBearing` directly and performs NO arithmetic |
+| Negative | `ZuoXiangLock` must NOT apply declination to the stored `xiangBearing` field; the View layer must NOT compute `xiangBearing ± declinationDeg` — it must read the pre-computed `displayXiangBearing` field |
 | Test level | Unit |
 | Test class | `ZuoXiangLockTest` |
-| REQ / AC | FSPEC §4d, ES-03, AC-23, TSPEC §4.4 |
+| REQ / AC | FSPEC §4d, ES-03, AC-23, TSPEC v1.2 §4.4 ("Overlay rendering"), §6.2 |
 
 ---
 
@@ -320,10 +322,77 @@ Properties of `ZuoXiangLock` — the lock state machine that records 向 bearing
 
 | Item | Detail |
 |------|--------|
-| Property | Concurrent calls to `lock()` and `clear()` must not produce a torn state where `isLockActive = true` with `xiangBearing = null`, or `isLockActive = false` with `xiangBearing != null` (ensured by `AtomicReference<LockState>`) |
+| Property | Reading `ZuoXiangLock.lockState` from a concurrent reader thread while a single writer thread calls `lock()` must never produce a torn read — the observed `LockState` must be either fully locked (`isLockActive = true` AND `xiangBearing != null`) or fully unlocked (`isLockActive = false` AND `xiangBearing == null`); no intermediate state is visible (ensured by `AtomicReference<LockState>` safe publication) |
+| Negative | `ZuoXiangLock` must NOT be called from two concurrent writer threads simultaneously — the design guarantees a single-writer contract: all mutators (`lock()`, `clear()`, `rederive()`) are dispatched sequentially through `viewModelScope`; the thread-safety guarantee is safe publication from one writer to many readers, NOT multi-writer safety |
+| Test | One writer coroutine calls `lock()` 100 times on `Dispatchers.Default`; a concurrent reader coroutine calls the `ZuoXiangLock.lockState` getter concurrently; assert that every observed `LockState` snapshot has `isLockActive` and `xiangBearing` in a consistent paired state (both null or both non-null) |
 | Test level | Unit |
 | Test class | `ZuoXiangLockTest` |
-| REQ / AC | TSPEC §4.4 (TE-F04) |
+| REQ / AC | TSPEC v1.2 §4.4 (TE-F04, single-writer contract) |
+
+---
+
+#### PROP-02-026A
+
+| Item | Detail |
+|------|--------|
+| Property | `displayXiangBearing` is initialized to `xiangBearing` at lock time — immediately after `lock(bearingTrueNorth)` completes, `lockState.displayXiangBearing == lockState.xiangBearing` (both hold the same True North value) |
+| Test | `ZuoXiangLockTest.lock_initializesDisplayXiangToTrueNorth` — call `lock(45.0f)`, assert `displayXiangBearing == 45.0f` and `displayXiangBearing == xiangBearing` |
+| Test level | Unit |
+| Test class | `ZuoXiangLockTest` |
+| REQ / AC | TSPEC v1.2 §4.4 (`lock()` code: `displayXiangBearing = xiang`), N-F01 |
+
+---
+
+#### PROP-02-026B
+
+| Item | Detail |
+|------|--------|
+| Property | After `rederive(declinationDeg, isMagneticNorth = true)`, `displayXiangBearing = xiangBearing - declinationDeg` (normalized to `[0f, 360f)`) — the display bearing converts stored True North to Magnetic North |
+| Worked example | `lock(45.0f)`, then `rederive(-3.5f, true)` → `displayXiangBearing = (45.0f - (-3.5f) + 360f) % 360f = 48.5f` |
+| Test | `ZuoXiangLockTest.rederive_magneticNorth_computesDisplayXiangCorrectly` |
+| Test level | Unit |
+| Test class | `ZuoXiangLockTest` |
+| REQ / AC | TSPEC v1.2 §4.4 (`rederive()` formula), AC-23, N-F01 |
+
+---
+
+#### PROP-02-026C
+
+| Item | Detail |
+|------|--------|
+| Property | After `rederive(declinationDeg, isMagneticNorth = true)`, `displayZuoBearing = (zuoBearing - declinationDeg + 360f) % 360f` — the 坐 display bearing is independently converted, not re-derived from `displayXiangBearing` |
+| Worked example | `lock(45.0f)` → `zuoBearing = 225.0f`; `rederive(-3.5f, true)` → `displayZuoBearing = (225.0f + 3.5f) % 360f = 228.5f` |
+| Test | `ZuoXiangLockTest.rederive_magneticNorth_computesDisplayZuoCorrectly` — assert `displayZuoBearing == 228.5f` after `lock(45.0f)` + `rederive(-3.5f, true)` |
+| Test level | Unit |
+| Test class | `ZuoXiangLockTest` |
+| REQ / AC | TSPEC v1.2 §4.4 (`rederive()` formula), AC-23, N-F01 |
+
+---
+
+#### PROP-02-026D
+
+| Item | Detail |
+|------|--------|
+| Property | `LuopanFragment.updateZuoXiangOverlay()` reads `lockState.displayXiangBearing` and `lockState.displayZuoBearing` for rendering the overlay — NOT `lockState.xiangBearing` or `lockState.zuoBearing` (True North storage fields) |
+| Negative | The overlay rendering code must NOT read `xiangBearing` or `zuoBearing` directly for the displayed bearing value — doing so would show a True North value when the user has switched to Magnetic North |
+| Test | `LuopanFragmentTest.ac23_northSwitch_overlayDisplaysConvertedBearing` — after switching to Magnetic North with `declinationDeg = -3.5f` and lock at `45.0f` True N, overlay shows `"向: 艮 (48.5° Mag N)"` (the `displayXiangBearing` value, not `45.0f`) |
+| Test level | Integration (Instrumented) |
+| Test class | `LuopanFragmentTest` |
+| REQ / AC | TSPEC v1.2 §4.4 ("Overlay rendering"), §6.2 `updateZuoXiangOverlay()`, AC-23, N-F05 |
+
+---
+
+#### PROP-02-026E
+
+| Item | Detail |
+|------|--------|
+| Property | When `northType == MAGNETIC` at the time of locking, `lockXiang()` stores `xiangBearing = (displayBearing + declinationDeg + 360f) % 360f` (converting Magnetic North display bearing to True North before calling `ZuoXiangLock.lock()`) |
+| Worked example | `displayBearing = 41.5f` Magnetic, `declinationDeg = -3.5f` → stored `xiangBearing = (41.5f + (-3.5f) + 360f) % 360f = 38.0f` True North; sector at 38.0f is 艮 `[37.5°–52.5°)` → `xiangMountain = "艮"` |
+| Negative | `lockXiang()` in Magnetic North mode must NOT pass the raw `displayBearing` (Magnetic) directly to `ZuoXiangLock.lock()` — that would store a Magnetic North value in the True North field |
+| Test | `ZuoXiangLockTest.lockXiang_magneticMode_convertsToTrueNorth` — given `displayBearing = 41.5f`, `declinationDeg = -3.5f`, `northType = MAGNETIC`, `confidence = HIGH`; call `viewModel.lockXiang()`; assert `zuoXiangLock.lockState.xiangBearing == 38.0f` and `xiangMountain == "艮"` |
+| Test level | Unit (ViewModel test) |
+| Test class | `CompassViewModelSessionStateTest` |
+| REQ / AC | TSPEC v1.2 §8.1 `lockXiang()` code, N-F02, FSPEC §4a step 3 |
 
 ---
 
@@ -554,6 +623,44 @@ Properties of `LuopanView` Canvas rendering — geometry, rotation math, and poi
 | Test level | Unit (Robolectric) |
 | Test class | `LuopanViewTest` |
 | REQ / AC | FSPEC Flow 2 step 8, TSPEC §6.1.2 |
+
+---
+
+#### PROP-04-045A
+
+| Item | Detail |
+|------|--------|
+| Property | The sector label visually centered under the fixed pointer matches the sector computed by `SectorLookup` for the current bearing — for any bearing B, the ring label drawn at the pointer position is the label for `SectorLookup.ringN(B)` |
+| Negative | The sector under the pointer must NOT display the adjacent sector's label due to an off-by-one in label index or angular offset calculation |
+| Test | Screenshot test or Robolectric canvas inspection: inject bearing = 180.0f (午 sector); assert that the Ring 5 label at the pointer position (canvas top center, before rotation) corresponds to `RingLabelProvider.ring5Label(SectorLookup.ring5(180.0f))` = "午" |
+| Test level | Integration (screenshot test or Robolectric canvas inspection) |
+| Test class | `LuopanViewTest` or `LuopanFragmentTest` |
+| REQ / AC | BR-11, AC-02a, AC-02b, TSPEC §6.1.2, PM-F02 |
+
+---
+
+#### PROP-04-045B
+
+| Item | Detail |
+|------|--------|
+| Property | On a 5-inch 1080p display, Ring 4 character text size is ≥ 12sp, Ring 5 character text size is ≥ 11sp, and Ring 6 character text size is ≥ 8sp — meeting the minimum legibility thresholds |
+| Test | Unit test inspecting `paint.textSize` for the ring 4, 5, and 6 paint objects in `onDraw`, or verify the dimension resources/computed text size values in `onSizeChanged` against the thresholds at a 1080p / 5-inch layout |
+| Test level | Unit (inspect paint.textSize or dimension resources) |
+| Test class | `LuopanViewTest` |
+| REQ / AC | REQ-NFR-LUOPAN-02, TSPEC §6.1.1 (`RING_RADIUS_FRACTIONS` comment: "Ring 6 labels ≥ 8sp on 5-inch 1080p"), PM-F03 |
+
+---
+
+#### PROP-04-045C
+
+| Item | Detail |
+|------|--------|
+| Property | At first render in Luopan Mode (initial `LuopanFragment` creation before any user interaction), all 6 rings are visible — `ringVisibility.value` is all-true on Fragment creation |
+| Negative | The initial ring visibility state must NOT be `false` for any ring index — rings must NOT be hidden on entry to Luopan Mode |
+| Test | `CompassViewModelSessionStateTest.ringVisibility_initializes_allTrue_on_viewModelCreation` — assert `ringVisibility.value == BooleanArray(6) { true }` on a freshly created `CompassViewModel` |
+| Test level | Unit (ViewModel test) |
+| Test class | `CompassViewModelSessionStateTest` |
+| REQ / AC | AC-15, TSPEC §5.3 (`ringVisible = BooleanArray(6) { true }`), PM-LOW |
 
 ---
 
@@ -806,6 +913,20 @@ Properties of the localization system — default language, romanization toggle,
 
 ---
 
+#### PROP-07-065A
+
+| Item | Detail |
+|------|--------|
+| Property | When the north reference switches while Luopan Mode is active and a 坐向 lock is active, the bearing display in the numerical readout and the 坐向 overlay updates immediately (same render frame as the `LuopanState` emission) without requiring any user interaction |
+| Worked example (AC-23) | Lock at 45° True N (`xiangMountain = "艮"`), `declinationDeg = -3.5f`, switch to Magnetic North → overlay immediately shows `"向: 艮 (48.5° Mag N)"` and `"坐: 坤 (228.5° Mag N)"`; the user does NOT need to tap, scroll, or refresh |
+| Negative | The bearing display must NOT remain showing the True North value (`"向: 艮 (45.0° True N)"`) after the north type switch — it must update immediately |
+| Test | `LuopanFragmentTest.ac23_northSwitch_overlayDisplaysConvertedBearing` — inject a rederived `LockState` (`displayXiangBearing = 48.5f`, `displayZuoBearing = 228.5f`) via StateFlow; assert the overlay shows `"向: 艮 (48.5° Mag N)"` without any additional user action |
+| Test level | E2E (Instrumented) |
+| Test class | `LuopanFragmentTest` |
+| REQ / AC | AC-23, Scenario J, FSPEC §4d, TSPEC v1.2 §8.2, N-F05, PM-F01 |
+
+---
+
 ### PG-08: Performance (E2E)
 
 Properties verified under real hardware conditions with hardware-accelerated Canvas.
@@ -838,12 +959,7 @@ Properties verified under real hardware conditions with hardware-accelerated Can
 
 #### PROP-08-067
 
-| Item | Detail |
-|------|--------|
-| Property | First dial render (from mode-switch tap to first complete painted frame) completes in ≤ 300 ms |
-| Test level | E2E |
-| Test class | `ModeSwitcherTest` (Instrumented) |
-| REQ / AC | REQ-NFR-LUOPAN-04, AC-01 |
+> **Removed in v1.1 (SE-F07):** This property was a duplicate of PROP-06-053 ("first complete dial frame rendered within 300 ms", E2E, `ModeSwitcherTest`). The single authoritative source for the ≤300 ms mode-entry invariant is PROP-06-053. See SE cross-review finding F-07.
 
 ---
 
@@ -961,7 +1077,7 @@ The following requirements and acceptance criteria are fully covered by the prop
 
 | AC / REQ | Covered by |
 |----------|------------|
-| AC-01 (mode entry latency) | PROP-06-053, PROP-08-067 |
+| AC-01 (mode entry latency) | PROP-06-053 |
 | AC-02a / AC-02b (dial rotation math) | PROP-04-037, PROP-04-038 |
 | AC-03 (canonical readout at 180°) | PROP-03-033 |
 | AC-04 / AC-05 (readout at 90°) | PROP-03-034 |
@@ -971,7 +1087,7 @@ The following requirements and acceptance criteria are fully covered by the prop
 | AC-10 / AC-11 (坐 wrap-around) | PROP-02-016 |
 | AC-12 (default zh-Hant) | PROP-07-058, PROP-07-059 |
 | AC-13 (romanization toggle) | PROP-03-036, PROP-07-060 |
-| AC-14 / AC-15 (ring visibility) | PROP-04-041, PROP-05-048 |
+| AC-14 / AC-15 (ring visibility) | PROP-04-041, PROP-04-045C, PROP-05-048 |
 | AC-16 (子/亥 wrap-around) | PROP-01-003 |
 | AC-17 (generic boundary) | PROP-01-002 |
 | AC-18 (Ring 5 sub-15° boundaries) | PROP-01-008 |
@@ -979,7 +1095,7 @@ The following requirements and acceptance criteria are fully covered by the prop
 | AC-20 (壬子分金 wrap-around) | PROP-01-004 |
 | AC-21 (lock preserved across mode switch) | PROP-06-056 |
 | AC-22 (north switch updates readout) | PROP-03-031 |
-| AC-23 (locked 山 labels invariant to north switch) | PROP-02-018, PROP-02-019, PROP-03-032 |
+| AC-23 (locked 山 labels invariant to north switch; display bearing conversion) | PROP-02-017, PROP-02-018, PROP-02-019, PROP-02-026B, PROP-02-026C, PROP-02-026D, PROP-03-032, PROP-07-065A |
 | AC-24 (SENSOR_ERROR fields hidden) | PROP-03-026 |
 | AC-25 (zoom clamping) | PROP-04-042 |
 | AC-26 (zoom survives config change) | PROP-05-050 |
@@ -997,12 +1113,24 @@ The following requirements and acceptance criteria are fully covered by the prop
 | BR-09 (session vs persisted) | PROP-05-045–052 |
 | BR-10 (lock across mode switch) | PROP-02-020, PROP-02-021, PROP-06-056 |
 | BR-11 (dial rotation math) | PROP-04-037, PROP-04-038 |
-| REQ-NFR-LUOPAN-01–04 | PROP-08-065–068 |
+| Scenario J (north reference switch while active) | PROP-07-065A |
+| REQ-NFR-LUOPAN-01 | PROP-08-065, PROP-08-066 |
+| REQ-NFR-LUOPAN-02 | PROP-08-065, PROP-04-043 |
+| REQ-NFR-LUOPAN-03 | PROP-08-068 |
+| REQ-NFR-LUOPAN-04 | PROP-06-053 |
+| Pointer-sector alignment | PROP-04-045A |
+| Ring legibility (5-inch 1080p) | PROP-04-045B |
+| Initial ring visibility | PROP-04-045C |
 | TE-F01 (Ring 2 LUT corrected) | PROP-01-005, PROP-01-006, PROP-01-014 |
-| TE-F04 (thread-safety) | PROP-02-025 |
+| TE-F04 (thread-safety, single-writer) | PROP-02-025 |
+| N-F01/N-F03 (rederive() must not call lock()) | PROP-02-017 |
+| N-F02 (lockXiang() Mag-N → True-N conversion) | PROP-02-026E |
+| N-F04 (northSwitch_doesNotChangeShanLabels distinct bearings) | PROP-03-032 |
+| N-F05 (AC-23 overlay instrumented test) | PROP-02-026D, PROP-07-065A |
+| displayXiangBearing / displayZuoBearing fields (SE-F02) | PROP-02-026A, PROP-02-026B, PROP-02-026C, PROP-02-026D |
 | PM-Q01 (Clear 向 always enabled) | PROP-09-072 |
 
-**No uncovered gaps identified.** All acceptance criteria, business rules, and cross-review findings (TE-F01, TE-F04, PM-Q01) have at least one corresponding property.
+**No uncovered gaps.** All acceptance criteria, business rules, and cross-review findings (TE-F01, TE-F04, N-F01–N-F05, PM-Q01, SE-F01–F05, SE-F07, PM-F01–F03) have at least one corresponding property in this revision.
 
 ---
 
