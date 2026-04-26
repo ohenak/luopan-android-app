@@ -10,6 +10,7 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.GestureDetector
+import android.util.TypedValue
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -322,8 +323,8 @@ class LuopanView @JvmOverloads constructor(
         cy = h / 2f
         baseRadius = min(cx, cy)
 
-        @Suppress("DEPRECATION")
-        val sp = resources.displayMetrics.scaledDensity  // sp-to-px conversion factor
+        val dm = resources.displayMetrics
+        val sp1px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f, dm)
 
         // Apply typeface to all text paints now that we have display metrics
         ring2TextPaint.typeface = cjkTypeface
@@ -333,11 +334,11 @@ class LuopanView @JvmOverloads constructor(
         ring6TextPaint.typeface = cjkTypeface
 
         // Font sizes: Ring 6=8sp, Ring 5=11sp, Ring 4=12sp, Rings 2–3=14sp
-        ring2TextPaint.textSize = 14f * sp
-        ring3TextPaint.textSize = 14f * sp
-        ring4TextPaint.textSize = 12f * sp
-        ring5TextPaint.textSize = 11f * sp
-        ring6TextPaint.textSize = 8f * sp
+        ring2TextPaint.textSize = 14f * sp1px
+        ring3TextPaint.textSize = 14f * sp1px
+        ring4TextPaint.textSize = 12f * sp1px
+        ring5TextPaint.textSize = 11f * sp1px
+        ring6TextPaint.textSize = 8f * sp1px
 
         // Border stroke width in dp
         val dp = resources.displayMetrics.density

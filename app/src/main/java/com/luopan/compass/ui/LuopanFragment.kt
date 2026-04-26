@@ -17,6 +17,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.luopan.compass.R
 import com.luopan.compass.luopan.LuopanState
 import com.luopan.compass.model.OverallConfidence
@@ -123,23 +124,25 @@ class LuopanFragment : Fragment() {
 
         // Observe main UI state — drives dial, readout, lock button, overlay
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.uiState.collect { state ->
-                val luopan = state.luopan
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    val luopan = state.luopan
 
-                // Drive LuopanView dial rotation (Task 4.1 implements rendering)
-                luopanView.setBearingDeg(luopan.bearingDeg)
+                    // Drive LuopanView dial rotation (Task 4.1 implements rendering)
+                    luopanView.setBearingDeg(luopan.bearingDeg)
 
-                // V3-F01 fix: pass displayXiangBearing (not xiangBearing) to LuopanView
-                // so tick mark positioning uses display-reference bearing (TSPEC §6.2)
-                val displayXiang = resolveDisplayXiangBearing(
-                    luopan.displayXiangBearing,
-                    luopan.xiangBearing
-                )
-                luopanView.setLockState(luopan.isLockActive, displayXiang)
+                    // V3-F01 fix: pass displayXiangBearing (not xiangBearing) to LuopanView
+                    // so tick mark positioning uses display-reference bearing (TSPEC §6.2)
+                    val displayXiang = resolveDisplayXiangBearing(
+                        luopan.displayXiangBearing,
+                        luopan.xiangBearing
+                    )
+                    luopanView.setLockState(luopan.isLockActive, displayXiang)
 
-                updateNumericReadout(luopan)
-                updateLockButton(luopan)
-                updateZuoXiangOverlay(luopan)
+                    updateNumericReadout(luopan)
+                    updateLockButton(luopan)
+                    updateZuoXiangOverlay(luopan)
+                }
             }
         }
 
@@ -152,18 +155,21 @@ class LuopanFragment : Fragment() {
 
         // Observe ring visibility — drives per-ring show/hide in LuopanView (Flow 5)
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.ringVisibility.collect { visible ->
-                luopanView.setRingVisible(visible)
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.ringVisibility.collect { visible ->
+                    luopanView.setRingVisible(visible)
+                }
             }
         }
 
-        // Observe zoom scale — drives dial scale transform in LuopanView (Flow 6)
-        // The ViewModel is the single source of truth; LuopanView applies the scale
-        // and calls requestLayout() so onSizeChanged recomputes geometry (TSPEC §6.2).
+        // Observe zoom scale — drives canvas scale transform in LuopanView (Flow 6, TSPEC §6.2).
+        // setZoomScale() already calls invalidate(); no requestLayout() is needed because zoom
+        // is applied as canvas.scale() in onDraw, not as a layout dimension change.
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.zoomScale.collect { scale ->
-                luopanView.setZoomScale(scale)
-                luopanView.requestLayout()   // trigger onSizeChanged for geometry recompute (TSPEC §6.2)
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.zoomScale.collect { scale ->
+                    luopanView.setZoomScale(scale)
+                }
             }
         }
     }
