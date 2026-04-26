@@ -1,0 +1,222 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "108fecffe4a8ccbdd9a8d23c7e46d47a",
+    "entities": [
+      {
+        "tableName": "calibration_records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `recorded_at` INTEGER NOT NULL, `hard_iron_x` REAL NOT NULL, `hard_iron_y` REAL NOT NULL, `hard_iron_z` REAL NOT NULL, `soft_iron_00` REAL NOT NULL, `soft_iron_01` REAL NOT NULL, `soft_iron_02` REAL NOT NULL, `soft_iron_10` REAL NOT NULL, `soft_iron_11` REAL NOT NULL, `soft_iron_12` REAL NOT NULL, `soft_iron_20` REAL NOT NULL, `soft_iron_21` REAL NOT NULL, `soft_iron_22` REAL NOT NULL, `quality` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recorded_at",
+            "columnName": "recorded_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hard_iron_x",
+            "columnName": "hard_iron_x",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hard_iron_y",
+            "columnName": "hard_iron_y",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hard_iron_z",
+            "columnName": "hard_iron_z",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "soft_iron_00",
+            "columnName": "soft_iron_00",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "soft_iron_01",
+            "columnName": "soft_iron_01",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "soft_iron_02",
+            "columnName": "soft_iron_02",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "soft_iron_10",
+            "columnName": "soft_iron_10",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "soft_iron_11",
+            "columnName": "soft_iron_11",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "soft_iron_12",
+            "columnName": "soft_iron_12",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "soft_iron_20",
+            "columnName": "soft_iron_20",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "soft_iron_21",
+            "columnName": "soft_iron_21",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "soft_iron_22",
+            "columnName": "soft_iron_22",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quality",
+            "columnName": "quality",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "bearing_records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `bearing_deg` REAL NOT NULL, `north_type` TEXT NOT NULL, `confidence` TEXT NOT NULL, `captured_at` INTEGER NOT NULL, `calibration_version` TEXT NOT NULL, `field_deviation_pct` REAL NOT NULL, `inclination_deviation_deg` REAL NOT NULL, `interference_flag` INTEGER NOT NULL, `lat` REAL, `lon` REAL, `alt_m` REAL, `notes` TEXT, `display_mode` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bearing_deg",
+            "columnName": "bearing_deg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "north_type",
+            "columnName": "north_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "captured_at",
+            "columnName": "captured_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calibration_version",
+            "columnName": "calibration_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "field_deviation_pct",
+            "columnName": "field_deviation_pct",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inclination_deviation_deg",
+            "columnName": "inclination_deviation_deg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "interference_flag",
+            "columnName": "interference_flag",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lat",
+            "columnName": "lat",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lon",
+            "columnName": "lon",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "alt_m",
+            "columnName": "alt_m",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "display_mode",
+            "columnName": "display_mode",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '108fecffe4a8ccbdd9a8d23c7e46d47a')"
+    ]
+  }
+}

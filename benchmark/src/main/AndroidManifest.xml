@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+        The benchmark module uses com.android.test plugin. It has no application component —
+        it instruments the :app module. The manifest is required but contains no activities.
+    -->
+</manifest>

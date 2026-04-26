@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Bearing preview (read-only snapshot value) -->
+    <TextView
+        android:id="@+id/tv_bearing_preview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"
+        android:contentDescription="@string/bearing_preview_label" />
+
+    <!-- North type + confidence badge row -->
+    <TextView
+        android:id="@+id/tv_bearing_meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Name field (required, max 100 chars) -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_bearing_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/bearing_name_hint"
+        android:layout_marginBottom="8dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_bearing_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLength="100"
+            android:inputType="textCapSentences"
+            android:imeOptions="actionNext" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Notes field (optional, max 1000 chars) -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_bearing_notes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/bearing_notes_hint"
+        android:layout_marginBottom="12dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_bearing_notes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLength="1000"
+            android:inputType="textMultiLine|textCapSentences"
+            android:minLines="2"
+            android:gravity="top|start" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- GPS toggle (always present; default ON) -->
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/switch_include_gps"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/include_gps_toggle_label"
+        android:checked="true"
+        android:layout_marginBottom="4dp" />
+
+    <!-- P6.4: First-capture privacy notice (shown only when bearing_location_consent_shown == false) -->
+    <TextView
+        android:id="@+id/tv_location_privacy_notice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/location_privacy_notice"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone" />
+
+    <!-- Action buttons row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_cancel_bearing_capture"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/cancel"
+            android:layout_marginEnd="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_save_bearing_confirm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/save_bearing" />
+    </LinearLayout>
+
+</LinearLayout>

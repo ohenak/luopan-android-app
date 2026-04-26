@@ -24,6 +24,7 @@
         android:textSize="48sp"
         android:fontFamily="monospace"
         android:text="---"
+        android:contentDescription="@string/heading_content_description"
         app:layout_constraintBottom_toTopOf="@id/northLabel"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -35,9 +36,55 @@
         android:textColor="@android:color/white"
         android:textSize="14sp"
         android:text="@string/magnetic_north"
-        app:layout_constraintBottom_toTopOf="@id/tiltText"
+        app:layout_constraintBottom_toTopOf="@id/northTypeToggleGroup"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- P4.3: North type toggle (TRUE / MAGNETIC only — AT-G-08) -->
+    <!-- P5.2: Toggle group is now constrained to end of btn_declination_info guide -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/northTypeToggleGroup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        app:singleSelection="true"
+        app:selectionRequired="true"
+        app:checkedButton="@id/btn_magnetic_n"
+        app:layout_constraintBottom_toTopOf="@id/tiltText"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btn_declination_info">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_magnetic_n"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/magnetic_north"
+            android:textSize="12sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_true_n"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/true_north"
+            android:textSize="12sp" />
+
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <!-- P5.2: Declination info icon button — tapping opens DeclinationInfoBottomSheet -->
+    <ImageButton
+        android:id="@+id/btn_declination_info"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@android:drawable/ic_menu_info_details"
+        android:contentDescription="@string/declination_info_button_content_description"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:tint="@android:color/white"
+        android:padding="8dp"
+        app:layout_constraintBottom_toTopOf="@id/tiltText"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/northTypeToggleGroup" />
 
     <TextView
         android:id="@+id/tiltText"
@@ -139,6 +186,22 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- P7.1: Extreme latitude advisory banner — shown when abs(WMM inclination) >= 80° -->
+    <TextView
+        android:id="@+id/extreme_latitude_advisory_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:textColor="@android:color/white"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:background="#FFC107"
+        android:text="@string/extreme_latitude_advisory"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/power_saving_advisory_text"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Sensor stuck advisory -->
     <TextView
         android:id="@+id/sensor_stuck_text"
@@ -149,6 +212,17 @@
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/power_saving_advisory_text"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- P6.3: Capture FAB — always visible, always tappable (BR-CAP-08, FSPEC §2.5 step 1) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_save_bearing"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:contentDescription="@string/fab_save_bearing_content_description"
+        app:srcCompat="@android:drawable/ic_menu_save"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- No-magnetometer error screen (full-screen overlay) -->

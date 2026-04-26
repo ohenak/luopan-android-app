@@ -24,4 +24,68 @@
     <string name="sensor_error">Sensor error</string>
     <string name="sensor_not_responding">Sensor not responding — try restarting the app or device</string>
     <string name="interference_explanation">Magnetic interference detected nearby</string>
+
+    <!-- P7.1: Extreme latitude advisory -->
+    <string name="extreme_latitude_advisory">Near magnetic pole — compass accuracy severely reduced</string>
+
+    <!-- P4.3: North type toggle -->
+    <string name="toggle_north_type_content_description">Toggle north type between Magnetic N and True N</string>
+
+    <!-- P3.2: Location permission strings -->
+    <string name="location_permission_rationale_title">Location needed for True North</string>
+    <string name="location_permission_rationale_message">Location is used to compute magnetic declination for True North. Your coordinates are stored on-device only and are never shared.</string>
+    <string name="location_permission_settings_title">Location permission required</string>
+    <string name="location_permission_settings_message">Location permission has been permanently denied. To enable True North, please grant location permission in Settings. You can also enter coordinates manually.</string>
+    <string name="continue_label">Continue</string>
+    <string name="not_now">Not now</string>
+    <string name="open_settings">Open Settings</string>
+    <string name="location_permission_denied_message">Location permission needed for True North. You can enter coordinates manually instead.</string>
+
+    <!-- P7.2: GPS unavailable — manual coordinate entry dialog -->
+    <string name="manual_coordinates_dialog_title">Enter coordinates for True North or use Magnetic North only</string>
+    <string name="manual_coordinates_lat_hint">Latitude (e.g. 40.7128)</string>
+    <string name="manual_coordinates_lon_hint">Longitude (e.g. -74.0060)</string>
+    <string name="use_true_north">Use True North</string>
+    <string name="use_magnetic_north">Use Magnetic North</string>
+
+    <!-- P7.2: Cache age label for cached GPS location -->
+    <string name="location_cache_age_label">%d days ago</string>
+
+    <!-- P8.6: Macrobenchmark — content description for heading display (used by UiAutomator) -->
+    <string name="heading_content_description">compass heading</string>
+
+    <!-- P6.3: Bearing capture FAB and dialogs -->
+    <string name="fab_save_bearing_content_description">Save bearing</string>
+    <string name="bearing_capture_dialog_title">Save Bearing</string>
+    <string name="bearing_name_hint">Bearing name</string>
+    <string name="bearing_notes_hint">Add notes (optional)</string>
+    <string name="bearing_preview_label">Bearing preview</string>
+    <string name="save_bearing">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="bearing_saved_toast">Bearing saved as \'%1$s\'</string>
+
+    <!-- P6.3: Interference warning dialog -->
+    <string name="interference_warning_dialog_title">Low confidence</string>
+    <string name="interference_warning_dialog_message">Interference detected or confidence is Poor. Bearing will be saved with a warning flag. Proceed?</string>
+    <string name="save_with_warning">Save with warning</string>
+
+    <!-- P6.4: GPS privacy notice and GPS toggle -->
+    <string name="include_gps_toggle_label">Include location with this bearing</string>
+    <string name="location_privacy_notice">Your location will be attached to this bearing and stored only on your device. Location is optional.</string>
+
+    <!-- P5.2: Declination info panel -->
+    <string name="declination_info_button_content_description">Declination info</string>
+    <string name="declination_info_sheet_title">Declination Info</string>
+    <string name="declination_value_label">Declination</string>
+    <string name="source_label">Source</string>
+    <string name="coordinates_label">Coordinates</string>
+    <string name="last_updated_label">Last updated</string>
+    <string name="valid_until_label">Model valid until</string>
+    <string name="no_location_source_label">No location available — True North disabled</string>
+    <string name="true_north_off_note">True North is currently off. This declination would be applied if True North is enabled.</string>
+    <string name="declination_east_format">%s° E</string>
+    <string name="declination_west_format">%s° W</string>
+    <string name="declination_decimal_format">(%s°)</string>
+    <string name="coordinates_format">Lat %1$s°, Lon %2$s°</string>
+    <string name="no_data_em_dash">—</string>
 </resources>

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.luopan.compass.db.LuopanDatabase
+import com.luopan.compass.model.CalibrationQuality
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -39,12 +40,12 @@ class OomResilienceTest {
         quality = quality
     )
 
-    @Test fun `db is null when no calibration was ever saved`() = runBlocking {
+    @Test fun dbIsNullWhenNoCalibrationWasEverSaved() = runBlocking {
         assertNull(repo.getCurrent())
         assertNull(repo.getRollback())
     }
 
-    @Test fun `pre-session calibration intact after interrupted session`() = runBlocking {
+    @Test fun preSessionCalibrationIntactAfterInterruptedSession() = runBlocking {
         // Save an initial calibration
         repo.save(mockResult(CalibrationQuality.GOOD), 1000L)
         val preSave = repo.getCurrent()
@@ -63,7 +64,7 @@ class OomResilienceTest {
         assertEquals(preSave.quality, postKill.quality)
     }
 
-    @Test fun `rollback slot preserved when current save interrupted`() = runBlocking {
+    @Test fun rollbackSlotPreservedWhenCurrentSaveInterrupted() = runBlocking {
         repo.save(mockResult(CalibrationQuality.GOOD), 1000L)
         repo.save(mockResult(CalibrationQuality.FAIR), 2000L)
 
@@ -75,7 +76,7 @@ class OomResilienceTest {
         assertEquals(rollbackBefore!!.recorded_at, rollbackAfter!!.recorded_at)
     }
 
-    @Test fun `transaction atomicity via Room in-memory rollback`() = runBlocking {
+    @Test fun transactionAtomicityViaRoomInMemoryRollback() = runBlocking {
         // Simulate saving, then rolling back if the result is null (engine returns null)
         val engine = CalibrationEngine()
         repeat(5) { engine.addSample(it.toFloat(), 0f, 0f) } // too few samples

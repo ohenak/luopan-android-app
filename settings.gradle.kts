@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 rootProject.name = "LuopanCompass"
 include(":app")
 include(":lint")
+include(":benchmark")

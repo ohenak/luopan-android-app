@@ -59,6 +59,7 @@ class EnumExhaustivenessTest {
                 SensorAdvisory.NO_GYROSCOPE -> "NO_GYROSCOPE"
                 SensorAdvisory.POWER_SAVING -> "POWER_SAVING"
                 SensorAdvisory.STABILIZING -> "STABILIZING"
+                SensorAdvisory.EXTREME_LATITUDE -> "EXTREME_LATITUDE"
             }
             assert(label == v.name)
         }

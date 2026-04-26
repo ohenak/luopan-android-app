@@ -20,6 +20,12 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments["room.schemaLocation"] = "$projectDir/schemas"
+            }
+        }
     }
 
     buildTypes {
@@ -40,6 +46,12 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDirs("$projectDir/schemas")
+        }
     }
 
     testOptions {
@@ -65,14 +77,19 @@ dependencies {
     implementation(libs.security.crypto)
     implementation(libs.commons.math3)
     implementation(libs.coroutines.android)
+    implementation(libs.profileinstaller)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.coroutines.test)
 
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
+    androidTestImplementation(libs.espresso.intents)
     androidTestImplementation(libs.process.phoenix)
+    androidTestImplementation(libs.room.testing)
 
     lintChecks(project(":lint"))
 }
