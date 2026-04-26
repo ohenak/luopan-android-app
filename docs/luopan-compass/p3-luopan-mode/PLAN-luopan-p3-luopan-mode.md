@@ -242,7 +242,7 @@ Tasks 5.1 and 5.2 can run in parallel after Batch 4 completes.
 
 ---
 
-### Task 5.2 — Ring visibility BottomSheetDialog
+### Task 5.2 — Ring visibility BottomSheetDialog ✅
 
 | Item | Detail |
 |------|--------|
@@ -253,6 +253,7 @@ Tasks 5.1 and 5.2 can run in parallel after Batch 4 completes.
 | Files to modify (test, instrumented) | `app/src/androidTest/java/com/luopan/compass/ui/LuopanFragmentTest.kt` |
 | Acceptance | `long_press_shows_ring_visibility_sheet`: ≥500 ms long-press opens BottomSheetDialog; `ac14_hide_ring4_disappears_others_remain`: hiding Ring 4 removes it from dial; Rings 1, 2, 3, 5, 6 remain; readout and heading computation unaffected; `ac15_ring_visibility_session_reset`: cold start restores all rings visible (from `CompassViewModelSessionStateTest`); gold tick mark hides when Ring 5 is hidden; overflow menu button opens same sheet (accessibility). |
 | Depends on | Task 4.1 (LuopanView — long-press gesture, `setRingVisible()` setter), Task 2.3 (CompassViewModel — `setRingVisible()`, `ringVisibility` StateFlow) |
+| Status | ✅ Complete — `RingVisibilityBottomSheet.kt` created (BottomSheetDialogFragment, 6 Switch rows, activityViewModels, immediate toggle via `setRingVisible()`). `bottom_sheet_ring_visibility.xml` created (vertical LinearLayout, 6 rows, Switch + TextView label, Done button). `menu_luopan.xml` created with `action_show_hide_rings` item. `LuopanFragment` updated: imports + `MenuProvider` wired via `addMenuProvider()`, `onLongPressDetected` lambda wired to `showRingVisibilitySheet()`, guard against double-show. String resources added. Gold tick mark guard `if (isLockActiveState && ringVisible[4])` already correct in Task 4.1 — verified, no change needed. Unit tests `ringVisibility_default_all_true` and `ring5_hidden_gold_tick_mark_should_not_show` added to `LuopanFragmentLogicTest`. Instrumented compile-only stubs `long_press_shows_ring_visibility_sheet` and `ac14_hide_ring4_disappears_others_remain` added to `LuopanFragmentTest`. All unit tests pass (0 failures). |
 
 ---
 

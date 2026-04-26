@@ -3,14 +3,19 @@ package com.luopan.compass.ui
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import com.luopan.compass.R
 import com.luopan.compass.luopan.LuopanState
@@ -19,7 +24,7 @@ import com.luopan.compass.settings.SettingsRepository
 import kotlinx.coroutines.launch
 
 /**
- * Full implementation of LuopanFragment — Task 3.2.
+ * Full implementation of LuopanFragment — Tasks 3.2 + 5.2.
  *
  * Inflates [fragment_luopan.xml], obtains [CompassViewModel] via [activityViewModels],
  * and observes [CompassViewModel.uiState], [CompassViewModel.zoomScale], and
@@ -28,8 +33,9 @@ import kotlinx.coroutines.launch
  *   - Numeric readout panel (placeholder TextViews — Task 4.2 wires real fields)
  *   - "Lock 向" / "Clear 向" button with PM-Q01 fix
  *   - 坐向 overlay CardView with V3-F01 displayXiangBearing resolution
+ *   - [RingVisibilityBottomSheet] via long-press gesture and overflow menu (Task 5.2)
  *
- * TSPEC §6.2, FSPEC Flow 1 / Flow 3 / Flow 4, PM-Q01, V3-F01.
+ * TSPEC §6.2 §6.4, FSPEC Flow 1 / Flow 3 / Flow 4 / Flow 5, PM-Q01, V3-F01.
  */
 class LuopanFragment : Fragment() {
 
@@ -38,6 +44,9 @@ class LuopanFragment : Fragment() {
     companion object {
         /** Sentinel displayed in readout fields when confidence == SENSOR_ERROR (FSPEC ES-01). */
         private const val SENSOR_ERROR_DASH = "—"
+
+        /** Fragment tag for [RingVisibilityBottomSheet] — prevents double-show (Task 5.2). */
+        internal const val TAG_RING_VISIBILITY = "ring_visibility"
     }
 
     // Views — bound in onViewCreated, released in onDestroyView
@@ -85,6 +94,32 @@ class LuopanFragment : Fragment() {
         zuoXiangOverlay = view.findViewById(R.id.zuoXiangOverlay)
         tvXiangOverlay = view.findViewById(R.id.tvXiangOverlay)
         tvZuoOverlay = view.findViewById(R.id.tvZuoOverlay)
+
+        // -----------------------------------------------------------------------
+        // Task 5.2 — Ring visibility BottomSheet gestures
+        // -----------------------------------------------------------------------
+
+        // Long-press on dial → show RingVisibilityBottomSheet (TSPEC §6.1.6, FSPEC Flow 5 step 1)
+        luopanView.onLongPressDetected = {
+            showRingVisibilitySheet()
+        }
+
+        // Three-dot overflow menu → accessibility alternative to long-press (TSPEC §6.4, FSPEC Flow 5)
+        requireActivity().addMenuProvider(object : MenuProvider {
+            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                menuInflater.inflate(R.menu.menu_luopan, menu)
+            }
+
+            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                return when (menuItem.itemId) {
+                    R.id.action_show_hide_rings -> {
+                        showRingVisibilitySheet()
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }, viewLifecycleOwner, Lifecycle.State.RESUMED)
 
         // Observe main UI state — drives dial, readout, lock button, overlay
         viewLifecycleOwner.lifecycleScope.launch {
@@ -367,5 +402,25 @@ class LuopanFragment : Fragment() {
         OverallConfidence.POOR         -> Color.parseColor("#C62828") // red
         OverallConfidence.STABILIZING  -> Color.parseColor("#F57F17") // amber
         OverallConfidence.SENSOR_ERROR -> Color.parseColor("#C62828") // red
+    }
+
+    // ---------------------------------------------------------------------------
+    // Task 5.2 — Ring visibility sheet
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Shows [RingVisibilityBottomSheet].
+     *
+     * Called from:
+     * - [LuopanView.onLongPressDetected] (long-press gesture ≥ 500 ms, TSPEC §6.1.6)
+     * - The "Show/hide rings" overflow menu item (TalkBack accessibility alternative, TSPEC §6.4)
+     *
+     * Guard: avoids double-show if the sheet is already visible.
+     *
+     * FSPEC Flow 5.
+     */
+    internal fun showRingVisibilitySheet() {
+        if (childFragmentManager.findFragmentByTag(TAG_RING_VISIBILITY) != null) return
+        RingVisibilityBottomSheet().show(childFragmentManager, TAG_RING_VISIBILITY)
     }
 }
