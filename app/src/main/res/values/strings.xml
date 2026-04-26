@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Luopan</string>
-    <string name="magnetic_north">Magnetic N</string>
+    <string name="magnetic_north">Mag N</string>
     <string name="true_north">True N</string>
     <string name="calibrate_now">Calibrate Now</string>
     <string name="uncalibrated">Uncalibrated</string>
@@ -29,7 +29,7 @@
     <string name="extreme_latitude_advisory">Near magnetic pole — compass accuracy severely reduced</string>
 
     <!-- P4.3: North type toggle -->
-    <string name="toggle_north_type_content_description">Toggle north type between Magnetic N and True N</string>
+    <string name="toggle_north_type_content_description">Toggle north type between Mag N and True N</string>
 
     <!-- P3.2: Location permission strings -->
     <string name="location_permission_rationale_title">Location needed for True North</string>
@@ -88,4 +88,38 @@
     <string name="declination_decimal_format">(%s°)</string>
     <string name="coordinates_format">Lat %1$s°, Lon %2$s°</string>
     <string name="no_data_em_dash">—</string>
+
+    <!-- P3: Luopan Mode stub placeholder -->
+    <string name="luopan_mode_coming_soon">Luopan Mode — coming soon</string>
+
+    <!-- Task 3.1: Navigation tabs -->
+    <string name="tab_modern">Modern</string>
+    <string name="tab_luopan">Luopan</string>
+
+    <!-- Task 3.2: LuopanFragment — lock button labels (TSPEC §6.2) -->
+    <string name="lock_xiang">Lock 向</string>
+    <string name="clear_xiang">Clear 向</string>
+    <string name="cannot_lock_heading_unreliable">Cannot lock — heading is unreliable</string>
+
+    <!-- Task 3.2: LuopanFragment — 分金 N/A substitute text (BR-07, FSPEC Flow 3) -->
+    <string name="fen_jin_na">N/A — calibrate for 分金 precision</string>
+
+    <!-- Task 3.2: LuopanFragment — confidence badge labels (BR-05, FSPEC Flow 3) -->
+    <string name="confidence_high">High</string>
+    <string name="confidence_moderate">Moderate</string>
+    <string name="confidence_poor">Poor</string>
+    <string name="confidence_stabilizing">Calibrating…</string>
+    <string name="confidence_sensor_error">Sensor error</string>
+
+    <!-- Task 5.2: Ring visibility BottomSheet (TSPEC §6.4, FSPEC Flow 5) -->
+    <string name="ring_visibility_sheet_title">Show / Hide Rings</string>
+    <string name="ring_visibility_done">Done</string>
+    <string name="ring1_label">Ring 1 — 天池</string>
+    <string name="ring2_label">Ring 2 — 先天八卦</string>
+    <string name="ring3_label">Ring 3 — 後天八卦</string>
+    <string name="ring4_label">Ring 4 — 十二地支</string>
+    <string name="ring5_label">Ring 5 — 二十四山</string>
+    <string name="ring6_label">Ring 6 — 六十分金</string>
+    <!-- Overflow menu item to open ring visibility sheet (TalkBack alternative, TSPEC §6.4) -->
+    <string name="menu_show_hide_rings">Show/hide rings</string>
 </resources>

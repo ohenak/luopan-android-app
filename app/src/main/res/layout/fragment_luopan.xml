@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Task 3.2: Full layout for LuopanFragment.
+    TSPEC §6.3 — ConstraintLayout root with:
+      - LuopanView (custom dial, centered/square)
+      - NumericReadoutPanel (below dial, placeholder TextViews — Task 4.2 wires fields)
+      - CardView zuoXiangOverlay (坐向 lock overlay, GONE by default)
+      - Button btnLockXiang ("Lock 向")
+    Background: #2C0E0E (Luopan mode theme, FSPEC §1.4)
+-->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#2C0E0E">
+
+    <!-- Luopan dial — custom Canvas view (Task 4.1 implements rendering) -->
+    <com.luopan.compass.ui.LuopanView
+        android:id="@+id/luopanView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:contentDescription="Luopan dial"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/readoutPanel"
+        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintVertical_chainStyle="packed" />
+
+    <!-- Numeric readout panel — placeholder area; Task 4.2 populates fields -->
+    <LinearLayout
+        android:id="@+id/readoutPanel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="12dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        app:layout_constraintTop_toBottomOf="@+id/luopanView"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/btnLockXiang">
+
+        <!-- Row 1: 山 · 地支 · 後天八卦 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tvMountain"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFDAB9"
+                android:textSize="14sp"
+                android:text="—"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/tvEarthlyBranch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFDAB9"
+                android:textSize="14sp"
+                android:text="—"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/tvTrigram"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFDAB9"
+                android:textSize="14sp"
+                android:text="—" />
+
+        </LinearLayout>
+
+        <!-- Row 2: bearing · north type · 分金 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="2dp">
+
+            <TextView
+                android:id="@+id/tvBearing"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:text="0.0°"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/tvNorthType"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:text="True N"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/tvFenJin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFDAB9"
+                android:textSize="12sp"
+                android:text="—" />
+
+        </LinearLayout>
+
+        <!-- Row 3: confidence badge (bottom-left area) -->
+        <TextView
+            android:id="@+id/tvConfidence"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="2dp"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:text="Poor" />
+
+    </LinearLayout>
+
+    <!-- Lock 向 button — enabled at HIGH/MODERATE OR when lock is active (PM-Q01 fix) -->
+    <Button
+        android:id="@+id/btnLockXiang"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="@string/lock_xiang"
+        android:enabled="false"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/zuoXiangOverlay" />
+
+    <!-- 坐向 overlay CardView — GONE by default; VISIBLE when isLockActive (TSPEC §6.2) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/zuoXiangOverlay"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="#4C1A0A"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/tvXiangOverlay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#C9A84C"
+                android:textSize="14sp"
+                android:text="向: — (—)" />
+
+            <TextView
+                android:id="@+id/tvZuoOverlay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#C9A84C"
+                android:textSize="14sp"
+                android:layout_marginTop="4dp"
+                android:text="坐: — (—)" />
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

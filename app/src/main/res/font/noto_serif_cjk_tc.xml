@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Font family descriptor for Noto Serif CJK TC.
+
+    The actual NotoSerifCJKtc-Regular.otf binary is NOT bundled in the repository
+    (file size > 25 MB). At runtime, ResourcesCompat.getFont() returns null when no
+    matching font file is present and the system falls back to Typeface.DEFAULT
+    (TSPEC §11.4: "If ResourcesCompat.getFont() returns null, cjkTypeface falls back
+    to Typeface.DEFAULT. CJK characters may not render correctly but the app does not
+    crash.")
+
+    To bundle the real font: place NotoSerifCJKtc-Regular.otf in this directory,
+    rename it to noto_serif_cjk_tc.otf, and declare it here:
+
+        <font-family xmlns:app="http://schemas.android.com/apk/res-auto">
+            <font app:fontStyle="normal" app:fontWeight="400"
+                  app:font="@font/noto_serif_cjk_tc_regular"/>
+        </font-family>
+
+    For now this XML itself acts as the resource so R.font.noto_serif_cjk_tc compiles.
+    ResourcesCompat.getFont() will return null (no embedded font entry), and the
+    implementation gracefully falls back to Typeface.DEFAULT.
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android">
+</font-family>

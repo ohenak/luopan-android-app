@@ -50,8 +50,8 @@ sealed class TrueNorthRequestResult {
  * | TRUE      | GpsFix                | "True N"                    |
  * | TRUE      | CachedFix             | "True N"  (NOT "cached")    |
  * | TRUE      | ManualEntry           | "True N (manual location)"  |
- * | TRUE      | Unavailable           | "Magnetic N"  (forced)      |
- * | MAGNETIC  | any                   | "Magnetic N"                |
+ * | TRUE      | Unavailable           | "Mag N"  (forced)           |
+ * | MAGNETIC  | any                   | "Mag N"                     |
  *
  * ## Advisory flags (PLAN §4 P4.1)
  *
@@ -170,7 +170,7 @@ class NorthTypeEngine {
             // Magnetic mode, or True N but no location → identity
             displayHeading = magneticHeading
             declinationDeg = 0.0f
-            northLabel = "Magnetic N"
+            northLabel = "Mag N"
             locationFallbackAdvisory = false
             fallbackMagAdvisory = false
         }

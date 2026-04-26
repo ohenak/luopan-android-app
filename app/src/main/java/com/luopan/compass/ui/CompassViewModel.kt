@@ -27,6 +27,8 @@ import com.luopan.compass.sensor.NoiseSpikeFilter
 import com.luopan.compass.sensor.SensorLayer
 import com.luopan.compass.sensor.SensorRateMonitor
 import com.luopan.compass.sensor.SensorStateMonitor
+import com.luopan.compass.luopan.LuopanStateMapper
+import com.luopan.compass.luopan.ZuoXiangLock
 import com.luopan.compass.settings.SettingsRepository
 import com.luopan.compass.bearing.BearingCapturePort
 import com.luopan.compass.bearing.BearingCaptureUseCase
@@ -62,6 +64,32 @@ class CompassViewModel(
     private val rateMonitor = SensorRateMonitor()
     private val stateMonitor = SensorStateMonitor()
     private val settings = SettingsRepository(application)
+
+    // -----------------------------------------------------------------------
+    // Phase 3 — Luopan session-only state (TSPEC §5.3)
+    // NOT persisted to SharedPreferences — reset on cold start (TSPEC §7.2)
+    // -----------------------------------------------------------------------
+
+    /** Ring visibility flags (0-based: Ring 1 = index 0, Ring 6 = index 5). Default: all visible. */
+    private val _ringVisibility = MutableStateFlow(BooleanArray(6) { true })
+    val ringVisibility: StateFlow<BooleanArray> = _ringVisibility.asStateFlow()
+
+    /** Zoom scale in [0.8f, 2.0f]. Default: 1.0f. */
+    private val _zoomScale = MutableStateFlow(1.0f)
+    val zoomScale: StateFlow<Float> = _zoomScale.asStateFlow()
+
+    /** 坐向 lock — session-only, backed by AtomicReference for cross-dispatcher safety (TE-F04). */
+    private val zuoXiangLock = ZuoXiangLock()
+
+    // -----------------------------------------------------------------------
+    // Phase 3 — Localization settings (read from SettingsRepository at init, TSPEC §8.3)
+    // -----------------------------------------------------------------------
+
+    /** Whether to display pinyin romanization alongside characters. Persisted. */
+    private var showRomanization: Boolean = settings.luopanShowRomanization
+
+    /** Whether to display English equivalents in place of Chinese characters. Persisted. */
+    private var showMyLanguage: Boolean = settings.luopanShowMyLanguage
 
     private val keyManager = DatabaseKeyManager(application)
     private val db by lazy {
@@ -152,13 +180,19 @@ class CompassViewModel(
     /**
      * Changes the active north reference type.
      *
-     * Updates [northType] StateFlow and triggers a heading recomputation on the next
-     * sensor frame (guaranteed ≤50 ms / one 20 Hz frame, well within the 200 ms budget).
+     * Updates [northType] StateFlow and immediately rederives the 坐向 lock display bearings
+     * so that the overlay reflects the new north reference without waiting for the next sensor
+     * frame (AC-23 / TSPEC §8.2).
+     *
+     * PM2-F01 fix: passes [type] explicitly to [onNorthTypeChanged] so the `isMagneticNorth`
+     * flag is derived from the NEW type, not the stale [_uiState.value.north_type] which has
+     * not yet been updated by the sensor pipeline.
      *
      * TSPEC §3.7: `setNorthType()` is the only entry point for north type changes.
      */
     fun setNorthType(type: NorthType) {
         northTypeEngine.setNorthType(type)
+        onNorthTypeChanged(type)
     }
 
     /**
@@ -170,6 +204,133 @@ class CompassViewModel(
         setNorthType(
             if (northType.value == NorthType.TRUE) NorthType.MAGNETIC else NorthType.TRUE
         )
+    }
+
+    // -----------------------------------------------------------------------
+    // Public API — Phase 3 session state setters (TSPEC §5.3)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Updates ring visibility for the given ring index (0-based, Ring 1 = 0, Ring 6 = 5).
+     * Session-only — NOT persisted (TSPEC §7.2 / REQ §5.7).
+     */
+    fun setRingVisible(ringIndex: Int, visible: Boolean) {
+        val arr = _ringVisibility.value.clone()
+        arr[ringIndex] = visible
+        _ringVisibility.value = arr
+    }
+
+    /**
+     * Sets the zoom scale, clamped to [0.8f, 2.0f].
+     * Session-only — NOT persisted (TSPEC §7.2 / REQ §5.7).
+     */
+    fun setZoomScale(scale: Float) {
+        _zoomScale.value = scale.coerceIn(0.8f, 2.0f)
+    }
+
+    /**
+     * Updates the "show romanization" localization setting.
+     * Written to [SettingsRepository] and triggers a LuopanState recomputation.
+     */
+    fun setShowRomanization(value: Boolean) {
+        settings.luopanShowRomanization = value
+        showRomanization = value
+        recomputeLuopanState()
+    }
+
+    /**
+     * Updates the "show in my language" localization setting.
+     * Written to [SettingsRepository] and triggers a LuopanState recomputation.
+     */
+    fun setShowMyLanguage(value: Boolean) {
+        settings.luopanShowMyLanguage = value
+        showMyLanguage = value
+        recomputeLuopanState()
+    }
+
+    /**
+     * Persists the active display mode to [SettingsRepository].
+     *
+     * Called by [LuopanFragment] (on start) and [ModernCompassFragment] (on start)
+     * so the next cold start can navigate to the correct destination (TSPEC §8.4).
+     */
+    fun setDisplayMode(mode: String) {
+        settings.displayMode = mode
+    }
+
+    /**
+     * Locks 向 at the current display bearing, converting to True North first.
+     *
+     * Guards: only locks when confidence is HIGH or MODERATE (FSPEC §4a / BR-05).
+     * Conversion formula (TSPEC §5.3 / PLAN Task 2.3 / N-F02):
+     *   bearingTrueNorth = if (MAGNETIC) displayBearing + declinationDeg else displayBearing
+     *
+     * Always called from the main thread via a UI click; dispatched to ViewModel scope
+     * for single-writer guarantee (TSPEC §4.4 thread-safety contract / TE-F04).
+     */
+    fun lockXiang() {
+        val state = _uiState.value
+        val confidence = state.confidence
+        if (confidence != OverallConfidence.HIGH && confidence != OverallConfidence.MODERATE) return
+        val displayBearing = state.heading_deg.toFloat()
+        val declinationDeg = state.declination_deg
+        // When Magnetic North is active, heading_deg is the magnetic bearing.
+        // True North = magnetic bearing + declinationDeg  (East-positive sign, TSPEC §2.2).
+        val bearingTrueNorth = if (state.north_type == NorthType.MAGNETIC)
+            ((displayBearing + declinationDeg + 360f) % 360f)
+        else
+            displayBearing
+        zuoXiangLock.lock(bearingTrueNorth)
+        zuoXiangLock.rederive(declinationDeg, isMagneticNorth = state.north_type == NorthType.MAGNETIC)
+        recomputeLuopanState()
+    }
+
+    /**
+     * Clears the 坐向 lock state. Session-only — always called from ViewModel scope.
+     */
+    fun clearXiang() {
+        zuoXiangLock.clear()
+        recomputeLuopanState()
+    }
+
+    /**
+     * Called after a north-type change to rederive the lock display bearings.
+     *
+     * The stored True North [ZuoXiangLock.LockState.xiangBearing] is NEVER changed
+     * by this call — only [ZuoXiangLock.LockState.displayXiangBearing] and
+     * [ZuoXiangLock.LockState.displayZuoBearing] are updated (FSPEC §4d / TSPEC §8.2).
+     *
+     * PM2-F01 fix: accepts the new [type] explicitly so that [isMagneticNorth] is derived
+     * from the just-applied type rather than the stale [_uiState.value.north_type] (which
+     * has not yet been updated by the sensor pipeline at the time of this call).
+     *
+     * @param type The new [NorthType] that was just applied by [setNorthType].
+     */
+    fun onNorthTypeChanged(type: NorthType) {
+        // declination_deg is safe to read from the current UI state even though _uiState has not
+        // yet been updated for the new north type: declination changes only on location updates
+        // (seconds-to-minutes timescale), never on the same frame as a north-type toggle.
+        val declinationDeg = _uiState.value.declination_deg
+        val isMagneticNorth = type == NorthType.MAGNETIC
+        zuoXiangLock.rederive(declinationDeg, isMagneticNorth)
+        recomputeLuopanState()
+    }
+
+    /**
+     * Immediately recomputes [LuopanState] from the current [CompassUiState] and publishes it.
+     *
+     * Called whenever session state that affects [LuopanStateMapper] changes (localization
+     * settings, lock state changes) without waiting for the next sensor frame.
+     */
+    private fun recomputeLuopanState() {
+        val current = _uiState.value
+        val luopanState = LuopanStateMapper.map(
+            compassState = current,
+            lockState = zuoXiangLock.lockState,
+            showRomanization = showRomanization,
+            showMyLanguage = showMyLanguage
+        )
+        _uiState.value = current.copy(luopan = luopanState)
     }
 
     /**
@@ -380,7 +541,7 @@ class CompassViewModel(
                     // No model provider: magnetic mode only
                     HeadingFields(
                         displayHeading = rawHeading,
-                        northLabel = "Magnetic N",
+                        northLabel = "Mag N",
                         locationFallbackAdvisory = false,
                         fallbackMagAdvisory = false
                     )
@@ -417,7 +578,15 @@ class CompassViewModel(
                     extremeLatitudeAdvisory = extremeLatitudeActive,
                     locationResult = locationResult
                 )
-                _uiState.value = uiState
+                // Phase 3 — compute LuopanState on Dispatchers.Default (sensor pipeline thread).
+                // TSPEC §8.1: sector-lookup computation stays off the main thread.
+                val luopanState = LuopanStateMapper.map(
+                    compassState = uiState,
+                    lockState = zuoXiangLock.lockState,
+                    showRomanization = showRomanization,
+                    showMyLanguage = showMyLanguage
+                )
+                _uiState.value = uiState.copy(luopan = luopanState)
             }
         }
     }

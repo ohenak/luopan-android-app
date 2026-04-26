@@ -53,4 +53,58 @@ class SettingsRepositoryTest {
         repo.wakeLockEnabled = false
         assertFalse(repo.wakeLockEnabled)
     }
+
+    // Task 2.2 — Phase 3 additions
+
+    @Test fun luopanShowRomanization_default_false() {
+        assertFalse(repo.luopanShowRomanization)
+    }
+
+    @Test fun luopanShowMyLanguage_default_false() {
+        assertFalse(repo.luopanShowMyLanguage)
+    }
+
+    @Test fun displayMode_default_MODERN() {
+        assertEquals(SettingsRepository.DISPLAY_MODE_MODERN, repo.displayMode)
+    }
+
+    @Test fun displayMode_persists_LUOPAN() {
+        repo.displayMode = SettingsRepository.DISPLAY_MODE_LUOPAN
+        assertEquals(SettingsRepository.DISPLAY_MODE_LUOPAN, repo.displayMode)
+    }
+
+    @Test fun luopanShowRomanization_roundtrip() {
+        repo.luopanShowRomanization = true
+        assertTrue(repo.luopanShowRomanization)
+    }
+
+    @Test fun luopanShowMyLanguage_roundtrip() {
+        repo.luopanShowMyLanguage = true
+        assertTrue(repo.luopanShowMyLanguage)
+    }
+
+    @Test fun noSessionOnlyKeysInSharedPreferences() {
+        // Perform normal operations that use the persisted keys
+        repo.displayMode = SettingsRepository.DISPLAY_MODE_LUOPAN
+        repo.luopanShowRomanization = true
+        repo.luopanShowMyLanguage = true
+
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = ctx.getSharedPreferences("luopan_settings", Context.MODE_PRIVATE)
+        val allKeys = prefs.all.keys
+
+        assertFalse("No key containing 'ring' should be present in SharedPreferences",
+            allKeys.any { it.contains("ring") })
+        assertFalse("No key containing 'zoom' should be present in SharedPreferences",
+            allKeys.any { it.contains("zoom") })
+        // TE2-F03: broad assertion — catches exact "lock" plus variants like "is_lock_active",
+        // "xiang_bearing", "zuo_bearing" that would indicate session state accidentally persisted.
+        // "wake_lock_enabled" is a legitimate settings key and is excluded from this check.
+        assertFalse("No lock-related session-state key must be stored in SharedPreferences",
+            allKeys.any { key ->
+                (key.contains("lock") && key != "wake_lock_enabled") ||
+                key.contains("xiang") ||
+                key.contains("zuo")
+            })
+    }
 }
