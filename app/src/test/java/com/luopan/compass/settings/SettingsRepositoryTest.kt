@@ -97,7 +97,14 @@ class SettingsRepositoryTest {
             allKeys.any { it.contains("ring") })
         assertFalse("No key containing 'zoom' should be present in SharedPreferences",
             allKeys.any { it.contains("zoom") })
-        assertFalse("lock key must not be stored in SharedPreferences",
-            allKeys.any { it == "lock" })
+        // TE2-F03: broad assertion — catches exact "lock" plus variants like "is_lock_active",
+        // "xiang_bearing", "zuo_bearing" that would indicate session state accidentally persisted.
+        // "wake_lock_enabled" is a legitimate settings key and is excluded from this check.
+        assertFalse("No lock-related session-state key must be stored in SharedPreferences",
+            allKeys.any { key ->
+                (key.contains("lock") && key != "wake_lock_enabled") ||
+                key.contains("xiang") ||
+                key.contains("zuo")
+            })
     }
 }

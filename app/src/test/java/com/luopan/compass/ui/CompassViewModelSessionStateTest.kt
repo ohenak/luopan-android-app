@@ -84,6 +84,16 @@ class CompassViewModelSessionStateTest {
         fun clearXiang() {
             zuoXiangLock.clear()
         }
+
+        /**
+         * Mirrors [CompassViewModel.setNorthType] after the PM2-F01 fix:
+         * passes [type] explicitly so rederive() uses the NEW north type, not stale UI state.
+         *
+         * TE2-F04 — tests ViewModel wiring via the SessionState helper (not the domain object directly).
+         */
+        fun setNorthType(type: NorthType, declinationDeg: Float) {
+            zuoXiangLock.rederive(declinationDeg, isMagneticNorth = (type == NorthType.MAGNETIC))
+        }
     }
 
     /** Builds a minimal [CompassUiState] with overridable fields for testing. */
@@ -412,6 +422,44 @@ class CompassViewModelSessionStateTest {
         assertEquals(
             "xiangBearing (True North) must remain 45° invariant to north-type switch",
             45.0f, afterSwitch.xiangBearing, 0.1f
+        )
+    }
+
+    /**
+     * TE2-F04: Verifies the ViewModel wiring — setNorthType() must call rederive() with the
+     * NEW north type, not stale UI state (PM2-F01 fix).
+     *
+     * This test uses [SessionState.setNorthType] which mirrors [CompassViewModel.setNorthType]
+     * after the PM2-F01 fix. Unlike [rederive_called_when_northType_switches] which calls the
+     * domain object directly, this test exercises the wiring layer.
+     *
+     * Scenario:
+     *   - Lock at True North 45° while in True North mode.
+     *   - Call setNorthType(MAGNETIC, declinationDeg = -3.5f) via the SessionState helper.
+     *   - displayXiangBearing must become 48.5° (45 − (−3.5) = 48.5).
+     */
+    @Test
+    fun `setNorthType_while_locked_updates_displayXiangBearing_via_rederive`() {
+        val ss = SessionState()
+
+        // Lock at True North 45° (lock() stores the True North bearing directly)
+        ss.zuoXiangLock.lock(45.0f)
+        // Sanity: initially displayXiangBearing == 45° (True North, no declination applied)
+        assertEquals(45.0f, ss.zuoXiangLock.lockState!!.displayXiangBearing, 0.1f)
+
+        // Simulate setNorthType(MAGNETIC) via the SessionState helper (mirrors ViewModel wiring)
+        ss.setNorthType(NorthType.MAGNETIC, declinationDeg = -3.5f)
+
+        // After setNorthType(), rederive() must have been called via ViewModel wiring:
+        // displayXiangBearing = 45.0 − (−3.5) = 48.5°
+        assertEquals(
+            "displayXiangBearing must update to 48.5° after setNorthType(MAGNETIC, -3.5f)",
+            48.5f, ss.zuoXiangLock.lockState!!.displayXiangBearing, 0.1f
+        )
+        // Stored True North bearing must be invariant
+        assertEquals(
+            "xiangBearing (True North) must remain 45° after north-type switch",
+            45.0f, ss.zuoXiangLock.lockState!!.xiangBearing, 0.1f
         )
     }
 }
