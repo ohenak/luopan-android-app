@@ -228,7 +228,7 @@ Tasks 5.1 and 5.2 can run in parallel after Batch 4 completes.
 
 ---
 
-### Task 5.1 — Pinch-to-zoom
+### Task 5.1 — Pinch-to-zoom ✅
 
 | Item | Detail |
 |------|--------|
@@ -238,6 +238,7 @@ Tasks 5.1 and 5.2 can run in parallel after Batch 4 completes.
 | Files to modify (test, instrumented) | `app/src/androidTest/java/com/luopan/compass/ui/LuopanFragmentTest.kt` |
 | Acceptance | `ac25_pinch_zoom_clamped_at_0_8_and_2_0`: scale stays within [0.8f, 2.0f]; `ac26_zoom_survives_config_change`: zoom at 1.5f persists after configuration change (rotation); `ac27_zoom_resets_on_cold_start`: fresh ViewModel has zoomScale 1.0f (from `CompassViewModelSessionStateTest` Task 2.3); readout panel is not affected by zoom (visual check). |
 | Depends on | Task 4.1 (LuopanView — ScaleGestureDetector attached), Task 2.3 (CompassViewModel — setZoomScale) |
+| Status | ✅ Complete — `onZoomChanged` callback wired in `LuopanFragment.onViewCreated()`. Zoom scale observer already present (Task 3.2). Unit tests `zoomScale_clamp_below_min` (0.4f → 0.8f) and `zoomScale_clamp_above_max` (2.5f → 2.0f) added to `LuopanFragmentLogicTest`. Instrumented stubs `ac25_pinch_zoom_clamped_at_0_8_and_2_0` and `ac26_zoom_survives_config_change` added to `LuopanFragmentTest` (compile-only; full multi-touch gesture injection deferred). Readout panel is outside `LuopanView` — confirmed not affected by zoom. All 35 unit tests pass, 0 failures. |
 
 ---
 

@@ -108,6 +108,13 @@ class LuopanFragment : Fragment() {
             }
         }
 
+        // Wire pinch-to-zoom callback: LuopanView → ViewModel (Task 5.1, TSPEC §6.1.5, FSPEC Flow 6)
+        // LuopanView computes the clamped scale in the ScaleGestureDetector; ViewModel re-clamps
+        // for safety (the single source of truth for session zoom state is _zoomScale in ViewModel).
+        luopanView.onZoomChanged = { newScale ->
+            viewModel.setZoomScale(newScale)
+        }
+
         // Observe ring visibility — drives per-ring show/hide in LuopanView (Flow 5)
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.ringVisibility.collect { visible ->
@@ -116,6 +123,8 @@ class LuopanFragment : Fragment() {
         }
 
         // Observe zoom scale — drives dial scale transform in LuopanView (Flow 6)
+        // The ViewModel is the single source of truth; LuopanView applies the scale
+        // and calls requestLayout() so onSizeChanged recomputes geometry (TSPEC §6.2).
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.zoomScale.collect { scale ->
                 luopanView.setZoomScale(scale)
