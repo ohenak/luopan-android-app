@@ -160,6 +160,7 @@ Tasks 3.1 and 3.2 can run in parallel after Batch 2 completes.
 | Files to modify (test) | `app/src/androidTest/java/com/luopan/compass/ui/NoModeSwitcherTest.kt` (update to assert TabLayout IS present in Phase 3) |
 | Acceptance | App launches and shows TabLayout with "Modern" and "Luopan" tabs; tapping "Modern" tab shows existing compass UI with full Phase 1 and Phase 2 behavior; all existing instrumented tests in `ui/` still pass (permission flow, declination info, bearing capture); last-used mode is restored on cold start from `SettingsRepository`; mode transition completes within 300 ms (visual check). |
 | Depends on | Task 2.2 (SettingsRepository — display_mode key), Task 2.3 (CompassViewModel — setDisplayMode) |
+| Status | ✅ Complete — NavHostFragment + TabLayout architecture wired. `ModernCompassFragment` created with all CompassActivity UI logic migrated. Stub `LuopanFragment` placeholder for Task 3.2. `nav_graph.xml` with `dest_modern`/`dest_luopan`. Navigation dependencies (navigation-fragment-ktx 2.7.7, navigation-ui-ktx 2.7.7) added. `NoModeSwitcherTest` updated to assert TabLayout IS present. 487 unit tests pass, 0 failures. |
 
 ---
 

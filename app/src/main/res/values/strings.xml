@@ -91,4 +91,8 @@
 
     <!-- P3: Luopan Mode stub placeholder -->
     <string name="luopan_mode_coming_soon">Luopan Mode — coming soon</string>
+
+    <!-- Task 3.1: Navigation tabs -->
+    <string name="tab_modern">Modern</string>
+    <string name="tab_luopan">Luopan</string>
 </resources>
