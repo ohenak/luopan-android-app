@@ -710,4 +710,15 @@ class LuopanStateMapperTest {
             Locale.setDefault(previousLocale)
         }
     }
+
+    // -------------------------------------------------------------------------
+    // LuopanState.INITIAL — companion object invariants
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `LuopanState INITIAL northLabel is Mag N matching default north reference`() {
+        // The ViewModel defaults to NorthType.MAGNETIC at startup, so INITIAL.northLabel
+        // must be "Mag N" — not "True N" — to avoid a flash of wrong state on first render.
+        assertEquals("Mag N", LuopanState.INITIAL.northLabel)
+    }
 }

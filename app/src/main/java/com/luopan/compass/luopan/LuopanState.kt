@@ -62,11 +62,11 @@ data class LuopanState(
          * Safe initial state used before the sensor pipeline emits the first reading.
          *
          * All character fields default to "—" (pre-sensor-error-like state).
-         * northLabel defaults to "True N" per the app default north reference at startup.
+         * northLabel is "Mag N" to match the ViewModel default of NorthType.MAGNETIC.
          */
         val INITIAL = LuopanState(
             bearingDeg = 0f,
-            northLabel = "True N",
+            northLabel = "Mag N",
             declinationDeg = 0f,
             confidence = OverallConfidence.POOR,
             mountainChar = "—",
