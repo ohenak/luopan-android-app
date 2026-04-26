@@ -294,4 +294,106 @@ class LuopanFragmentLogicTest {
     fun `formatBearingDisplay formats near-360 correctly`() {
         assertEquals("359.9°", formatBearingDisplay(359.9f))
     }
+
+    // ---------------------------------------------------------------------------
+    // Numeric readout — char+pinyin field formatting (Task 4.2, FSPEC Flow 7)
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Mirrors [LuopanFragment.buildCharPinyinField].
+     */
+    private fun buildCharPinyinField(charField: String, pinyin: String, showPinyin: Boolean): String =
+        if (showPinyin && pinyin.isNotEmpty()) "$charField ($pinyin)" else charField
+
+    @Test
+    fun `buildCharPinyinField with showRomanization true appends pinyin`() {
+        assertEquals("午 (Wǔ)", buildCharPinyinField("午", "Wǔ", showPinyin = true))
+    }
+
+    @Test
+    fun `buildCharPinyinField with showRomanization false shows char only`() {
+        assertEquals("午", buildCharPinyinField("午", "Wǔ", showPinyin = false))
+    }
+
+    @Test
+    fun `buildCharPinyinField with empty pinyin shows char only even when showPinyin is true`() {
+        assertEquals("午", buildCharPinyinField("午", "", showPinyin = true))
+    }
+
+    @Test
+    fun `buildCharPinyinField with dash char and showRomanization true returns dash only`() {
+        // SENSOR_ERROR: char is "—", pinyin is ""; showPinyin=true has no effect on dash
+        assertEquals("—", buildCharPinyinField("—", "", showPinyin = true))
+    }
+
+    // ---------------------------------------------------------------------------
+    // Numeric readout — formatMountainField (Task 4.2, FSPEC Flow 3, ES-01)
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Mirrors [LuopanFragment.formatMountainField] using a minimal LuopanState stub.
+     */
+    private fun formatMountainField(
+        mountainChar: String,
+        mountainPinyin: String,
+        showRomanization: Boolean,
+        confidence: OverallConfidence
+    ): String {
+        if (confidence == OverallConfidence.SENSOR_ERROR) return mountainChar
+        return buildCharPinyinField(mountainChar, mountainPinyin, showRomanization)
+    }
+
+    @Test
+    fun `formatMountainField HIGH confidence with showRomanization shows char and pinyin — AC-03`() {
+        val result = formatMountainField("午", "Wǔ", showRomanization = true, OverallConfidence.HIGH)
+        assertEquals("午 (Wǔ)", result)
+    }
+
+    @Test
+    fun `formatMountainField HIGH confidence without showRomanization shows char only`() {
+        val result = formatMountainField("午", "Wǔ", showRomanization = false, OverallConfidence.HIGH)
+        assertEquals("午", result)
+    }
+
+    @Test
+    fun `formatMountainField SENSOR_ERROR returns dash without pinyin — ES-01`() {
+        val result = formatMountainField("—", "", showRomanization = true, OverallConfidence.SENSOR_ERROR)
+        assertEquals("—", result)
+    }
+
+    @Test
+    fun `formatMountainField MODERATE confidence shows field normally — AC-06`() {
+        val result = formatMountainField("午", "Wǔ", showRomanization = true, OverallConfidence.MODERATE)
+        assertEquals("午 (Wǔ)", result)
+    }
+
+    // ---------------------------------------------------------------------------
+    // Numeric readout — formatTrigramField (Task 4.2, FSPEC Flow 3, ES-01)
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Mirrors [LuopanFragment.formatTrigramField].
+     */
+    private fun formatTrigramField(symbol: String, name: String, direction: String): String {
+        if (symbol == "—") return "—"
+        return "$symbol $name $direction"
+    }
+
+    @Test
+    fun `formatTrigramField assembles symbol name and direction — AC-03`() {
+        val result = formatTrigramField("☲", "離", "南")
+        assertEquals("☲ 離 南", result)
+    }
+
+    @Test
+    fun `formatTrigramField returns dash when symbol is dash — SENSOR_ERROR`() {
+        val result = formatTrigramField("—", "—", "—")
+        assertEquals("—", result)
+    }
+
+    @Test
+    fun `formatTrigramField with English names assembles correctly — showMyLanguage`() {
+        val result = formatTrigramField("☲", "Li", "South")
+        assertEquals("☲ Li South", result)
+    }
 }

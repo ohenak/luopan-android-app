@@ -35,6 +35,11 @@ class LuopanFragment : Fragment() {
 
     private val viewModel: CompassViewModel by activityViewModels()
 
+    companion object {
+        /** Sentinel displayed in readout fields when confidence == SENSOR_ERROR (FSPEC ES-01). */
+        private const val SENSOR_ERROR_DASH = "—"
+    }
+
     // Views — bound in onViewCreated, released in onDestroyView
     private lateinit var luopanView: LuopanView
     private lateinit var tvMountain: TextView
@@ -127,19 +132,91 @@ class LuopanFragment : Fragment() {
 
     // ---------------------------------------------------------------------------
     // Readout panel update (TSPEC §6.2 updateNumericReadout, FSPEC Flow 3)
-    // Task 4.2 will extend this with full field wiring; for now the TextViews
-    // receive placeholder values to prove the wiring compiles and renders.
+    //
+    // Canonical field order (REQ §5.5):
+    //   山 · 地支 · 後天八卦 · bearing · north type · 分金 · confidence badge
+    //
+    // SENSOR_ERROR guard (FSPEC ES-01):
+    //   - 山, 地支, 後天八卦, and bearing show "—" (values come pre-set to "—" in LuopanState
+    //     by the mapper for all character fields; bearing is explicitly suppressed here)
+    //   - north type and confidence badge always render normally
+    //
+    // Localization (FSPEC Flow 7):
+    //   - showRomanization: append " (pinyin)" to character fields when true
+    //   - showMyLanguage: character fields use English (mountainChar/trigramName/etc. are
+    //     already set to English by the mapper when showMyLanguage=true); pinyin is still
+    //     applied when showRomanization is also true
     // ---------------------------------------------------------------------------
 
     private fun updateNumericReadout(state: LuopanState) {
-        tvMountain.text = state.mountainChar
-        tvEarthlyBranch.text = state.earthlyBranchChar
-        tvTrigram.text = buildTrigramField(state)
-        tvBearing.text = formatBearingDisplay(state.bearingDeg)
+        tvMountain.text = formatMountainField(state)
+        tvEarthlyBranch.text = formatEarthlyBranchField(state)
+        tvTrigram.text = formatTrigramField(state)
+
+        // SENSOR_ERROR: suppress computed bearing; retain north type and badge (FSPEC ES-01)
+        tvBearing.text = if (state.confidence == OverallConfidence.SENSOR_ERROR) {
+            SENSOR_ERROR_DASH
+        } else {
+            formatBearingDisplay(state.bearingDeg)
+        }
+
         tvNorthType.text = state.northLabel
         tvFenJin.text = state.fenJinLabel ?: getString(R.string.fen_jin_na)
         tvConfidence.text = formatConfidenceBadge(state.confidence)
         tvConfidence.setBackgroundColor(confidenceColor(state.confidence))
+    }
+
+    /**
+     * Formats the 山 (Ring 5 — 二十四山) field.
+     *
+     * Rules (FSPEC Flow 3, Flow 7, ES-01):
+     * - On SENSOR_ERROR, mountainChar is already "—" (set by mapper); pinyin is suppressed.
+     * - showMyLanguage: mountainChar contains English (e.g. "Horse") — set by mapper.
+     * - showRomanization: append " (pinyin)" when pinyin is non-empty.
+     */
+    internal fun formatMountainField(state: LuopanState): String {
+        if (state.confidence == OverallConfidence.SENSOR_ERROR) return state.mountainChar
+        return buildCharPinyinField(state.mountainChar, state.mountainPinyin, state.showRomanization)
+    }
+
+    /**
+     * Formats the 地支 (Ring 4 — 十二地支) field.
+     *
+     * Rules mirror the 山 field: SENSOR_ERROR → "—", pinyin shown when showRomanization=true.
+     */
+    internal fun formatEarthlyBranchField(state: LuopanState): String {
+        if (state.confidence == OverallConfidence.SENSOR_ERROR) return state.earthlyBranchChar
+        return buildCharPinyinField(
+            state.earthlyBranchChar, state.earthlyBranchPinyin, state.showRomanization
+        )
+    }
+
+    /**
+     * Formats the 後天八卦 (Ring 3) field: "[symbol] [name] [direction]".
+     *
+     * Rules (FSPEC Flow 3, Flow 7, ES-01):
+     * - On SENSOR_ERROR, trigramSymbol is "—" (set by mapper); return "—" alone.
+     * - showMyLanguage: trigramName and trigramDirection contain English (set by mapper).
+     * - Trigram symbols (☰ ☱ ☲ ☳ ☴ ☵ ☶ ☷) are retained regardless of language mode.
+     */
+    internal fun formatTrigramField(state: LuopanState): String {
+        if (state.trigramSymbol == SENSOR_ERROR_DASH) return SENSOR_ERROR_DASH
+        return "${state.trigramSymbol} ${state.trigramName} ${state.trigramDirection}"
+    }
+
+    /**
+     * Builds a "[char]" or "[char] ([pinyin])" display string.
+     *
+     * @param charField  The primary character (Chinese or English per showMyLanguage).
+     * @param pinyin     Pinyin string; may be empty when showRomanization=false or not applicable.
+     * @param showPinyin True when the "Show romanization" toggle is enabled.
+     */
+    internal fun buildCharPinyinField(charField: String, pinyin: String, showPinyin: Boolean): String {
+        return if (showPinyin && pinyin.isNotEmpty()) {
+            "$charField ($pinyin)"
+        } else {
+            charField
+        }
     }
 
     // ---------------------------------------------------------------------------
@@ -260,14 +337,6 @@ class LuopanFragment : Fragment() {
         displayBearing: Float,
         northLabel: String
     ): String = "坐: $zuoMountain (%.1f° $northLabel)".format(displayBearing)
-
-    /**
-     * Builds the trigram display field: symbol + name + direction.
-     */
-    private fun buildTrigramField(state: LuopanState): String {
-        if (state.trigramSymbol == "—") return "—"
-        return "${state.trigramSymbol} ${state.trigramName} ${state.trigramDirection}"
-    }
 
     /**
      * Maps [OverallConfidence] to a badge label string (BR-05, FSPEC Flow 3).
