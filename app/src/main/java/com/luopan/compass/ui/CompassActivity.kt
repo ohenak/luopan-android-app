@@ -54,6 +54,9 @@ class CompassActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Touch viewModel here so the Factory-created instance is in the ViewModelStore before
+        // any Fragment calls activityViewModels() during onStart → onViewCreated.
+        viewModel
         setContentView(R.layout.activity_compass)
 
         tabLayout = findViewById(R.id.tabLayout)
