@@ -192,6 +192,7 @@ Tasks 4.1, 4.2, and 4.3 can run in parallel after Batch 3 completes.
 | Files to create (test) | `app/src/test/java/com/luopan/compass/ui/LuopanViewTest.kt` (Robolectric) |
 | Acceptance | Robolectric tests pass: `setHeading_90_rotates_minus_90` (dial rotation math BR-11); `setZoomScale_below_min_clamped_to_0_8`; `setZoomScale_above_max_clamped_to_2_0`; `all_rings_hidden_no_crash`; `setLockState_active_with_display_bearing` (tick mark uses `displayXiangBearing` not raw `xiangBearing` — V3-F01 fix); pointer element is drawn outside rotation transform (never rotates). Visual inspection on emulator: all 6 rings visible at default zoom; ring labels legible; dial rotates counter-clockwise when device heading increases; font loads correctly (CJK characters render). |
 | Depends on | Task 3.2 (LuopanFragment shell — provides layout context and setter API contract) |
+| Status | ✅ Complete — 24 Robolectric tests pass (0 failures). All 7 required acceptance tests implemented: `setHeading_90_rotates_minus_90`, `setZoomScale_below_min_clamped_to_0_8`, `setZoomScale_above_max_clamped_to_2_0`, `all_rings_hidden_no_crash`, `setLockState_active_true_stores_display_bearing` (V3-F01), `setLockState_inactive_clears_bearing`, `pointer_not_in_ring_rotation_matrix`. Font XML descriptor added to `res/font/noto_serif_cjk_tc.xml` (real TTF not bundled; falls back to Typeface.DEFAULT per TSPEC §11.4). Full test suite passes with no regressions. |
 
 ---
 
