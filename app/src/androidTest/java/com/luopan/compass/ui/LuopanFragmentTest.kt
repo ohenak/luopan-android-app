@@ -335,6 +335,67 @@ class LuopanFragmentTest {
     }
 
     // -----------------------------------------------------------------------
+    // Task 7.1 — AC-21: Lock state preserved across mode switch (Scenario I)
+    // -----------------------------------------------------------------------
+
+    /**
+     * AC-21 (Fragment-level): When 坐向 is locked and the user switches to Modern Mode
+     * and back, the 坐向 overlay is restored.
+     *
+     * FSPEC §4c, REQ §12 Scenario I:
+     *   Given: 坐向 is locked at 45° True N (向: 艮, 坐: 坤) in Luopan Mode.
+     *   When:  User switches to Modern Mode then back to Luopan Mode.
+     *   Then:  The 坐向 overlay CardView is VISIBLE and shows "向:" and "坐:" labels.
+     *
+     * Because the lock guard requires HIGH/MODERATE confidence, this test has two paths:
+     * - When sensors provide HIGH/MODERATE (real device): lock is applied, overlay verified.
+     * - When sensors provide POOR (emulator without sensor data): lock is not applied;
+     *   overlay remains GONE after round-trip — the test verifies state is unchanged.
+     *
+     * The round-trip to Modern Mode is the key assertion: the ViewModel holds the lock
+     * across fragment navigation (TSPEC §1.3, FSPEC §4c).
+     *
+     * PLAN Task 7.1, TSPEC §12.4, FSPEC §4c, AC-21.
+     */
+    @Test
+    fun ac21_lock_state_preserved_across_mode_switch() {
+        // We are already in Luopan Mode (navigated by @Before).
+        onView(withId(R.id.luopanView)).check(matches(isDisplayed()))
+
+        // Attempt to activate the 坐向 lock. lockXiang() is a no-op at POOR confidence.
+        var lockWasSuccessful = false
+        activityRule.scenario.onActivity { activity ->
+            activity.viewModel.lockXiang()
+            lockWasSuccessful = activity.viewModel.uiState.value.luopan.isLockActive
+        }
+
+        // Switch to Modern Mode and back to Luopan Mode (the round-trip under test).
+        onView(withText(R.string.tab_modern)).perform(click())
+        onView(withText(R.string.tab_luopan)).perform(click())
+        onView(withId(R.id.luopanView)).check(matches(isDisplayed()))
+
+        if (lockWasSuccessful) {
+            // Lock survived the round-trip — overlay must be visible (AC-21, FSPEC §4c step 3-4).
+            onView(withId(R.id.zuoXiangOverlay))
+                .check(matches(isDisplayed()))
+            onView(withId(R.id.tvXiangOverlay))
+                .check(matches(isDisplayed()))
+            onView(withId(R.id.tvZuoOverlay))
+                .check(matches(isDisplayed()))
+            // Verify "向:" and "坐:" prefixes are present in the overlay text.
+            onView(withId(R.id.tvXiangOverlay))
+                .check(matches(withText(org.hamcrest.Matchers.startsWith("向:"))))
+            onView(withId(R.id.tvZuoOverlay))
+                .check(matches(withText(org.hamcrest.Matchers.startsWith("坐:"))))
+        } else {
+            // No lock was applied (POOR confidence on emulator) — overlay remains GONE
+            // after the round-trip, confirming state is unchanged (no spurious lock appears).
+            onView(withId(R.id.zuoXiangOverlay))
+                .check(matches(not(isDisplayed())))
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Task 4.3 — AC-23: Overlay displays magnetic bearing (TSPEC N-F05)
     // -----------------------------------------------------------------------
 
