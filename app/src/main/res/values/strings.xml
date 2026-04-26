@@ -95,4 +95,19 @@
     <!-- Task 3.1: Navigation tabs -->
     <string name="tab_modern">Modern</string>
     <string name="tab_luopan">Luopan</string>
+
+    <!-- Task 3.2: LuopanFragment — lock button labels (TSPEC §6.2) -->
+    <string name="lock_xiang">Lock 向</string>
+    <string name="clear_xiang">Clear 向</string>
+    <string name="cannot_lock_heading_unreliable">Cannot lock — heading is unreliable</string>
+
+    <!-- Task 3.2: LuopanFragment — 分金 N/A substitute text (BR-07, FSPEC Flow 3) -->
+    <string name="fen_jin_na">N/A — calibrate for 分金 precision</string>
+
+    <!-- Task 3.2: LuopanFragment — confidence badge labels (BR-05, FSPEC Flow 3) -->
+    <string name="confidence_high">High</string>
+    <string name="confidence_moderate">Moderate</string>
+    <string name="confidence_poor">Poor</string>
+    <string name="confidence_stabilizing">Calibrating…</string>
+    <string name="confidence_sensor_error">Sensor error</string>
 </resources>
