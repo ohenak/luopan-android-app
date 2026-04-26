@@ -88,4 +88,7 @@
     <string name="declination_decimal_format">(%s°)</string>
     <string name="coordinates_format">Lat %1$s°, Lon %2$s°</string>
     <string name="no_data_em_dash">—</string>
+
+    <!-- P3: Luopan Mode stub placeholder -->
+    <string name="luopan_mode_coming_soon">Luopan Mode — coming soon</string>
 </resources>

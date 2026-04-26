@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <com.luopan.compass.ui.CompassRoseView
+        android:id="@+id/compassRose"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/headingText"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintDimensionRatio="1:1" />
+
+    <TextView
+        android:id="@+id/headingText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/white"
+        android:textSize="48sp"
+        android:fontFamily="monospace"
+        android:text="---"
+        android:contentDescription="@string/heading_content_description"
+        app:layout_constraintBottom_toTopOf="@id/northLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/northLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:text="@string/magnetic_north"
+        app:layout_constraintBottom_toTopOf="@id/northTypeToggleGroup"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- P4.3: North type toggle (TRUE / MAGNETIC only — AT-G-08) -->
+    <!-- P5.2: Toggle group is now constrained to end of btn_declination_info guide -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/northTypeToggleGroup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        app:singleSelection="true"
+        app:selectionRequired="true"
+        app:checkedButton="@id/btn_magnetic_n"
+        app:layout_constraintBottom_toTopOf="@id/tiltText"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btn_declination_info">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_magnetic_n"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/magnetic_north"
+            android:textSize="12sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_true_n"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/true_north"
+            android:textSize="12sp" />
+
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <!-- P5.2: Declination info icon button — tapping opens DeclinationInfoBottomSheet -->
+    <ImageButton
+        android:id="@+id/btn_declination_info"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@android:drawable/ic_menu_info_details"
+        android:contentDescription="@string/declination_info_button_content_description"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:tint="@android:color/white"
+        android:padding="8dp"
+        app:layout_constraintBottom_toTopOf="@id/tiltText"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/northTypeToggleGroup" />
+
+    <TextView
+        android:id="@+id/tiltText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/tilt_warning"
+        android:textSize="14sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/calDotRow"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/calDotRow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        app:layout_constraintBottom_toTopOf="@id/calCta"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <View
+            android:id="@+id/calDot"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:background="@drawable/cal_dot" />
+
+        <TextView
+            android:id="@+id/calAgeLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:text="Uncalibrated" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/calCta"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/calibrate_now"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="32dp" />
+
+    <!-- Confidence badge -->
+    <TextView
+        android:id="@+id/confidence_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:padding="4dp"
+        android:text=""
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="8dp" />
+
+    <!-- Interference banner -->
+    <TextView
+        android:id="@+id/interference_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:textColor="@android:color/white"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/calDotRow"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- No-gyroscope advisory -->
+    <TextView
+        android:id="@+id/no_gyro_advisory"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/interference_banner"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Power-saving advisory -->
+    <TextView
+        android:id="@+id/power_saving_advisory_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/no_gyro_advisory"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- P7.1: Extreme latitude advisory banner — shown when abs(WMM inclination) >= 80° -->
+    <TextView
+        android:id="@+id/extreme_latitude_advisory_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:textColor="@android:color/white"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:background="#FFC107"
+        android:text="@string/extreme_latitude_advisory"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/power_saving_advisory_text"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Sensor stuck advisory -->
+    <TextView
+        android:id="@+id/sensor_stuck_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/holo_red_light"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/power_saving_advisory_text"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- P6.3: Capture FAB — always visible, always tappable (BR-CAP-08, FSPEC §2.5 step 1) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_save_bearing"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:contentDescription="@string/fab_save_bearing_content_description"
+        app:srcCompat="@android:drawable/ic_menu_save"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- No-magnetometer error screen (full-screen overlay) -->
+    <LinearLayout
+        android:id="@+id/no_mag_error_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="32dp"
+        android:background="@android:color/black"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/compass_unavailable"
+            android:textColor="@android:color/white"
+            android:textSize="24sp"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/no_magnetometer_explanation"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:gravity="center" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

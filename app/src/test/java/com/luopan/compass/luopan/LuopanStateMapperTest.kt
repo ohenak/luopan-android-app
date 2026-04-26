@@ -13,6 +13,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Locale
 
 /**
  * Unit tests for [LuopanStateMapper].
@@ -423,5 +424,258 @@ class LuopanStateMapperTest {
         // The symbol portion "☲" is always present in trigramSymbol
         assertTrue("trigramSymbol must contain ☲", resultChinese.trigramSymbol.contains("☲"))
         assertTrue("trigramSymbol must still contain ☲ in English mode", resultEnglish.trigramSymbol.contains("☲"))
+    }
+
+    // =========================================================================
+    // Task 6.1 — Localization toggle tests (BR-08, Flow 7, REQ §5.8)
+    // =========================================================================
+
+    // -------------------------------------------------------------------------
+    // mapper_showMyLanguage_false_uses_chinese
+    // BR-08: default (showMyLanguage=false) always returns zh-Hant characters,
+    // regardless of any system-locale setting.
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_showMyLanguage_false_uses_chinese`() {
+        // bearing 180° → Ring 5 sector 午, Ring 4 sector 午
+        val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
+
+        val result = LuopanStateMapper.map(
+            compassState = state,
+            lockState = null,
+            showRomanization = false,
+            showMyLanguage = false
+        )
+
+        // Default: Chinese characters, not English
+        assertEquals("mountainChar must be zh-Hant '午' when showMyLanguage=false", "午", result.mountainChar)
+        assertEquals("earthlyBranchChar must be zh-Hant '午' when showMyLanguage=false", "午", result.earthlyBranchChar)
+        // Ring 3 name/direction must also be Chinese
+        assertEquals("trigramName must be zh-Hant '離' when showMyLanguage=false", "離", result.trigramName)
+        assertEquals("trigramDirection must be zh-Hant '南' when showMyLanguage=false", "南", result.trigramDirection)
+    }
+
+    // -------------------------------------------------------------------------
+    // mapper_showMyLanguage_ring3_english
+    // showMyLanguage=true → Ring 3 trigramName/trigramDirection use English
+    // bearing 180° → ☲ 離 南 → english "Li · South" → name="Li", direction="South"
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_showMyLanguage_ring3_english`() {
+        val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
+
+        val result = LuopanStateMapper.map(
+            compassState = state,
+            lockState = null,
+            showRomanization = false,
+            showMyLanguage = true
+        )
+
+        // English equivalents from FSPEC §4.8 Ring 3: 離 南 → "Li · South"
+        assertEquals("trigramName must be 'Li' when showMyLanguage=true at 180°", "Li", result.trigramName)
+        assertEquals("trigramDirection must be 'South' when showMyLanguage=true at 180°", "South", result.trigramDirection)
+        // trigramSymbol (the full character field "☲ 離 南") is always retained
+        assertTrue("trigramSymbol must still be zh-Hant full string", result.trigramSymbol.contains("☲"))
+    }
+
+    // -------------------------------------------------------------------------
+    // mapper_showMyLanguage_ring4_english
+    // showMyLanguage=true → Ring 4 uses English zodiac name
+    // bearing 180° → 午 → english "Horse"
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_showMyLanguage_ring4_english`() {
+        val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
+
+        val result = LuopanStateMapper.map(
+            compassState = state,
+            lockState = null,
+            showRomanization = false,
+            showMyLanguage = true
+        )
+
+        // FSPEC §4.8 Ring 4: 午 → "Horse"
+        assertEquals("earthlyBranchChar must be 'Horse' when showMyLanguage=true at 180°", "Horse", result.earthlyBranchChar)
+        assertNotEquals("earthlyBranchChar must NOT be '午' when showMyLanguage=true", "午", result.earthlyBranchChar)
+    }
+
+    // -------------------------------------------------------------------------
+    // mapper_showMyLanguage_ring5_english
+    // showMyLanguage=true → Ring 5 uses English mountain label
+    // bearing 180° → 午 (index 13) → english "Horse"
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_showMyLanguage_ring5_english`() {
+        val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
+
+        val result = LuopanStateMapper.map(
+            compassState = state,
+            lockState = null,
+            showRomanization = false,
+            showMyLanguage = true
+        )
+
+        // FSPEC §4.8 Ring 5: 午 → "Horse"
+        assertEquals("mountainChar must be 'Horse' when showMyLanguage=true at 180°", "Horse", result.mountainChar)
+        assertNotEquals("mountainChar must NOT be '午' when showMyLanguage=true", "午", result.mountainChar)
+    }
+
+    // -------------------------------------------------------------------------
+    // mapper_showRomanization_true_populates_pinyin
+    // showRomanization=true → mountainPinyin is non-empty
+    // bearing 180° → 午 → pinyin "Wǔ"
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_showRomanization_true_populates_pinyin`() {
+        val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
+
+        val result = LuopanStateMapper.map(
+            compassState = state,
+            lockState = null,
+            showRomanization = true,
+            showMyLanguage = false
+        )
+
+        // Ring 5 at 180° → 午 → pinyin "Wǔ"
+        assertTrue("mountainPinyin must be non-empty when showRomanization=true", result.mountainPinyin.isNotEmpty())
+        assertEquals("mountainPinyin must be 'Wǔ' for 午 at 180°", "Wǔ", result.mountainPinyin)
+        // Ring 4 at 180° → 午 → pinyin "Wǔ"
+        assertEquals("earthlyBranchPinyin must be 'Wǔ' for 午 at 180°", "Wǔ", result.earthlyBranchPinyin)
+    }
+
+    // -------------------------------------------------------------------------
+    // mapper_showRomanization_false_empty_pinyin
+    // showRomanization=false → all pinyin fields are empty string
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_showRomanization_false_empty_pinyin`() {
+        val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
+
+        val result = LuopanStateMapper.map(
+            compassState = state,
+            lockState = null,
+            showRomanization = false,
+            showMyLanguage = false
+        )
+
+        assertEquals("mountainPinyin must be '' when showRomanization=false", "", result.mountainPinyin)
+        assertEquals("earthlyBranchPinyin must be '' when showRomanization=false", "", result.earthlyBranchPinyin)
+    }
+
+    // -------------------------------------------------------------------------
+    // mapper_both_toggles_on
+    // showRomanization=true AND showMyLanguage=true → English char + pinyin both present
+    // bearing 180° → Ring 5: char="Horse", pinyin="Wǔ"
+    //                Ring 4: char="Horse", pinyin="Wǔ"
+    //                Ring 3: name="Li", direction="South"
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_both_toggles_on`() {
+        val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
+
+        val result = LuopanStateMapper.map(
+            compassState = state,
+            lockState = null,
+            showRomanization = true,
+            showMyLanguage = true
+        )
+
+        // English labels present
+        assertEquals("mountainChar must be English 'Horse'", "Horse", result.mountainChar)
+        assertEquals("earthlyBranchChar must be English 'Horse'", "Horse", result.earthlyBranchChar)
+        assertEquals("trigramName must be English 'Li'", "Li", result.trigramName)
+        assertEquals("trigramDirection must be English 'South'", "South", result.trigramDirection)
+
+        // Pinyin also present (both toggles ON simultaneously — FSPEC Flow 7)
+        assertEquals("mountainPinyin must be 'Wǔ' with romanization ON", "Wǔ", result.mountainPinyin)
+        assertEquals("earthlyBranchPinyin must be 'Wǔ' with romanization ON", "Wǔ", result.earthlyBranchPinyin)
+    }
+
+    // -------------------------------------------------------------------------
+    // mapper_english_fallback_uses_chinese_when_empty
+    // When LabelData.english is empty, the mapper falls back to LabelData.character.
+    // Ring 6 (六十分金) has empty english by design (no §5.8 mapping exists for Ring 6).
+    // Even with showMyLanguage=true, fenJinLabel always uses the Ring 6 character field.
+    // Bearing 180° → 壬午分金 (HIGH confidence) — confirmed Chinese label.
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_english_fallback_uses_chinese_when_empty`() {
+        // showMyLanguage=true; Ring 6 english is "" → must use character "壬午分金"
+        val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
+
+        val result = LuopanStateMapper.map(
+            compassState = state,
+            lockState = null,
+            showRomanization = false,
+            showMyLanguage = true   // even when English mode is ON
+        )
+
+        // Ring 6 english is intentionally empty — fallback to character field
+        assertNotNull("fenJinLabel must be non-null at HIGH confidence", result.fenJinLabel)
+        assertEquals(
+            "fenJinLabel must be zh-Hant '壬午分金' even with showMyLanguage=true (empty english field)",
+            "壬午分金",
+            result.fenJinLabel
+        )
+
+        // Also verify Ring 5 fallback: 午 → english "Horse" (non-empty) → English is used
+        assertEquals("mountainChar should be 'Horse' when showMyLanguage=true and english is non-empty", "Horse", result.mountainChar)
+    }
+
+    // -------------------------------------------------------------------------
+    // mapper_locale_independence
+    // BR-08: system locale has ZERO influence on ring label language.
+    // Setting Locale.setDefault(Locale.ENGLISH) must NOT cause ring labels to appear in English.
+    // When showMyLanguage=false, all labels are zh-Hant regardless of the JVM default locale.
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_locale_independence`() {
+        val previousLocale = Locale.getDefault()
+        try {
+            // Force JVM locale to English — simulates an English-locale device
+            Locale.setDefault(Locale.ENGLISH)
+
+            val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
+
+            val result = LuopanStateMapper.map(
+                compassState = state,
+                lockState = null,
+                showRomanization = false,
+                showMyLanguage = false   // toggle OFF — system locale must NOT matter
+            )
+
+            // BR-08: ring labels must remain in Traditional Chinese regardless of system locale
+            assertEquals(
+                "mountainChar must be zh-Hant '午' regardless of Locale.ENGLISH system locale",
+                "午",
+                result.mountainChar
+            )
+            assertEquals(
+                "earthlyBranchChar must be zh-Hant '午' regardless of Locale.ENGLISH system locale",
+                "午",
+                result.earthlyBranchChar
+            )
+            assertEquals(
+                "trigramName must be zh-Hant '離' regardless of Locale.ENGLISH system locale",
+                "離",
+                result.trigramName
+            )
+            assertEquals(
+                "trigramDirection must be zh-Hant '南' regardless of Locale.ENGLISH system locale",
+                "南",
+                result.trigramDirection
+            )
+        } finally {
+            Locale.setDefault(previousLocale)
+        }
     }
 }

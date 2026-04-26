@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Stub layout for LuopanFragment (Task 3.1 placeholder).
+    The full fragment_luopan.xml layout is created in Task 3.2.
+    Background matches Luopan Mode theme color (#2C0E0E) per FSPEC §1.4.
+-->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#2C0E0E">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="@string/luopan_mode_coming_soon"
+        android:textColor="@android:color/white"
+        android:textSize="18sp" />
+
+</FrameLayout>
