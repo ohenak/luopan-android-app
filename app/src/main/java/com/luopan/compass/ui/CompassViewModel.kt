@@ -11,6 +11,10 @@ import com.luopan.compass.model.CalibrationQuality
 import com.luopan.compass.confidence.NoiseVarianceTracker
 import com.luopan.compass.db.DatabaseKeyManager
 import com.luopan.compass.db.LuopanDatabase
+import com.luopan.compass.drift.AccelerometerVarianceTracker
+import com.luopan.compass.drift.DriftDetector
+import com.luopan.compass.drift.DriftEvent
+import com.luopan.compass.drift.IDriftDetector
 import com.luopan.compass.fusion.FusionEngine
 import com.luopan.compass.location.LocationRepository
 import com.luopan.compass.location.LocationResult
@@ -52,7 +56,10 @@ class CompassViewModel(
     private val locationRepository: LocationRepository?,
     private val clock: Clock,
     private val captureUseCase: BearingCapturePort? = null,
-    calibrationRepository: CalibrationRepository? = null
+    calibrationRepository: CalibrationRepository? = null,
+    private val driftDetector: IDriftDetector? = null,
+    private val accVarianceTracker: AccelerometerVarianceTracker? = null,
+    settingsRepository: SettingsRepository? = null
 ) : AndroidViewModel(application) {
 
     private val sensorLayer = SensorLayer(application)
@@ -63,7 +70,23 @@ class CompassViewModel(
     private val noiseTracker = NoiseVarianceTracker()
     private val rateMonitor = SensorRateMonitor()
     private val stateMonitor = SensorStateMonitor()
-    private val settings = SettingsRepository(application)
+    val settings: SettingsRepository = settingsRepository ?: SettingsRepository(application)
+
+    // Phase 4 — Drift detection components (lazy defaults if not injected)
+    private val _driftDetector: IDriftDetector = driftDetector ?: DriftDetector(clock)
+    private val _accVarianceTracker: AccelerometerVarianceTracker =
+        accVarianceTracker ?: AccelerometerVarianceTracker(clock)
+
+    // Phase 4 — Drift banner state
+    private val _driftBannerState = MutableStateFlow(DriftBannerState.HIDDEN)
+    val driftBannerState: StateFlow<DriftBannerState> = _driftBannerState.asStateFlow()
+
+    // Phase 4 — Age banner session dismiss flag
+    var calAgeBannerDismissed: Boolean = false
+        private set
+
+    // Phase 4 — Cached expected field from calibration record (avoids IO in sensor loop)
+    private var expectedFieldUt: Float = 0.0f
 
     // -----------------------------------------------------------------------
     // Phase 3 — Luopan session-only state (TSPEC §5.3)
@@ -420,13 +443,16 @@ class CompassViewModel(
     // Internal — calibration and sensor pipeline
     // -----------------------------------------------------------------------
 
-    private fun loadCalibrationAge() {
+    internal fun loadCalibrationAge() {
         viewModelScope.launch(Dispatchers.IO) {
             val record = calibrationRepo.getCurrent()
             if (record != null) {
                 val ageMs = clock.nowMs() - record.recorded_at
                 calibrationAgeDays = TimeUnit.MILLISECONDS.toDays(ageMs)
                 calibrationQuality = CalibrationQuality.valueOf(record.quality)
+                expectedFieldUt = record.expected_field_ut  // Phase 4: cache for drift detection
+            } else {
+                expectedFieldUt = 0.0f
             }
         }
     }
@@ -503,6 +529,22 @@ class CompassViewModel(
                 )
                 interferenceDetector.updateState(metrics, frame.timestamp_ns)
                 val interferenceState = interferenceDetector.getState()
+
+                // Phase 4 — Drift detection
+                val accVariance = _accVarianceTracker.update(frame.accel_x, frame.accel_y, frame.accel_z)
+                val driftEvent = _driftDetector.onFrame(
+                    accVariance = accVariance,
+                    measuredMagnitudeUt = magnitude.toFloat(),
+                    interferenceState = interferenceState,
+                    expectedFieldUt = expectedFieldUt
+                )
+                if (driftEvent == DriftEvent.TRIGGERED) {
+                    val nowMs = clock.nowMs()
+                    val cooldownMs = settings.driftCooldownTimestampMs
+                    if (nowMs - cooldownMs >= 600_000L) {  // 10-minute cooldown
+                        _driftBannerState.value = DriftBannerState.VISIBLE
+                    }
+                }
 
                 val hasGyro = sensorLayer.hasGyroscope
 
@@ -696,6 +738,57 @@ class CompassViewModel(
 
     fun onCalibrationComplete() { loadCalibrationAge() }
 
+    // -----------------------------------------------------------------------
+    // Phase 4 — Recalibration banner methods
+    // -----------------------------------------------------------------------
+
+    /** Called from BearingHistoryFragment when the age banner X button is tapped. */
+    fun dismissCalAgeBanner() {
+        calAgeBannerDismissed = true
+    }
+
+    /**
+     * Called from BearingHistoryFragment on RESULT_OK from CalibrationWizardActivity.
+     * Variant: age banner path.
+     *
+     * Race-condition mitigation: sets calAgeBannerDismissed = true immediately to suppress
+     * any re-flash while the async load is in progress. Once loadCalibrationAge() resolves
+     * with age <= 30, it clears the flag (age-driven hide takes over).
+     */
+    fun onCalibrationCompleteFromHistory() {
+        calAgeBannerDismissed = true   // suppress immediately — prevents re-flash
+        viewModelScope.launch(Dispatchers.IO) {
+            val record = calibrationRepo.getCurrent()
+            if (record != null) {
+                val ageMs = clock.nowMs() - record.recorded_at
+                val ageDays = TimeUnit.MILLISECONDS.toDays(ageMs)
+                calibrationAgeDays = ageDays
+                calibrationQuality = CalibrationQuality.valueOf(record.quality)
+                expectedFieldUt = record.expected_field_ut
+                if (ageDays <= 30L) {
+                    calAgeBannerDismissed = false  // age-driven hide now in effect; clear flag
+                }
+            }
+        }
+    }
+
+    /**
+     * Called from BearingHistoryFragment on RESULT_OK from CalibrationWizardActivity.
+     * Variant: drift banner path.
+     * Effects: drift detector reset; cooldown cleared; driftBannerState = HIDDEN.
+     */
+    fun resetDriftDetector() {
+        _driftDetector.reset()
+        settings.driftCooldownTimestampMs = 0L
+        _driftBannerState.value = DriftBannerState.HIDDEN
+    }
+
+    /** Called from BearingHistoryFragment when the drift banner X button is tapped. */
+    fun dismissDriftBanner(nowMs: Long = clock.nowMs()) {
+        settings.driftCooldownTimestampMs = nowMs
+        _driftBannerState.value = DriftBannerState.HIDDEN
+    }
+
     /**
      * Returns the currently resolved location result from [LocationRepository].
      *
@@ -718,7 +811,10 @@ class CompassViewModel(
         private val application: Application,
         private val modelProvider: MagneticFieldModelProvider?,
         private val locationRepository: LocationRepository?,
-        private val clock: Clock
+        private val clock: Clock,
+        // Phase 4 additions (optional for backward compatibility with tests)
+        private val driftDetector: IDriftDetector? = null,
+        private val accVarianceTracker: AccelerometerVarianceTracker? = null
     ) : ViewModelProvider.Factory {
 
         @Suppress("UNCHECKED_CAST")
@@ -732,7 +828,12 @@ class CompassViewModel(
                 bearingRepository = BearingRepositoryImpl(db.bearingDao())
             )
             val calibrationRepo = CalibrationRepository(db.calibrationDao())
-            return CompassViewModel(application, modelProvider, locationRepository, clock, captureUseCase, calibrationRepo) as T
+            val drift = driftDetector ?: DriftDetector(clock)
+            val tracker = accVarianceTracker ?: AccelerometerVarianceTracker(clock)
+            return CompassViewModel(
+                application, modelProvider, locationRepository, clock,
+                captureUseCase, calibrationRepo, drift, tracker
+            ) as T
         }
     }
 }

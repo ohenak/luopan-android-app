@@ -28,6 +28,10 @@ class SettingsRepository(context: Context) {
 
         const val DISPLAY_MODE_MODERN = "MODERN"
         const val DISPLAY_MODE_LUOPAN = "LUOPAN"
+
+        // Phase 4 additions
+        const val KEY_DRIFT_COOLDOWN_TIMESTAMP_MS = "drift_cooldown_timestamp_ms"
+        const val KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION = "sensor_profile_written_for_version"
     }
 
     var declinationMode: String
@@ -59,4 +63,14 @@ class SettingsRepository(context: Context) {
     var luopanShowMyLanguage: Boolean
         get() = prefs.getBoolean(KEY_LUOPAN_MY_LANGUAGE, false)
         set(value) = prefs.edit { putBoolean(KEY_LUOPAN_MY_LANGUAGE, value) }
+
+    // Phase 4 additions
+
+    var driftCooldownTimestampMs: Long
+        get() = prefs.getLong(KEY_DRIFT_COOLDOWN_TIMESTAMP_MS, 0L)
+        set(value) = prefs.edit { putLong(KEY_DRIFT_COOLDOWN_TIMESTAMP_MS, value) }
+
+    var sensorProfileWrittenForVersion: Int
+        get() = prefs.getInt(KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION, 0)
+        set(value) = prefs.edit { putInt(KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION, value) }
 }

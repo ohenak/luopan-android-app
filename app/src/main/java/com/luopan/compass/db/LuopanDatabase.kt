@@ -12,7 +12,7 @@ import net.sqlcipher.database.SupportFactory
 
 @Database(
     entities = [CalibrationRecord::class, BearingRecord::class],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class LuopanDatabase : RoomDatabase() {
@@ -32,7 +32,7 @@ abstract class LuopanDatabase : RoomDatabase() {
             val factory = SupportFactory(passphrase)
             return Room.databaseBuilder(context.applicationContext, LuopanDatabase::class.java, "luopan.db")
                 .openHelperFactory(factory)
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
         }
 

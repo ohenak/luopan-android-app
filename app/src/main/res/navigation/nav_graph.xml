@@ -14,4 +14,9 @@
         android:name="com.luopan.compass.ui.LuopanFragment"
         android:label="Luopan" />
 
+    <fragment
+        android:id="@+id/dest_history"
+        android:name="com.luopan.compass.ui.BearingHistoryFragment"
+        android:label="@string/tab_history" />
+
 </navigation>
