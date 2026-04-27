@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Luopan compass needle icon foreground.
+    Canvas: 108×108dp (adaptive icon spec).
+    Safe zone: 18–90dp on each axis — all content kept within this ring.
+    Design: thin gold ring + classic two-tone compass needle (gold north, ivory south).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer compass ring (brand gold) -->
+    <path
+        android:strokeColor="#c8a020"
+        android:strokeWidth="2.5"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M54,22 A32,32 0 1,1 53.999,22 Z"/>
+
+    <!-- North needle — gold, points up -->
+    <path
+        android:fillColor="#c8a020"
+        android:pathData="M54,24 L60,54 L54,50 L48,54 Z"/>
+
+    <!-- South needle — ivory, points down -->
+    <path
+        android:fillColor="#f5efd8"
+        android:pathData="M54,84 L60,54 L54,58 L48,54 Z"/>
+
+    <!-- Center cap (forest green) -->
+    <path
+        android:fillColor="#3d5c3a"
+        android:pathData="M54,49 A5,5 0 1,1 53.999,49 Z"/>
+
+</vector>
