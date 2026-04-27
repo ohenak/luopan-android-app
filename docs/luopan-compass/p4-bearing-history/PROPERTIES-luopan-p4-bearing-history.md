@@ -3,7 +3,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.1-draft |
+| **Version** | 0.2-draft |
 | **Date** | 2026-04-27 |
 | **Status** | Draft |
 | **Phase** | 4 of 5 |
@@ -11,7 +11,7 @@
 | **Source FSPEC** | FSPEC-luopan-p4-bearing-history v0.2-draft |
 | **Source TSPEC** | TSPEC-luopan-p4-bearing-history v0.2-draft |
 | **Source PLAN** | PLAN-luopan-p4-bearing-history v0.2-draft |
-| **Cross-reviews addressed** | PM PLAN-v2 (F-01: Snackbar text); TE PLAN-v2 (F-01: B-2a forward ref; F-02: TSPEC snippet conflict; F-03: AT-CAL-03-B2 sequencing bug) |
+| **Cross-reviews addressed** | PM PLAN-v2 (F-01: Snackbar text); TE PLAN-v2 (F-01: B-2a forward ref; F-02: TSPEC snippet conflict; F-03: AT-CAL-03-B2 sequencing bug); SE PROPERTIES-v1 (F-01: espresso-contrib dep; F-02: runTest for Flow DAOs; F-04: TestScope for debounce; F-06: recording adapter; F-08: Robolectric for PROP-CAL-038; F-10: SensorInfo wrapper); PM PROPERTIES-v1 (F-01: FSPEC-HIST-03 update note; F-02: user-observable Snackbar duration; F-03: ms-precision boundary; F-04: E2 integration property; F-05: TSPEC §6.2 anchor for two-launcher) |
 
 ---
 
@@ -44,14 +44,28 @@ Levels: **Unit** | **Integration** | **E2E**
 
 ## 1. Bearing History Properties
 
+> **Instrumented-test prerequisite (SE PROPERTIES-v1 F-01):** All E2E properties in this section that exercise the RecyclerView (including RecyclerViewActions such as scroll-to-position, click-on-item, and swipe-via-ItemTouchHelper) require `espresso-contrib` to be present in the project. Before implementing these tests, add the following to `libs.versions.toml` and `app/build.gradle.kts`:
+>
+> **`libs.versions.toml`** — under `[libraries]`:
+> ```toml
+> espresso-contrib = { group = "androidx.test.espresso", name = "espresso-contrib", version.ref = "espresso" }
+> ```
+>
+> **`app/build.gradle.kts`** — under `dependencies { androidTestImplementation(...) }`:
+> ```kotlin
+> androidTestImplementation(libs.espresso.contrib)
+> ```
+>
+> Properties that use `RecyclerViewActions` (PROP-HIST-003, 010–011, 020–023, 030–034, 040–046, 050–055, 060–064, 070–071) will fail to compile without this dependency.
+
 ### 1.1 List Ordering
 
 | ID | Property | Category | Level | Test File | Pass Condition |
 |----|----------|----------|-------|-----------|----------------|
-| PROP-HIST-001 | `BearingDao.getAllFlow()` must emit records ordered by `captured_at` descending (newest first) when called with records having distinct `captured_at` values. | Contract | Unit | `BearingDaoTest.kt` | First emitted item has the maximum `captured_at` of all records; last has the minimum. |
-| PROP-HIST-002 | `BearingDao.getAllFlow()` must break ties in `captured_at` by `rowid` descending when two or more records share the same `captured_at` timestamp. | Contract | Unit | `BearingDaoTest.kt` | Of two records with equal `captured_at`, the one with the higher `rowid` appears first. |
+| PROP-HIST-001 | `BearingDao.getAllFlow()` must emit records ordered by `captured_at` descending (newest first) when called with records having distinct `captured_at` values. | Contract | Unit | `BearingDaoTest.kt` | Test uses `runTest(StandardTestDispatcher())`. Flow is collected with `getAllFlow().first()` (or `toList()` with cancellation after first emission). First emitted item has the maximum `captured_at` of all records; last has the minimum. Do NOT use `runBlocking` — `Flow` collection from a Room DAO requires a coroutine scope with a `TestCoroutineScheduler`. |
+| PROP-HIST-002 | `BearingDao.getAllFlow()` must break ties in `captured_at` by `rowid` descending when two or more records share the same `captured_at` timestamp. | Contract | Unit | `BearingDaoTest.kt` | Test uses `runTest(StandardTestDispatcher())`. Of two records with equal `captured_at`, the one with the higher `rowid` appears first in the first emission of `getAllFlow()`. Do NOT use `runBlocking`. |
 | PROP-HIST-003 | `BearingHistoryFragment` RecyclerView must display the record with the maximum `captured_at` value at position 0 when the fragment is first launched. | Functional | E2E | `BearingHistoryFragmentTest.kt` | `onView(withId(R.id.recycler_history)).check(RecyclerViewItemCountAssertion(10))` and row 0 contains the text of the record named "Newest". |
-| PROP-HIST-004 | `BearingDao.searchFlow(query)` must emit results ordered by `captured_at` descending, with `rowid` descending as a tiebreaker, identical to `getAllFlow()` ordering semantics. | Contract | Unit | `BearingDaoTest.kt` | Filtered results maintain newest-first order. |
+| PROP-HIST-004 | `BearingDao.searchFlow(query)` must emit results ordered by `captured_at` descending, with `rowid` descending as a tiebreaker, identical to `getAllFlow()` ordering semantics. | Contract | Unit | `BearingDaoTest.kt` | Test uses `runTest(StandardTestDispatcher())`. Filtered results maintain newest-first order on first emission of `searchFlow(query)`. Do NOT use `runBlocking`. |
 
 ### 1.2 Row Fields
 
@@ -66,7 +80,7 @@ Levels: **Unit** | **Integration** | **E2E**
 |----|----------|----------|-------|-----------|----------------|
 | PROP-HIST-020 | At most one RecyclerView row must be expanded at any time. | Functional | E2E | `BearingHistoryFragmentTest.kt` | After tapping row 2 when row 1 was expanded: row 1's detail panel is `GONE`; row 2's detail panel is `VISIBLE`. |
 | PROP-HIST-021 | Tapping an already-expanded row must collapse it (detail panel transitions from `VISIBLE` to `GONE`). | Functional | E2E | `BearingHistoryFragmentTest.kt` | Second tap on the same row sets detail panel to `GONE`. |
-| PROP-HIST-022 | `BearingAdapter.toggleExpanded()` must call `notifyItemChanged()` on at most two positions (the previously expanded row and the newly expanded row) and must not call `notifyDataSetChanged()`. | Contract | Unit | `BearingAdapterFormatTest.kt` | Spy on adapter: `notifyDataSetChanged` call count == 0; `notifyItemChanged` call count ≤ 2. |
+| PROP-HIST-022 | `BearingAdapter.toggleExpanded()` must call `notifyItemChanged()` on at most two positions (the previously expanded row and the newly expanded row) and must not call `notifyDataSetChanged()`. | Contract | Unit | `BearingAdapterFormatTest.kt` | The project has no mock/spy framework (no Mockito, no MockK). Use a hand-rolled `RecordingBearingAdapter` subclass that overrides `notifyItemChanged(position)` and `notifyDataSetChanged()` and records call counts in mutable fields. After calling `toggleExpanded()`: `recordingAdapter.notifyDataSetChangedCount == 0`; `recordingAdapter.notifyItemChangedPositions.size ≤ 2`. |
 | PROP-HIST-023 | Swiping an expanded row must collapse it and delete it without crashing. | Error Handling | E2E | `BearingHistorySwipeTest.kt` | After swipe on expanded row: no exception; RecyclerView count decremented by 1; Snackbar visible. |
 
 ### 1.4 Search Filtering
@@ -74,9 +88,9 @@ Levels: **Unit** | **Integration** | **E2E**
 | ID | Property | Category | Level | Test File | Pass Condition |
 |----|----------|----------|-------|-----------|----------------|
 | PROP-HIST-030 | `BearingDao.searchFlow(query)` must return records whose `name` field contains `query` as a case-insensitive substring for ASCII characters. | Functional | Unit | `BearingDaoTest.kt` | Query "north" matches "North Gate", "northeast", "Northing"; does not match "Southing". |
-| PROP-HIST-031 | `BearingHistoryViewModel` must not invoke `searchFlow()` until at least 300 ms have elapsed since the last keystroke when the query is non-empty. | Functional | Unit | `BearingHistoryViewModelTest.kt` | Characters typed at 100 ms intervals produce no `searchFlow` call at 200 ms elapsed; exactly one call at 500 ms elapsed. |
-| PROP-HIST-032 | `BearingHistoryViewModel` must restart the 300 ms debounce timer on every keystroke, so a keystroke at t=250 ms suppresses the timer from t=0 and fires at t=550 ms. | Functional | Unit | `BearingHistoryViewModelTest.kt` | No `searchFlow` call at t=300 ms; exactly one `searchFlow("no")` call at t=550 ms. |
-| PROP-HIST-033 | `BearingHistoryViewModel` must restore `getAllFlow()` immediately (0 ms debounce) when the query is cleared to an empty string, and must not invoke `searchFlow()` on the clear event. | Functional | Unit | `BearingHistoryViewModelTest.kt` | After clearing query: `getAllFlow` emission received immediately; `searchFlow` call count unchanged. |
+| PROP-HIST-031 | `BearingHistoryViewModel` must not invoke `searchFlow()` until at least 300 ms have elapsed since the last keystroke when the query is non-empty. | Functional | Unit | `BearingHistoryViewModelTest.kt` | `kotlinx.coroutines.flow.debounce` is only controllable via virtual time when `BearingHistoryViewModel.viewModelScope` is replaced with a `TestScope(StandardTestDispatcher())`. Tests must call `Dispatchers.setMain(testDispatcher)` in `@Before` and `Dispatchers.resetMain()` in `@After`, or pass a `TestScope` via constructor injection. With virtual time: characters typed at 100 ms intervals produce no `searchFlow` call after `advanceTimeBy(200)` ms; exactly one call after `advanceTimeBy(300)` more ms. |
+| PROP-HIST-032 | `BearingHistoryViewModel` must restart the 300 ms debounce timer on every keystroke, so a keystroke at t=250 ms suppresses the timer from t=0 and fires at t=550 ms. | Functional | Unit | `BearingHistoryViewModelTest.kt` | Using `Dispatchers.setMain(testDispatcher)` or constructor-injected `TestScope` for virtual time control: no `searchFlow` call after `advanceTimeBy(300)` ms from first keystroke (second keystroke at t=250 ms restarts timer); exactly one `searchFlow("no")` call after `advanceTimeBy(300)` more ms (t=550 ms total). |
+| PROP-HIST-033 | `BearingHistoryViewModel` must restore `getAllFlow()` immediately (0 ms debounce) when the query is cleared to an empty string, and must not invoke `searchFlow()` on the clear event. | Functional | Unit | `BearingHistoryViewModelTest.kt` | Using `Dispatchers.setMain(testDispatcher)` or constructor-injected `TestScope`: after clearing query, `getAllFlow` emission received without advancing virtual time (`advanceTimeBy(0)` or `advanceUntilIdle()` immediately); `FakeBearingDao.searchFlowCallCount` unchanged from before the clear. |
 | PROP-HIST-034 | `BearingHistoryFragment` must show the "No bearings match your search" empty-state label and hide the RecyclerView when `searchFlow()` emits an empty list for a non-empty query. | Functional | E2E | `BearingHistoryFragmentTest.kt` | After query "zzz" and debounce: label visible; `recycler_history` has 0 items. |
 | PROP-HIST-035 | `BearingHistoryViewModel` must retain the active search query across configuration changes (e.g., device rotation) using `SavedStateHandle` or equivalent ViewModel state. | Functional | Unit | `BearingHistoryViewModelTest.kt` | After ViewModel recreation, `searchQuery.value` equals the query set before recreation. |
 | PROP-HIST-036 | `BearingHistoryViewModel` must clear the search query when the Fragment is destroyed (tab navigation), exposing an empty string on re-creation. | Functional | Unit | `BearingHistoryViewModelTest.kt` | New `BearingHistoryViewModel` instance has `searchQuery.value == ""`. |
@@ -86,8 +100,8 @@ Levels: **Unit** | **Integration** | **E2E**
 | ID | Property | Category | Level | Test File | Pass Condition |
 |----|----------|----------|-------|-----------|----------------|
 | PROP-HIST-040 | The swiped record must be deleted from the Room database immediately on swipe, before the Snackbar appears or times out. | Functional | E2E | `BearingHistorySwipeTest.kt` | `dao.getAll()` count == N−1 immediately after swipe callback fires (before Snackbar timeout). |
-| PROP-HIST-041 | The Snackbar body text must be exactly "Bearing deleted" (not "Deleted"). | Data Integrity | E2E | `BearingHistorySwipeTest.kt` | Snackbar message string equals `context.getString(R.string.bearing_deleted)` which resolves to "Bearing deleted". |
-| PROP-HIST-042 | The Snackbar must be shown for exactly 5 seconds using `setDuration(5000)`, not `Snackbar.LENGTH_LONG`. | Contract | E2E | `BearingHistorySwipeTest.kt` | Snackbar duration field equals 5000 ms at show time (verified via reflection or wrapper). |
+| PROP-HIST-041 | The Snackbar body text must be exactly "Bearing deleted" (not "Deleted"). | Data Integrity | E2E | `BearingHistorySwipeTest.kt` | Snackbar message string equals `context.getString(R.string.bearing_deleted)` which resolves to "Bearing deleted" (confirmed in TSPEC §7.5 string resources). **Prerequisite (PM PROPERTIES-v1 F-01):** FSPEC-HIST-03 §Behavioral Flow step 3 currently reads "Deleted"; it must be updated to "Bearing deleted" before this property is tested, so engineers have a single authoritative PM-approved source. This property's pass condition is anchored to TSPEC §7.5 (where the string value is confirmed) pending that FSPEC update. This update must occur before implementation of the swipe-to-delete feature (PLAN task F-9). |
+| PROP-HIST-042 | The Snackbar must be shown for exactly 5 seconds using `setDuration(5000)`, not `Snackbar.LENGTH_LONG`. | Contract | E2E | `BearingHistorySwipeTest.kt` | After swipe, the Snackbar is visible. After `SystemClock.sleep(5100)` ms (or `IdlingRegistry`-based wait of 5100 ms) with no user interaction, the Snackbar is no longer visible (Espresso `doesNotExist()` or `withEffectiveVisibility(GONE)` assertion). This asserts user-observable dismissal behavior at elapsed time, not internal field inspection via reflection. Do NOT use reflection to inspect the `duration` field — it is not public API and is obfuscated in minified builds. |
 | PROP-HIST-043 | Tapping "Undo" within the 5-second window must re-insert the deleted record into the database and cause it to reappear in the RecyclerView at its correct `captured_at`-ordered position. | Functional | E2E | `BearingHistorySwipeTest.kt` | After undo tap: `dao.getAll()` contains the record; RecyclerView item matches expected position by `captured_at`. |
 | PROP-HIST-044 | Swiping a second record while the first Snackbar is still visible must: (1) permanently commit the first deletion, (2) dismiss the first Snackbar, (3) delete the second record immediately, and (4) show a new 5-second Snackbar for the second record only. | Functional | E2E | `BearingHistorySwipeTest.kt` | After second swipe: DB does not contain record A; DB does not contain record B; exactly one Snackbar visible for B. |
 | PROP-HIST-045 | `BearingHistoryViewModel` must hold at most one pending undo record at a time; setting a second pending undo must replace (not stack) the first. | Contract | Unit | `BearingHistoryViewModelTest.kt` | After two calls to `deleteRecord()`, `hasPendingUndo()` is true and `undoDelete()` re-inserts only the second record. |
@@ -134,7 +148,7 @@ Levels: **Unit** | **Integration** | **E2E**
 | ID | Property | Category | Level | Test File | Pass Condition |
 |----|----------|----------|-------|-----------|----------------|
 | PROP-CAL-001 | The age-based recalibration banner must be visible when `calibration_age_days > 30` and `calAgeBannerDismissed == false`. | Functional | E2E | `RecalibrationBannerTest.kt` (AT-CAL-01-A) | Banner view visible with text "Your calibration is 31 days old — consider recalibrating" for a 31-day-old calibration. |
-| PROP-CAL-002 | The age-based banner must be `View.GONE` when `calibration_age_days <= 30`. | Functional | E2E | `RecalibrationBannerTest.kt` (AT-CAL-01-B) | Banner visibility == `GONE` for a calibration that is exactly 30 days old. |
+| PROP-CAL-002 | The age-based banner must be `View.GONE` when `calibration_age_days <= 30`. | Functional | E2E | `RecalibrationBannerTest.kt` (AT-CAL-01-B) | Banner visibility == `GONE` for elapsed time of exactly `30 * 86_400_000L` milliseconds (30 full days — no banner shown). Banner visibility == `VISIBLE` for elapsed time of `30 * 86_400_000L + 1` milliseconds (30 days + 1 ms — banner shown). Both boundary values must be verified to prevent an off-by-one implementation from passing the test. |
 | PROP-CAL-003 | The age-banner day count N must use integer floor division of elapsed milliseconds: `floor(elapsedMs / 86_400_000L)`. A calibration 31 days and 23 hours old must display N=31, not 32. | Data Integrity | Unit | `CompassViewModelDriftTest.kt` (AT-CAL-01-C) | `computeCalibrationAgeDays(31 * 86_400_000L + 23 * 3_600_000L)` == 31. |
 | PROP-CAL-004 | The age-banner text must exactly match the template "Your calibration is [N] days old — consider recalibrating" with N substituted from floor division. | Data Integrity | E2E | `RecalibrationBannerTest.kt` | Banner text string matches template with correct N value. |
 | PROP-CAL-005 | The age-based banner must appear exclusively in `BearingHistoryFragment`. No banner view with the age-banner ID must exist in `ModernCompassFragment` or `LuopanFragment` layouts. | Contract | E2E | `NavigationTabTest.kt` | `onView(withId(R.id.banner_cal_age_root)).check(doesNotExist())` when Modern or Luopan tab is active. |
@@ -153,6 +167,7 @@ Levels: **Unit** | **Integration** | **E2E**
 | PROP-CAL-017 | The drift banner must appear exclusively in `BearingHistoryFragment`. No drift banner view must exist in `ModernCompassFragment` or `LuopanFragment` layouts. | Contract | E2E | `RecalibrationBannerTest.kt` (AT-CAL-02-F) | `onView(withId(R.id.banner_drift_root)).check(doesNotExist())` from ModernCompassFragment. |
 | PROP-CAL-018 | `CompassViewModel.driftBannerState` must emit `DriftBannerState.VISIBLE` when `DriftDetector` emits `TRIGGERED` and the 10-minute cooldown has elapsed (cooldown timestamp = 0L). | Integration | Unit | `CompassViewModelDriftTest.kt` (AT-VM-DRIFT-01) | ViewModel receives `FakeDriftDetector.TRIGGERED`; `driftBannerState.value == VISIBLE` after processing. |
 | PROP-CAL-019 | `CompassViewModel.driftBannerState` must remain `HIDDEN` when `DriftDetector` emits `TRIGGERED` but the 10-minute cooldown has NOT elapsed. | Integration | Unit | `CompassViewModelDriftTest.kt` (AT-VM-DRIFT-01b) | Cooldown set to 5 minutes ago; ViewModel receives TRIGGERED; `driftBannerState.value == HIDDEN`. |
+| PROP-CAL-019b | When active magnetic interference has set `interferenceState = WARNING` AND field drift exceeds 10% simultaneously (REQ Scenario E2), the drift banner must NOT be shown — only the existing WARNING interference indicator is displayed. | Integration | Integration | `RecalibrationBannerTest.kt` (Scenario E2) | Using `FakeDriftDetector` injected into `CompassViewModel`: set `interferenceState = WARNING`, advance clock past 60 s, call `onFrame()` with >10% deviation. `driftBannerState.value` remains `HIDDEN`. In the instrumented scenario, navigate to History tab: drift banner view has `visibility == GONE`; interference WARNING indicator is visible. This verifies the user-observable outcome from REQ-CAL-05 Condition B precondition 2 (`interferenceState != WARNING`). |
 
 ### 2.3 Banner Dismiss / Re-show Behavior
 
@@ -181,7 +196,7 @@ Levels: **Unit** | **Integration** | **E2E**
 | PROP-CAL-035 | `AccelerometerVarianceTracker` must use population variance (`/ n`, not `/ (n-1)`). For magnitudes [3, 5, 4], variance must equal ≈ 0.6667, not 1.0. | Data Integrity | Unit | `AccelerometerVarianceTrackerTest.kt` (AT-VAR-01) | Three samples [3, 5, 4] return variance ≈ 0.6667 (within float epsilon). |
 | PROP-CAL-036 | The `IDriftDetector` interface must declare `onFrame(accVariance, measuredMagnitudeUt, interferenceState, expectedFieldUt): DriftEvent?` and `reset()`. `DriftEvent` enum must contain exactly the constants `TRIGGERED` and `RESET`. | Contract | Unit | `IDriftDetectorContractTest.kt` (B-2a) | Interface compiles; both enum constants accessible; `FakeDriftDetector` compiles as `IDriftDetector` (asserted in B-4). |
 | PROP-CAL-037 | `CompassViewModel` must accept `IDriftDetector` (not `DriftDetector`) as a constructor parameter so that `FakeDriftDetector` can be injected in unit tests. | Contract | Unit | `CompassViewModelDriftTest.kt` | `CompassViewModel` instantiated with `FakeDriftDetector` does not throw; sensor loop calls `fake.onFrame()`. |
-| PROP-CAL-038 | The end-to-end wiring `AccelerometerVarianceTracker → DriftDetector.onFrame() → CompassViewModel → driftBannerState` must produce `DriftBannerState.VISIBLE` after 61 seconds of continuous drift with all preconditions met, using real implementations and `FakeClock`. | Integration | Integration | `DriftDetectorIntegrationTest.kt` (AT-CAL-INT-01) | Phase 1 (58 s of frames): `triggered == false`. Phase 2 (advance past 60 s): `driftBannerState == VISIBLE`. |
+| PROP-CAL-038 | The end-to-end wiring `AccelerometerVarianceTracker → DriftDetector.onFrame() → CompassViewModel → driftBannerState` must produce `DriftBannerState.VISIBLE` after 61 seconds of continuous drift with all preconditions met, using real implementations and `FakeClock`. | Integration | Integration (Robolectric) | `DriftDetectorIntegrationTest.kt` (AT-CAL-INT-01) | `CompassViewModel` extends `AndroidViewModel(application)` and cannot be instantiated in a plain JVM unit test. This test must be annotated with `@RunWith(RobolectricTestRunner::class)` and `@Config(sdk = [Build.VERSION_CODES.TIRAMISU])` (or the project's standard Robolectric config) to obtain an `Application` instance via `ApplicationProvider.getApplicationContext()`. Phase 1 (58 s of frames via `FakeClock.advance()`): `driftBannerState.value == HIDDEN`. Phase 2 (advance past 60 s, then one frame with >10% deviation): `driftBannerState.value == VISIBLE`. |
 
 ### 2.5 Cooldown Persistence
 
@@ -228,13 +243,13 @@ Levels: **Unit** | **Integration** | **E2E**
 | ID | Property | Category | Level | Test File | Pass Condition |
 |----|----------|----------|-------|-----------|----------------|
 | PROP-SENSOR-030 | `buildJsonFromSensors()` must produce a JSON object containing all required top-level fields: `device_model`, `device_manufacturer`, `android_version`, `android_api_level`, `app_version_code`, `written_at_iso8601`, `sensors`. | Data Integrity | Unit | `SensorCapabilityLoggerTest.kt` (AT-SENSOR-01-G) | Parsed JSON has all seven keys present with non-null values. |
-| PROP-SENSOR-031 | Each sensor entry in the `sensors` array must contain: `type_constant`, `name`, `vendor`, `resolution_ut_or_native`, `max_range_native`, `reporting_mode`. | Data Integrity | Unit | `SensorCapabilityLoggerTest.kt` | For a fake sensor object, all six per-sensor fields are present. |
+| PROP-SENSOR-031 | Each sensor entry in the `sensors` array must contain: `type_constant`, `name`, `vendor`, `resolution_ut_or_native`, `max_range_native`, `reporting_mode`. | Data Integrity | Unit | `SensorCapabilityLoggerTest.kt` | For a `SensorInfo` test instance, all six per-sensor fields are present in the resulting JSON array entry. |
 | PROP-SENSOR-032 | `buildJsonFromSensors()` must produce a pretty-printed JSON string with 2-space indentation (i.e., `JSONObject.toString(2)`). | Data Integrity | Unit | `SensorCapabilityLoggerTest.kt` | Output string contains `"  "` (two-space) indentation. |
 | PROP-SENSOR-033 | `written_at_iso8601` must be formatted as an ISO-8601 UTC timestamp with "Z" suffix (e.g., "2026-04-27T08:30:00Z"). Device local time must not be used. | Data Integrity | Unit | `SensorCapabilityLoggerTest.kt` | `written_at_iso8601` value ends with "Z" and parses as a valid `Instant`. |
-| PROP-SENSOR-034 | When no sensors are returned by `SensorManager.getSensorList(Sensor.TYPE_ALL)`, the `sensors` array must be empty (`[]`), not absent; the file must still be written. | Error Handling | Unit | `SensorCapabilityLoggerTest.kt` | `buildJsonFromSensors(emptyList())` produces JSON with `"sensors": []`. |
+| PROP-SENSOR-034 | When no sensors are returned by `SensorManager.getSensorList(Sensor.TYPE_ALL)`, the `sensors` array must be empty (`[]`), not absent; the file must still be written. | Error Handling | Unit | `SensorCapabilityLoggerTest.kt` | `buildJsonFromSensors(emptyList<SensorInfo>())` produces JSON with `"sensors": []`. |
 | PROP-SENSOR-035 | `mapReportingMode()` must map integer constant `0` → `"CONTINUOUS"`, `1` → `"ON_CHANGE"`, `2` → `"ONE_SHOT"`, `3` → `"SPECIAL_TRIGGER"`. | Data Integrity | Unit | `SensorCapabilityLoggerTest.kt` (AT-SENSOR-01-F) | Each known constant maps to the correct string. |
 | PROP-SENSOR-036 | `mapReportingMode()` must map any unrecognized integer to `"UNKNOWN(${intValue})"`, preserving the raw integer for diagnostics. | Error Handling | Unit | `SensorCapabilityLoggerTest.kt` (AT-SENSOR-01-G) | `mapReportingMode(99)` returns `"UNKNOWN(99)"`. |
-| PROP-SENSOR-037 | `buildJsonFromSensors()` must be an `internal` pure function (no `Context` or `SensorManager` dependency) to enable JVM unit testing without an Android runtime. | Contract | Unit | `SensorCapabilityLoggerTest.kt` | Function callable directly with a `List<Sensor>` argument in a JVM test without robolectric or instrumentation. |
+| PROP-SENSOR-037 | `buildJsonFromSensors()` must be an `internal` pure function (no `Context` or `SensorManager` dependency) to enable JVM unit testing without an Android runtime. Its parameter type must be `List<SensorInfo>`, not `List<android.hardware.Sensor>`. `android.hardware.Sensor` is a `final` class with no public constructor and cannot be instantiated in a JVM unit test. A `SensorInfo` wrapper data class (e.g., `data class SensorInfo(val type: Int, val name: String, val vendor: String, val resolution: Float, val maximumRange: Float, val reportingMode: Int)`) must be introduced; production code that calls `SensorManager.getSensorList()` maps each `Sensor` to a `SensorInfo` before passing to `buildJsonFromSensors()`. | Contract | Unit | `SensorCapabilityLoggerTest.kt` | `buildJsonFromSensors(listOf(SensorInfo(type=1, name="test", vendor="test", resolution=0.1f, maximumRange=50f, reportingMode=0)))` callable in a JVM unit test without Robolectric or instrumentation; returns a non-empty JSON string. |
 | PROP-SENSOR-038 | `sensorProfileWrittenForVersion` must be added as a named `const val` key and `var` property in `SettingsRepository` following the existing Phase 3 additions block, not as an ad-hoc SharedPreferences call at the call site. | Contract | Unit | `SettingsRepositoryTest.kt` | `SettingsRepository.KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION` constant exists; `sensorProfileWrittenForVersion` property reads/writes correctly with default 0. |
 
 ---
@@ -254,7 +269,7 @@ Levels: **Unit** | **Integration** | **E2E**
 
 | ID | Property | Category | Level | Test File | Pass Condition |
 |----|----------|----------|-------|-----------|----------------|
-| PROP-NAV-010 | `BearingHistoryFragment` must register two separate `ActivityResultLauncher` instances in `Fragment.onCreate()`: one for the age banner path (`calWizardLauncherAge`) and one for the drift banner path (`calWizardLauncherDrift`). | Contract | E2E | `NavigationTabTest.kt` (AT-NAV-01-C) | After RESULT_OK on age launcher: `loadCalibrationAge()` called; age banner dismissed. After RESULT_OK on drift launcher: drift detector reset; cooldown cleared. |
+| PROP-NAV-010 | `BearingHistoryFragment` must register `ActivityResultLauncher` instances in `Fragment.onCreate()` such that tapping the age banner opens `CalibrationWizardActivity` and calls `compassViewModel.onCalibrationCompleteFromHistory()` on `RESULT_OK`, and tapping the drift banner opens `CalibrationWizardActivity` and calls `compassViewModel.resetDriftDetector()` on `RESULT_OK`. The use of two separate named launcher instances (`calWizardLauncherAge` and `calWizardLauncherDrift`) is the TSPEC §6.2 architectural decision enabling this disambiguation; the product requirement is that each banner path triggers the correct side effect. | Contract | E2E | `NavigationTabTest.kt` (AT-NAV-01-C) | After RESULT_OK on age launcher: `loadCalibrationAge()` called; age banner dismissed. After RESULT_OK on drift launcher: drift detector reset; cooldown cleared. |
 | PROP-NAV-011 | The launchers must be registered in `Fragment.onCreate()`, not `onViewCreated()`, per Android Jetpack best practice. | Contract | E2E | `NavigationTabTest.kt` | No `IllegalStateException` thrown when launcher is used; registration survives Fragment recreation. |
 | PROP-NAV-012 | On `RESULT_OK` from the age-banner launcher, `viewModel.onCalibrationCompleteFromHistory()` must be called, refreshing `calibration_age_days` and dismissing the age banner. | Functional | E2E | `NavigationTabTest.kt` (AT-NAV-01-C) | After RESULT_OK: age banner is `GONE`; updated `calibration_age_days` value is reflected in `CompassUiState`. |
 | PROP-NAV-013 | On `RESULT_OK` from the drift-banner launcher, `viewModel.resetDriftDetector()` must be called, resetting the detector timer, clearing the cooldown, and setting `driftBannerState = HIDDEN`. | Functional | E2E | `RecalibrationBannerTest.kt` (AT-CAL-02-C) | After RESULT_OK on drift launcher: `driftBannerState == HIDDEN`; `driftCooldownTimestampMs == 0L`; detector timer == null. |
@@ -289,7 +304,7 @@ Levels: **Unit** | **Integration** | **E2E**
 | REQ-CAPTURE-03 (bearing history screen) | PROP-HIST-001–004, 010–011, 020–023, 030–036, 040–049, 050–055, 060–064, 070–072 | Full |
 | REQ-DETECT-05 (interference flag) | PROP-HIST-050–055 | Full |
 | REQ-CAL-05 Condition A (age-based banner) | PROP-CAL-001–005, 020–023, 027–029 | Full |
-| REQ-CAL-05 Condition B (drift-based banner) | PROP-CAL-010–019, 024–026, 028–029, 030–043 | Full |
+| REQ-CAL-05 Condition B (drift-based banner) | PROP-CAL-010–019b, 024–026, 028–029, 030–043 | Full |
 | REQ-SENSOR-07 (sensor logging) | PROP-SENSOR-001–038 | Full |
 | REQ-CAPTURE-03 Navigation (§5.1) | PROP-NAV-001–023, 030–033 | Full |
 
@@ -329,6 +344,7 @@ Levels: **Unit** | **Integration** | **E2E**
 | AT-CAL-02-D | PROP-CAL-041 | D-1c |
 | AT-CAL-02-E | PROP-CAL-042 | D-1c |
 | AT-CAL-02-F | PROP-CAL-017 | F-11 |
+| Scenario E2 (REQ-CAL-05 B) | PROP-CAL-019b, PROP-CAL-031 | B-5 |
 | AT-CAL-03-A | PROP-CAL-010, PROP-CAL-030, PROP-CAL-031 | B-5 |
 | AT-CAL-03-B | PROP-CAL-011 | B-5 |
 | AT-CAL-03-B2 (corrected) | PROP-CAL-016 | B-5 |
@@ -358,14 +374,25 @@ Levels: **Unit** | **Integration** | **E2E**
 
 ### 6.1 Cross-Review Issues Addressed as Properties
 
-The following cross-review findings from PM PLAN-v2 and TE PLAN-v2 are resolved by properties in this document, locking down the correct behavior before implementation:
+The following cross-review findings are resolved by properties in this document, locking down the correct behavior before implementation:
 
 | Source | Finding | Property | Resolution |
 |--------|---------|----------|-----------|
-| PM PLAN-v2 F-01 | FSPEC-HIST-03 Snackbar text still reads "Deleted" in the FSPEC; PLAN says "Bearing deleted" | PROP-HIST-041 | Property specifies the Snackbar body text must be exactly "Bearing deleted". This supersedes the FSPEC-HIST-03 §Behavioral Flow step 3 wording until that FSPEC is updated. |
+| PM PLAN-v2 F-01 | FSPEC-HIST-03 Snackbar text still reads "Deleted" in the FSPEC; PLAN says "Bearing deleted" | PROP-HIST-041 | Property specifies the Snackbar body text must be exactly "Bearing deleted", anchored to TSPEC §7.5. FSPEC-HIST-03 §Behavioral Flow step 3 must be updated before implementation. |
 | TE PLAN-v2 F-01 | B-2a forward-reference: `FakeDriftDetector implements IDriftDetector` cannot be a failing test at B-2a time (fake doesn't exist yet) | PROP-CAL-036 | Property covers enum constant existence and `onFrame()` signature (testable at B-2a). The `FakeDriftDetector implements IDriftDetector` assertion is part of PROP-CAL-037 and PROP-CAL-038, tested in B-4 and D-1. |
 | TE PLAN-v2 F-02 | TSPEC §9.3b shows `FakeDriftDetector` subclassing concrete `DriftDetector`; PLAN B-4 correctly requires `IDriftDetector` | PROP-CAL-037 | Property explicitly requires `CompassViewModel` to accept `IDriftDetector` (not `DriftDetector`). TSPEC §9.3b code snippet is superseded. |
 | TE PLAN-v2 F-03 | TSPEC §9.7 AT-CAL-03-B2 test body has a sequencing error: single `onFrame()` after `clock.advance(61_001L)` starts COUNTING at t=61s and returns null (trivially passes but doesn't test boundary) | PROP-CAL-016 | Property specifies the correct test structure: an initial `onFrame()` at t=0 to start COUNTING, then advance clock, then second `onFrame()` to evaluate the boundary. The old test structure was wrong because the detector starts in IDLE, so the first call after advancing time merely transitions to COUNTING. |
+| SE PROPERTIES-v1 F-01 | `espresso-contrib` missing from project; all RecyclerView E2E properties will fail to compile without it | §1 prerequisite note | Explicit prerequisite note added at the top of §1 specifying the exact `libs.versions.toml` and `app/build.gradle.kts` lines required. |
+| SE PROPERTIES-v1 F-02 | PROP-HIST-001/002/004 used `runBlocking` — incompatible with Room Flow collection | PROP-HIST-001, 002, 004 | Pass conditions updated to specify `runTest(StandardTestDispatcher())` for all Flow DAO tests. |
+| SE PROPERTIES-v1 F-04 | PROP-HIST-031/032/033 debounce timing non-deterministic without TestScope injection | PROP-HIST-031, 032, 033 | Pass conditions updated to specify `Dispatchers.setMain(testDispatcher)` or constructor-injected `TestScope` for virtual time control. |
+| SE PROPERTIES-v1 F-06 | PROP-HIST-022 spy-based pass condition unimplementable (no MockK/Mockito in project) | PROP-HIST-022 | Pass condition rewritten to use a hand-rolled `RecordingBearingAdapter` subclass that records `notifyItemChanged` and `notifyDataSetChanged` call counts. |
+| SE PROPERTIES-v1 F-08 | PROP-CAL-038 classified as JVM Integration but `CompassViewModel` extends `AndroidViewModel` — cannot instantiate without Android runtime | PROP-CAL-038 | Reclassified as Integration (Robolectric). Pass condition updated to require `@RunWith(RobolectricTestRunner::class)` and `@Config` annotation. |
+| SE PROPERTIES-v1 F-10 | PROP-SENSOR-037 `List<Sensor>` parameter impossible in JVM test (`android.hardware.Sensor` is final with no public constructor) | PROP-SENSOR-037 | `SensorInfo` wrapper data class introduced. `buildJsonFromSensors()` parameter type changed to `List<SensorInfo>`. Pass condition updated accordingly. |
+| PM PROPERTIES-v1 F-01 | PROP-HIST-041 pass condition anchored only to PLAN, not an approved FSPEC artifact | PROP-HIST-041 | Note added that FSPEC-HIST-03 must be updated to "Bearing deleted" before testing; pass condition anchored to TSPEC §7.5. |
+| PM PROPERTIES-v1 F-02 | PROP-HIST-042 pass condition relied on reflection (internal field, obfuscation-fragile) | PROP-HIST-042 | Pass condition rewritten to assert user-observable behavior: Snackbar is gone after 5100 ms elapsed with no user interaction. |
+| PM PROPERTIES-v1 F-03 | PROP-CAL-002 lacked millisecond-precision boundary specification | PROP-CAL-002 | Pass condition updated with exact millisecond boundary values: `30 * 86_400_000L` ms (no banner), `30 * 86_400_000L + 1` ms (banner shown). |
+| PM PROPERTIES-v1 F-04 | No E2E/integration property for Scenario E2 (WARNING interference + drift banner absent) | PROP-CAL-019b | New integration property added covering the user-observable outcome: drift banner stays `GONE` when `interferenceState = WARNING`, even if drift threshold and 60 s timer conditions are met. |
+| PM PROPERTIES-v1 F-05 | PROP-NAV-010 restated the two-launcher architectural decision as a PROPERTIES mandate, overstepping approved product scope | PROP-NAV-010 | Rewritten to focus on the product behavior (correct side effects per banner path); TSPEC §6.2 cited as the architectural source for the two-launcher implementation decision. |
 
 ### 6.2 Properties Without Existing FSPEC Acceptance Tests (New Coverage)
 
@@ -385,7 +412,8 @@ The following properties are derived from requirements or TSPEC design contracts
 | PROP-SENSOR-021 | SecurityException swallowed without rethrow. |
 | PROP-SENSOR-022 | `catch (e: Exception)` required (not narrow IOException). |
 | PROP-SENSOR-024 | Second launch retries after failure. |
-| PROP-SENSOR-037 | `buildJsonFromSensors()` is a pure function (no Context dependency). |
+| PROP-CAL-019b | REQ Scenario E2 user-observable outcome: drift banner absent when WARNING interference active. PROP-CAL-031 covers the unit-level timer non-advance; PROP-CAL-019b covers the end-user visible outcome. |
+| PROP-SENSOR-037 | `buildJsonFromSensors()` is a pure function accepting `List<SensorInfo>` (not `List<Sensor>`) to enable JVM unit testing. `SensorInfo` data class introduced as a consequence. |
 | PROP-SENSOR-038 | SettingsRepository key must be a named constant, not an ad-hoc string. |
 | PROP-NAV-002 | `TAB_HISTORY = 2` constant and `when` branch must exist (silent no-op risk). |
 | PROP-NAV-021 | Fragment-scoped `BearingHistoryViewModel` destroyed on tab navigation. |
