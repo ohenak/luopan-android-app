@@ -213,7 +213,7 @@ class LuopanStateMapperTest {
 
     @Test
     fun `mapper_show_my_language_uses_english`() {
-        // bearing = 180° → Ring 3 = ☲ 離 南 → English: "Li · South"
+        // bearing = 180° → Ring 2 = ☲ 離 南 → English: "Li · South"
         val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
 
         val result = LuopanStateMapper.map(
@@ -223,23 +223,23 @@ class LuopanStateMapperTest {
             showMyLanguage = true
         )
 
-        // Ring 3 English — FSPEC §4.8 Ring 3 table: 離 南 → "Li · South"
+        // Ring 2 English — FSPEC §4.8 Ring 2 table: 離 南 → "Li · South"
         // The trigramSymbol (☲) is always retained, but trigramName/trigramDirection use English
         assertNotEquals(
             "trigramName should not be '離' when showMyLanguage=true",
             "離",
             result.trigramName
         )
-        // English equivalent from LabelData.english for ring3Labels[4] is "Li · South"
+        // English equivalent from LabelData.english for ring2Labels[4] is "Li · South"
         // trigramName and trigramDirection are split from the English label
         assertTrue(
             "trigramName or result should reflect English when showMyLanguage=true",
             result.mountainChar != "午" || result.trigramName != "離"
         )
 
-        // Ring 5 at 180° → 午 → English: "Horse"
-        assertEquals("mountainChar should be English 'Horse' when showMyLanguage=true", "Horse", result.mountainChar)
         // Ring 4 at 180° → 午 → English: "Horse"
+        assertEquals("mountainChar should be English 'Horse' when showMyLanguage=true", "Horse", result.mountainChar)
+        // Ring 3 at 180° → 午 → English: "Horse"
         assertEquals("earthlyBranchChar should be English 'Horse' when showMyLanguage=true", "Horse", result.earthlyBranchChar)
     }
 
@@ -457,9 +457,33 @@ class LuopanStateMapperTest {
     }
 
     // -------------------------------------------------------------------------
-    // mapper_showMyLanguage_ring3_english
-    // showMyLanguage=true → Ring 3 trigramName/trigramDirection use English
+    // mapper_showMyLanguage_ring2_english
+    // showMyLanguage=true → Ring 2 trigramName/trigramDirection use English
     // bearing 180° → ☲ 離 南 → english "Li · South" → name="Li", direction="South"
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `mapper_showMyLanguage_ring2_english`() {
+        val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
+
+        val result = LuopanStateMapper.map(
+            compassState = state,
+            lockState = null,
+            showRomanization = false,
+            showMyLanguage = true
+        )
+
+        // English equivalents from FSPEC §4.8 Ring 2: 離 南 → "Li · South"
+        assertEquals("trigramName must be 'Li' when showMyLanguage=true at 180°", "Li", result.trigramName)
+        assertEquals("trigramDirection must be 'South' when showMyLanguage=true at 180°", "South", result.trigramDirection)
+        // trigramSymbol (the full character field "☲ 離 南") is always retained
+        assertTrue("trigramSymbol must still be zh-Hant full string", result.trigramSymbol.contains("☲"))
+    }
+
+    // -------------------------------------------------------------------------
+    // mapper_showMyLanguage_ring3_english
+    // showMyLanguage=true → Ring 3 uses English zodiac name
+    // bearing 180° → 午 → english "Horse"
     // -------------------------------------------------------------------------
 
     @Test
@@ -473,17 +497,15 @@ class LuopanStateMapperTest {
             showMyLanguage = true
         )
 
-        // English equivalents from FSPEC §4.8 Ring 3: 離 南 → "Li · South"
-        assertEquals("trigramName must be 'Li' when showMyLanguage=true at 180°", "Li", result.trigramName)
-        assertEquals("trigramDirection must be 'South' when showMyLanguage=true at 180°", "South", result.trigramDirection)
-        // trigramSymbol (the full character field "☲ 離 南") is always retained
-        assertTrue("trigramSymbol must still be zh-Hant full string", result.trigramSymbol.contains("☲"))
+        // FSPEC §4.8 Ring 3: 午 → "Horse"
+        assertEquals("earthlyBranchChar must be 'Horse' when showMyLanguage=true at 180°", "Horse", result.earthlyBranchChar)
+        assertNotEquals("earthlyBranchChar must NOT be '午' when showMyLanguage=true", "午", result.earthlyBranchChar)
     }
 
     // -------------------------------------------------------------------------
     // mapper_showMyLanguage_ring4_english
-    // showMyLanguage=true → Ring 4 uses English zodiac name
-    // bearing 180° → 午 → english "Horse"
+    // showMyLanguage=true → Ring 4 uses English mountain label
+    // bearing 180° → 午 (index 13) → english "Horse"
     // -------------------------------------------------------------------------
 
     @Test
@@ -498,28 +520,6 @@ class LuopanStateMapperTest {
         )
 
         // FSPEC §4.8 Ring 4: 午 → "Horse"
-        assertEquals("earthlyBranchChar must be 'Horse' when showMyLanguage=true at 180°", "Horse", result.earthlyBranchChar)
-        assertNotEquals("earthlyBranchChar must NOT be '午' when showMyLanguage=true", "午", result.earthlyBranchChar)
-    }
-
-    // -------------------------------------------------------------------------
-    // mapper_showMyLanguage_ring5_english
-    // showMyLanguage=true → Ring 5 uses English mountain label
-    // bearing 180° → 午 (index 13) → english "Horse"
-    // -------------------------------------------------------------------------
-
-    @Test
-    fun `mapper_showMyLanguage_ring5_english`() {
-        val state = compassState(headingDeg = 180.0, confidence = OverallConfidence.HIGH)
-
-        val result = LuopanStateMapper.map(
-            compassState = state,
-            lockState = null,
-            showRomanization = false,
-            showMyLanguage = true
-        )
-
-        // FSPEC §4.8 Ring 5: 午 → "Horse"
         assertEquals("mountainChar must be 'Horse' when showMyLanguage=true at 180°", "Horse", result.mountainChar)
         assertNotEquals("mountainChar must NOT be '午' when showMyLanguage=true", "午", result.mountainChar)
     }

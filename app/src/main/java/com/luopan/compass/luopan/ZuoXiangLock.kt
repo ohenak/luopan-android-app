@@ -63,8 +63,8 @@ class ZuoXiangLock {
      *
      * Derives:
      *  - `zuoBearing = (xiangBearing + 180) % 360`
-     *  - `xiangMountain` and `zuoMountain` from Ring 5 LUT via [SectorLookup.ring5] and
-     *    [RingLabelProvider.ring5Label]
+     *  - `xiangMountain` and `zuoMountain` from Ring 4 LUT via [SectorLookup.ring4] and
+     *    [RingLabelProvider.ring4Label]
      *  - Display bearings are initialised to the True North values. The caller must always
      *    follow [lock] with [rederive] to set display bearings for the active north reference.
      *
@@ -77,8 +77,8 @@ class ZuoXiangLock {
     fun lock(bearing: Float) {
         val xiang = ((bearing % 360f) + 360f) % 360f
         val zuo = (xiang + 180f) % 360f
-        val xiangMtn = RingLabelProvider.ring5Label(SectorLookup.ring5(xiang)).character
-        val zuoMtn = RingLabelProvider.ring5Label(SectorLookup.ring5(zuo)).character
+        val xiangMtn = RingLabelProvider.ring4Label(SectorLookup.ring4(xiang)).character
+        val zuoMtn = RingLabelProvider.ring4Label(SectorLookup.ring4(zuo)).character
         _lockState.set(
             LockState(
                 xiangBearing = xiang,

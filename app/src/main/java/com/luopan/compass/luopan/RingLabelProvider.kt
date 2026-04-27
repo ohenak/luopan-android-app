@@ -1,49 +1,29 @@
 package com.luopan.compass.luopan
 
 /**
- * Compile-time label lookup for all six Luopan rings.
+ * Compile-time label lookup for all five Luopan rings.
  *
  * All arrays are 0-based sector indices matching [SectorLookup] return values.
  * No Android dependencies — pure Kotlin object.
  *
  * Ring sizes:
- *   Ring 2 — 先天八卦  (Fuxi / Earlier Heaven): 8  sectors × 45°
- *   Ring 3 — 後天八卦  (King Wen / Later Heaven): 8  sectors × 45°
- *   Ring 4 — 十二地支  (Twelve Earthly Branches): 12 sectors × 30°
- *   Ring 5 — 二十四山  (Twenty-Four Mountains):   24 sectors × 15°
- *   Ring 6 — 六十分金  (Sixty Gold Divisions):    60 sectors × 6°
+ *   Ring 2 — 後天八卦  (King Wen / Later Heaven): 8  sectors × 45°
+ *   Ring 3 — 十二地支  (Twelve Earthly Branches): 12 sectors × 30°
+ *   Ring 4 — 二十四山  (Twenty-Four Mountains):   24 sectors × 15°
+ *   Ring 5 — 六十分金  (Sixty Gold Divisions):    60 sectors × 6°
  *
  * Sources: FSPEC §4.2–4.8, REQ §5.3a, §5.6, §5.8, TSPEC §4.2.
  */
 object RingLabelProvider {
 
-    // ─── Ring 2 — 先天八卦 (Fuxi / Earlier Heaven Arrangement) ───────────────
-    //
-    // Sector index 0 = 巽(☴) at [337.5°, 22.5°) — wrap-around, centre 0°/North
-    // Sector index 4 = 乾(☰) at [157.5°, 202.5°) — centre 180°/South
-    //
-    // Source: TSPEC §4.1 corrected table (TE-F01); FSPEC §4.3; REQ §5.3a.
-    // English uses the trigram element name per the task description §5.8.
-    private val ring2Labels: Array<LabelData> = arrayOf(
-        /* 0 */ LabelData("巽", "Xùn", "Wind"),       // ☴ 北 centre 0°  [337.5°, 22.5°) wrap
-        /* 1 */ LabelData("震", "Zhèn", "Thunder"),    // ☳ 東北 centre 45°
-        /* 2 */ LabelData("離", "Lí", "Fire"),         // ☲ 東  centre 90°
-        /* 3 */ LabelData("兌", "Duì", "Lake"),        // ☱ 東南 centre 135°
-        /* 4 */ LabelData("乾", "Qián", "Heaven"),     // ☰ 南  centre 180°
-        /* 5 */ LabelData("坤", "Kūn", "Earth"),       // ☷ 西南 centre 225°
-        /* 6 */ LabelData("艮", "Gèn", "Mountain"),    // ☶ 西  centre 270°
-        /* 7 */ LabelData("坎", "Kǎn", "Water")        // ☵ 西北 centre 315°
-    )
-
-    // ─── Ring 3 — 後天八卦 (King Wen / Later Heaven Arrangement) ─────────────
     //
     // Sector index 0 = ☵ 坎 北 at [337.5°, 22.5°) — wrap-around, centre 0°/North
     // Sector index 4 = ☲ 離 南 at [157.5°, 202.5°) — centre 180°/South
     //
     // character field uses format "☲ 離 南" (trigram symbol + 卦名 + 方位).
     // Trigram symbols are retained in all language modes per FSPEC §4.8.
-    // English per FSPEC §4.8 Ring 3 table.
-    private val ring3Labels: Array<LabelData> = arrayOf(
+    // English per FSPEC §4.8 Ring 2 table.
+    private val ring2Labels: Array<LabelData> = arrayOf(
         /* 0 */ LabelData("☵ 坎 北", "Kǎn · Běi", "Kan · North"),         // 北  [337.5°, 22.5°) wrap
         /* 1 */ LabelData("☶ 艮 東北", "Gèn · Dōngběi", "Gen · Northeast"),  // 東北 [22.5°, 67.5°)
         /* 2 */ LabelData("☳ 震 東", "Zhèn · Dōng", "Zhen · East"),         // 東  [67.5°, 112.5°)
@@ -54,13 +34,13 @@ object RingLabelProvider {
         /* 7 */ LabelData("☰ 乾 西北", "Qián · Xīběi", "Qian · Northwest")   // 西北 [292.5°, 337.5°)
     )
 
-    // ─── Ring 4 — 十二地支 (Twelve Earthly Branches) ─────────────────────────
+    // ─── Ring 3 — 十二地支 (Twelve Earthly Branches) ─────────────────────────
     //
     // Sector index 0 = 子 at [345°, 15°) — wrap-around, centre 0°/North
     // Sector index 6 = 午 at [165°, 195°) — centre 180°/South
     //
-    // English per FSPEC §4.8 Ring 4 / §5.8 table (zodiac animal names).
-    private val ring4Labels: Array<LabelData> = arrayOf(
+    // English per FSPEC §4.8 Ring 3 / §5.8 table (zodiac animal names).
+    private val ring3Labels: Array<LabelData> = arrayOf(
         /* 0  */ LabelData("子", "Zǐ", "Rat"),       // 北  [345°, 15°) wrap
         /* 1  */ LabelData("丑", "Chǒu", "Ox"),      // [15°, 45°)
         /* 2  */ LabelData("寅", "Yín", "Tiger"),    // [45°, 75°)
@@ -75,14 +55,14 @@ object RingLabelProvider {
         /* 11 */ LabelData("亥", "Hài", "Pig")       // [315°, 345°)
     )
 
-    // ─── Ring 5 — 二十四山 (Twenty-Four Mountains) ────────────────────────────
+    // ─── Ring 4 — 二十四山 (Twenty-Four Mountains) ────────────────────────────
     //
     // Sector index 0  = 壬 at [337.5°, 352.5°) — just west of North
     // Sector index 1  = 子 at [352.5°, 7.5°)  — wrap-around, centre 0°/North
     // Sector index 13 = 午 at [172.5°, 187.5°) — centre 180°/South
     //
-    // English uses pinyin-based English labels per FSPEC §4.8 Ring 5 table.
-    private val ring5Labels: Array<LabelData> = arrayOf(
+    // English uses pinyin-based English labels per FSPEC §4.8 Ring 4 table.
+    private val ring4Labels: Array<LabelData> = arrayOf(
         /* 0  */ LabelData("壬", "Rén", "Ren (Water-Yang)"),      // [337.5°, 352.5°)
         /* 1  */ LabelData("子", "Zǐ", "Rat"),                    // [352.5°, 7.5°) wrap
         /* 2  */ LabelData("癸", "Guǐ", "Gui (Water-Yin)"),       // [7.5°, 22.5°)
@@ -109,7 +89,7 @@ object RingLabelProvider {
         /* 23 */ LabelData("亥", "Hài", "Pig")                    // [322.5°, 337.5°)
     )
 
-    // ─── Ring 6 — 六十分金 (Sixty Gold Divisions) ─────────────────────────────
+    // ─── Ring 5 — 六十分金 (Sixty Gold Divisions) ─────────────────────────────
     //
     // Sector index 0  = 庚子分金 at [352°, 358°)
     // Sector index 1  = 壬子分金 at [358°, 4°) — wrap-around (BR-04)
@@ -121,7 +101,7 @@ object RingLabelProvider {
     // validated by a practicing feng shui consultant before production release.
     // The full 60-entry table is from FSPEC §4.7 (1-based #1..#60 → index 0..59).
     // pinyin and english are intentionally empty for Ring 6 — no §5.8 mapping exists.
-    private val ring6Labels: Array<LabelData> = arrayOf(
+    private val ring5Labels: Array<LabelData> = arrayOf(
         /* 0  FSPEC#1  */ LabelData("庚子分金", "", ""),   // [352°, 358°)
         /* 1  FSPEC#2  */ LabelData("壬子分金", "", ""),   // [358°, 4°) wrap (BR-04)
         /* 2  FSPEC#3  */ LabelData("甲子分金", "", ""),   // [4°, 10°)
@@ -185,36 +165,28 @@ object RingLabelProvider {
     )
 
     /**
-     * Returns the label for a 先天八卦 (Fuxi / Earlier Heaven) sector.
+     * Returns the label for a 後天八卦 (King Wen / Later Heaven) sector.
      *
      * @param sectorIndex 0-based index 0–7, matching [SectorLookup.ring2] output.
-     *                    Index 0 = ☴ 巽 (North wrap-around). Index 4 = ☰ 乾 (South).
+     *                    Index 0 = ☵ 坎 北 (North wrap-around). Index 4 = ☲ 離 南 (South).
      */
     fun ring2Label(sectorIndex: Int): LabelData = ring2Labels[sectorIndex]
 
     /**
-     * Returns the label for a 後天八卦 (King Wen / Later Heaven) sector.
+     * Returns the label for a 十二地支 (Twelve Earthly Branches) sector.
      *
-     * @param sectorIndex 0-based index 0–7, matching [SectorLookup.ring3] output.
-     *                    Index 0 = ☵ 坎 北 (North wrap-around). Index 4 = ☲ 離 南 (South).
+     * @param sectorIndex 0-based index 0–11, matching [SectorLookup.ring3] output.
+     *                    Index 0 = 子 (North wrap-around). Index 6 = 午 (South).
      */
     fun ring3Label(sectorIndex: Int): LabelData = ring3Labels[sectorIndex]
 
     /**
-     * Returns the label for a 十二地支 (Twelve Earthly Branches) sector.
-     *
-     * @param sectorIndex 0-based index 0–11, matching [SectorLookup.ring4] output.
-     *                    Index 0 = 子 (North wrap-around). Index 6 = 午 (South).
-     */
-    fun ring4Label(sectorIndex: Int): LabelData = ring4Labels[sectorIndex]
-
-    /**
      * Returns the label for a 二十四山 (Twenty-Four Mountains) sector.
      *
-     * @param sectorIndex 0-based index 0–23, matching [SectorLookup.ring5] output.
+     * @param sectorIndex 0-based index 0–23, matching [SectorLookup.ring4] output.
      *                    Index 0 = 壬. Index 1 = 子 (North wrap-around). Index 13 = 午 (South).
      */
-    fun ring5Label(sectorIndex: Int): LabelData = ring5Labels[sectorIndex]
+    fun ring4Label(sectorIndex: Int): LabelData = ring4Labels[sectorIndex]
 
     /**
      * Returns the label for a 六十分金 (Sixty Gold Divisions) sector.
@@ -222,17 +194,16 @@ object RingLabelProvider {
      * NOTE (OQ-P3-01): Full table requires validation by a feng shui practitioner
      * before release. Uses 三元/通用 convention from FSPEC §4.7.
      *
-     * @param sectorIndex 0-based index 0–59, matching [SectorLookup.ring6] output.
+     * @param sectorIndex 0-based index 0–59, matching [SectorLookup.ring5] output.
      *                    Index 0 = 庚子分金 [352°, 358°).
      *                    Index 1 = 壬子分金 [358°, 4°) — wrap-around sector (BR-04).
      *                    Index 31 = 壬午分金 [178°, 184°).
      */
-    fun ring6Label(sectorIndex: Int): LabelData = ring6Labels[sectorIndex]
+    fun ring5Label(sectorIndex: Int): LabelData = ring5Labels[sectorIndex]
 
     // ─── Internal size accessors (for unit tests — PROP-01-011) ──────────────
     internal val ring2LabelCount: Int get() = ring2Labels.size
     internal val ring3LabelCount: Int get() = ring3Labels.size
     internal val ring4LabelCount: Int get() = ring4Labels.size
     internal val ring5LabelCount: Int get() = ring5Labels.size
-    internal val ring6LabelCount: Int get() = ring6Labels.size
 }

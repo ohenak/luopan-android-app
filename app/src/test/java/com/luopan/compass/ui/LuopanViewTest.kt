@@ -261,7 +261,7 @@ class LuopanViewTest {
 
     @Test
     fun `default all rings visible`() {
-        for (i in 0 until 6) {
+        for (i in 0 until 5) {
             assertTrue("Ring $i should be visible by default", view.isRingVisible(i))
         }
     }
@@ -307,10 +307,9 @@ class LuopanViewTest {
         view.layout(0, 0, size, size)
 
         assertEquals("Ring 2 must have 8 label positions", 8, view.getLabelPositionCount(2))
-        assertEquals("Ring 3 must have 8 label positions", 8, view.getLabelPositionCount(3))
-        assertEquals("Ring 4 must have 12 label positions", 12, view.getLabelPositionCount(4))
-        assertEquals("Ring 5 must have 24 label positions", 24, view.getLabelPositionCount(5))
-        assertEquals("Ring 6 must have 60 label positions", 60, view.getLabelPositionCount(6))
+        assertEquals("Ring 3 must have 12 label positions", 12, view.getLabelPositionCount(3))
+        assertEquals("Ring 4 must have 24 label positions", 24, view.getLabelPositionCount(4))
+        assertEquals("Ring 5 must have 60 label positions", 60, view.getLabelPositionCount(5))
     }
 
     // -----------------------------------------------------------------------
@@ -320,23 +319,23 @@ class LuopanViewTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `hidden_ring_3_index_2_is_not_visible_satisfies_guard_condition`() {
-        // Set Ring 3 (index 2) hidden, all others visible
-        val flags = BooleanArray(6) { it != 2 }
+    fun `hidden_ring_2_index_1_is_not_visible_satisfies_guard_condition`() {
+        // Set Ring 2 (index 1) hidden, all others visible
+        val flags = BooleanArray(5) { it != 1 }
         view.setRingVisible(flags)
 
-        assertFalse("Ring 3 (index 2) must be hidden — satisfies onDraw guard `if (ringVisible[2])`",
-            view.isRingVisible(2))
+        assertFalse("Ring 2 (index 1) must be hidden — satisfies onDraw guard `if (ringVisible[1])`",
+            view.isRingVisible(1))
         // Other rings remain visible
-        assertTrue("Ring 2 (index 1) must remain visible", view.isRingVisible(1))
+        assertTrue("Ring 1 (index 0) must remain visible", view.isRingVisible(0))
+        assertTrue("Ring 3 (index 2) must remain visible", view.isRingVisible(2))
         assertTrue("Ring 4 (index 3) must remain visible", view.isRingVisible(3))
-        assertTrue("Ring 5 (index 4) must remain visible", view.isRingVisible(4))
     }
 
     @Test
     fun `all_rings_hidden_all_guard_conditions_satisfied`() {
-        view.setRingVisible(BooleanArray(6) { false })
-        for (i in 0 until 6) {
+        view.setRingVisible(BooleanArray(5) { false })
+        for (i in 0 until 5) {
             assertFalse(
                 "Ring $i (index $i) must be hidden — onDraw guard skips drawRing${i+1}Labels",
                 view.isRingVisible(i)
@@ -348,15 +347,15 @@ class LuopanViewTest {
     // PROP-04-045A: Sector label under fixed pointer matches SectorLookup result
     // For any bearing B, the Ring 5 label at the pointer position is
     // RingLabelProvider.ring5Label(SectorLookup.ring5(B)).
-    // Verified with bearing = 180° → sector = 午 (index 13).
+    // Verified with bearing = 180° → sector = 午 (index 13, Ring 4 二十四山).
     // -----------------------------------------------------------------------
 
     @Test
-    fun `sector_under_pointer_at_180_bearing_matches_sectorlookup_ring5`() {
+    fun `sector_under_pointer_at_180_bearing_matches_sectorlookup_ring4`() {
         val bearing = 180.0f
-        val sectorIdx = SectorLookup.ring5(bearing)
-        val label = RingLabelProvider.ring5Label(sectorIdx)
-        // 180° → Ring 5 sector 13 → 午 (PROP-04-045A, BR-11, AC-02a)
+        val sectorIdx = SectorLookup.ring4(bearing)
+        val label = RingLabelProvider.ring4Label(sectorIdx)
+        // 180° → Ring 4 sector 13 → 午 (PROP-04-045A, BR-11, AC-02a)
         assertEquals(
             "Sector under pointer at bearing=180° must be '午' (index 13)",
             "午",
@@ -365,11 +364,11 @@ class LuopanViewTest {
     }
 
     @Test
-    fun `sector_under_pointer_at_0_bearing_matches_sectorlookup_ring5`() {
+    fun `sector_under_pointer_at_0_bearing_matches_sectorlookup_ring4`() {
         val bearing = 0.0f
-        val sectorIdx = SectorLookup.ring5(bearing)
-        val label = RingLabelProvider.ring5Label(sectorIdx)
-        // 0° → Ring 5 sector 1 → 子 (wrap-around)
+        val sectorIdx = SectorLookup.ring4(bearing)
+        val label = RingLabelProvider.ring4Label(sectorIdx)
+        // 0° → Ring 4 sector 1 → 子 (wrap-around)
         assertEquals(
             "Sector under pointer at bearing=0° must be '子' (index 1)",
             "子",
@@ -378,11 +377,11 @@ class LuopanViewTest {
     }
 
     @Test
-    fun `sector_under_pointer_at_90_bearing_matches_sectorlookup_ring5`() {
+    fun `sector_under_pointer_at_90_bearing_matches_sectorlookup_ring4`() {
         val bearing = 90.0f
-        val sectorIdx = SectorLookup.ring5(bearing)
-        val label = RingLabelProvider.ring5Label(sectorIdx)
-        // 90° → Ring 5 sector 7 → 卯 [82.5°, 97.5°)
+        val sectorIdx = SectorLookup.ring4(bearing)
+        val label = RingLabelProvider.ring4Label(sectorIdx)
+        // 90° → Ring 4 sector 7 → 卯 [82.5°, 97.5°)
         assertEquals(
             "Sector under pointer at bearing=90° must be '卯' (index 7)",
             "卯",
@@ -396,26 +395,26 @@ class LuopanViewTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `ring4_text_size_constant_meets_12sp_minimum`() {
+    fun `ring3_text_size_constant_meets_12sp_minimum`() {
         assertTrue(
-            "Ring 4 text size constant must be >= 12sp for legibility (PROP-04-045B)",
-            LuopanView.RING4_TEXT_SIZE_SP >= 12f
+            "Ring 3 text size constant must be >= 12sp for legibility (PROP-04-045B)",
+            LuopanView.RING3_TEXT_SIZE_SP >= 12f
         )
     }
 
     @Test
-    fun `ring5_text_size_constant_meets_11sp_minimum`() {
+    fun `ring4_text_size_constant_meets_11sp_minimum`() {
         assertTrue(
-            "Ring 5 text size constant must be >= 11sp for legibility (PROP-04-045B)",
-            LuopanView.RING5_TEXT_SIZE_SP >= 11f
+            "Ring 4 text size constant must be >= 11sp for legibility (PROP-04-045B)",
+            LuopanView.RING4_TEXT_SIZE_SP >= 11f
         )
     }
 
     @Test
-    fun `ring6_text_size_constant_meets_8sp_minimum`() {
+    fun `ring5_text_size_constant_meets_8sp_minimum`() {
         assertTrue(
-            "Ring 6 text size constant must be >= 8sp for legibility (PROP-04-045B)",
-            LuopanView.RING6_TEXT_SIZE_SP >= 8f
+            "Ring 5 text size constant must be >= 8sp for legibility (PROP-04-045B)",
+            LuopanView.RING5_TEXT_SIZE_SP >= 8f
         )
     }
 
@@ -429,14 +428,14 @@ class LuopanViewTest {
         )
         view.layout(0, 0, size, size)
 
+        assertTrue("Ring 3 paint textSize must be > 0 after layout", view.getRing3TextSizePx() > 0f)
         assertTrue("Ring 4 paint textSize must be > 0 after layout", view.getRing4TextSizePx() > 0f)
         assertTrue("Ring 5 paint textSize must be > 0 after layout", view.getRing5TextSizePx() > 0f)
-        assertTrue("Ring 6 paint textSize must be > 0 after layout", view.getRing6TextSizePx() > 0f)
     }
 
     @Test
-    fun `ring_text_sizes_in_ascending_order_ring6_smallest`() {
-        // Ring 4 (12sp) > Ring 5 (11sp) > Ring 6 (8sp) — hierarchy matches spec
+    fun `ring_text_sizes_in_ascending_order_ring5_smallest`() {
+        // Ring 3 (12sp) > Ring 4 (11sp) > Ring 5 (8sp) — hierarchy matches spec
         val size = 800
         view.measure(
             View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY),
@@ -445,12 +444,12 @@ class LuopanViewTest {
         view.layout(0, 0, size, size)
 
         assertTrue(
-            "Ring 4 text must be larger than Ring 5 text (12sp vs 11sp)",
-            view.getRing4TextSizePx() > view.getRing5TextSizePx()
+            "Ring 3 text must be larger than Ring 4 text (12sp vs 11sp)",
+            view.getRing3TextSizePx() > view.getRing4TextSizePx()
         )
         assertTrue(
-            "Ring 5 text must be larger than Ring 6 text (11sp vs 8sp)",
-            view.getRing5TextSizePx() > view.getRing6TextSizePx()
+            "Ring 4 text must be larger than Ring 5 text (11sp vs 8sp)",
+            view.getRing4TextSizePx() > view.getRing5TextSizePx()
         )
     }
 }

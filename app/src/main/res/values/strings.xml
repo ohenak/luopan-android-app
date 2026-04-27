@@ -115,11 +115,10 @@
     <string name="ring_visibility_sheet_title">Show / Hide Rings</string>
     <string name="ring_visibility_done">Done</string>
     <string name="ring1_label">Ring 1 — 天池</string>
-    <string name="ring2_label">Ring 2 — 先天八卦</string>
-    <string name="ring3_label">Ring 3 — 後天八卦</string>
-    <string name="ring4_label">Ring 4 — 十二地支</string>
-    <string name="ring5_label">Ring 5 — 二十四山</string>
-    <string name="ring6_label">Ring 6 — 六十分金</string>
+    <string name="ring2_label">Ring 2 — 後天八卦</string>
+    <string name="ring3_label">Ring 3 — 十二地支</string>
+    <string name="ring4_label">Ring 4 — 二十四山</string>
+    <string name="ring5_label">Ring 5 — 六十分金</string>
     <!-- Overflow menu item to open ring visibility sheet (TalkBack alternative, TSPEC §6.4) -->
     <string name="menu_show_hide_rings">Show/hide rings</string>
 </resources>

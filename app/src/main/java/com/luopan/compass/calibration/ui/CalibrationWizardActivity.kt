@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.webkit.WebView
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -48,6 +49,7 @@ class CalibrationWizardActivity : AppCompatActivity() {
 
     // Views — guidance
     private lateinit var stepGuidance: View
+    private lateinit var wvFigure8: WebView
     private lateinit var btnStartCollection: Button
     private lateinit var btnCancelGuidance: Button
 
@@ -90,6 +92,11 @@ class CalibrationWizardActivity : AppCompatActivity() {
         btnMoveAndRetry = findViewById(R.id.btnMoveAndRetry)
 
         stepGuidance = findViewById(R.id.stepGuidance)
+        wvFigure8 = findViewById(R.id.wvFigure8)
+        wvFigure8.settings.loadWithOverviewMode = true
+        wvFigure8.settings.useWideViewPort = true
+        wvFigure8.setBackgroundColor(0xFF1A0A0A.toInt())
+        wvFigure8.loadUrl("file:///android_asset/calibration_figure8.svg")
         btnStartCollection = findViewById(R.id.btnStartCollection)
         btnCancelGuidance = findViewById(R.id.btnCancelGuidance)
 
@@ -274,5 +281,6 @@ class CalibrationWizardActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         collectionJob?.cancel()
+        wvFigure8.destroy()
     }
 }

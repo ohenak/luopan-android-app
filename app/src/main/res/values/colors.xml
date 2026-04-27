@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Brand palette -->
+    <color name="brand_teal">#2d6e8a</color>
+    <color name="brand_ivory">#f5efd8</color>
+    <color name="brand_forest_green">#3d5c3a</color>
+    <color name="brand_gold">#c8a020</color>
+
+    <!-- Calibration quality / semantic colours -->
     <color name="cal_dot_green">#4CAF50</color>
     <color name="cal_dot_yellow">#FFC107</color>
     <color name="cal_dot_red">#F44336</color>

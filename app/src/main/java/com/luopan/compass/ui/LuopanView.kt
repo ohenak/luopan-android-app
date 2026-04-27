@@ -75,9 +75,9 @@ class LuopanView @JvmOverloads constructor(
 
         // Minimum text size spec values (sp) for legibility on 5-inch 1080p displays.
         // Verified by PROP-04-045B; sourced from TSPEC §6.1.1 and REQ-NFR-LUOPAN-02.
-        const val RING4_TEXT_SIZE_SP = 12f
-        const val RING5_TEXT_SIZE_SP = 11f
-        const val RING6_TEXT_SIZE_SP = 8f
+        const val RING3_TEXT_SIZE_SP = 12f
+        const val RING4_TEXT_SIZE_SP = 11f
+        const val RING5_TEXT_SIZE_SP = 8f
 
         private var cjkTypeface: Typeface = Typeface.DEFAULT
 
@@ -106,7 +106,7 @@ class LuopanView @JvmOverloads constructor(
     private var bearingDeg: Float = 0f
 
     private var zoomScale: Float = 1.0f
-    private var ringVisible: BooleanArray = BooleanArray(6) { true }
+    private var ringVisible: BooleanArray = BooleanArray(5) { true }
     private var isLockActiveState: Boolean = false
     private var displayXiangBearingState: Float? = null
 
@@ -131,32 +131,29 @@ class LuopanView @JvmOverloads constructor(
 
     /**
      * Ring outer radii as fractions of [baseRadius].
-     * Index 0 = Ring 1 (天池 needle), index 5 = Ring 6 (六十分金).
+     * Index 0 = Ring 1 (天池 needle), index 4 = Ring 5 (六十分金).
      * TSPEC §6.1.1.
      */
     private val RING_RADIUS_FRACTIONS = floatArrayOf(
         0.12f,  // Ring 1 — 天池 needle circle
-        0.30f,  // Ring 2 — 先天八卦
-        0.48f,  // Ring 3 — 後天八卦
-        0.62f,  // Ring 4 — 十二地支
-        0.78f,  // Ring 5 — 二十四山
-        1.00f   // Ring 6 — 六十分金
+        0.48f,  // Ring 2 — 後天八卦
+        0.62f,  // Ring 3 — 十二地支
+        0.78f,  // Ring 4 — 二十四山
+        1.00f   // Ring 5 — 六十分金
     )
 
     // Pre-computed sector label positions (PointF = text centre in canvas coords).
     // Populated in onSizeChanged; one entry per sector per ring.
     private var ring2LabelPositions: Array<PointF> = emptyArray()  // 8 entries
-    private var ring3LabelPositions: Array<PointF> = emptyArray()  // 8 entries
-    private var ring4LabelPositions: Array<PointF> = emptyArray()  // 12 entries
-    private var ring5LabelPositions: Array<PointF> = emptyArray()  // 24 entries
-    private var ring6LabelPositions: Array<PointF> = emptyArray()  // 60 entries
+    private var ring3LabelPositions: Array<PointF> = emptyArray()  // 12 entries
+    private var ring4LabelPositions: Array<PointF> = emptyArray()  // 24 entries
+    private var ring5LabelPositions: Array<PointF> = emptyArray()  // 60 entries
 
     // Pre-computed sector divider angles (in radians, measured from North, clockwise)
     private var ring2SectorAnglesRad: FloatArray = FloatArray(0)
     private var ring3SectorAnglesRad: FloatArray = FloatArray(0)
     private var ring4SectorAnglesRad: FloatArray = FloatArray(0)
     private var ring5SectorAnglesRad: FloatArray = FloatArray(0)
-    private var ring6SectorAnglesRad: FloatArray = FloatArray(0)
 
     // Reusable RectF for arc drawing (allocated once, never in onDraw)
     @Suppress("unused")
@@ -215,11 +212,6 @@ class LuopanView @JvmOverloads constructor(
     }
 
     private val ring5TextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#E8C97A")
-        textAlign = Paint.Align.CENTER
-    }
-
-    private val ring6TextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#B89A5A")
         textAlign = Paint.Align.CENTER
     }
@@ -331,14 +323,12 @@ class LuopanView @JvmOverloads constructor(
         ring3TextPaint.typeface = cjkTypeface
         ring4TextPaint.typeface = cjkTypeface
         ring5TextPaint.typeface = cjkTypeface
-        ring6TextPaint.typeface = cjkTypeface
 
-        // Font sizes: Ring 6=8sp, Ring 5=11sp, Ring 4=12sp, Rings 2–3=14sp
+        // Font sizes: Ring 5=8sp, Ring 4=11sp, Ring 3=12sp, Ring 2=14sp
         ring2TextPaint.textSize = 14f * sp1px
-        ring3TextPaint.textSize = 14f * sp1px
-        ring4TextPaint.textSize = 12f * sp1px
-        ring5TextPaint.textSize = 11f * sp1px
-        ring6TextPaint.textSize = 8f * sp1px
+        ring3TextPaint.textSize = 12f * sp1px
+        ring4TextPaint.textSize = 11f * sp1px
+        ring5TextPaint.textSize = 8f * sp1px
 
         // Border stroke width in dp
         val dp = resources.displayMetrics.density
@@ -347,7 +337,7 @@ class LuopanView @JvmOverloads constructor(
         goldTickPaint.strokeWidth = 4f * dp
         needleShaftPaint.strokeWidth = 4f * dp
 
-        // Pre-compute label positions for Rings 2–6
+        // Pre-compute label positions for Rings 2–5
         ring2LabelPositions = computeLabelPositions(
             count = 8, degreesPerSector = 45f,
             innerFraction = RING_RADIUS_FRACTIONS[0],
@@ -355,36 +345,29 @@ class LuopanView @JvmOverloads constructor(
             startOffsetDeg = 22.5f   // Centre of sector 0 = 0° North
         )
         ring3LabelPositions = computeLabelPositions(
-            count = 8, degreesPerSector = 45f,
+            count = 12, degreesPerSector = 30f,
             innerFraction = RING_RADIUS_FRACTIONS[1],
             outerFraction = RING_RADIUS_FRACTIONS[2],
-            startOffsetDeg = 22.5f
-        )
-        ring4LabelPositions = computeLabelPositions(
-            count = 12, degreesPerSector = 30f,
-            innerFraction = RING_RADIUS_FRACTIONS[2],
-            outerFraction = RING_RADIUS_FRACTIONS[3],
             startOffsetDeg = 15f     // Centre of sector 0 (子) = 0° North
         )
-        ring5LabelPositions = computeLabelPositions(
+        ring4LabelPositions = computeLabelPositions(
             count = 24, degreesPerSector = 15f,
-            innerFraction = RING_RADIUS_FRACTIONS[3],
-            outerFraction = RING_RADIUS_FRACTIONS[4],
+            innerFraction = RING_RADIUS_FRACTIONS[2],
+            outerFraction = RING_RADIUS_FRACTIONS[3],
             startOffsetDeg = 7.5f   // Centre of first sector north of 337.5° start
         )
-        ring6LabelPositions = computeLabelPositions(
+        ring5LabelPositions = computeLabelPositions(
             count = 60, degreesPerSector = 6f,
-            innerFraction = RING_RADIUS_FRACTIONS[4],
-            outerFraction = RING_RADIUS_FRACTIONS[5],
+            innerFraction = RING_RADIUS_FRACTIONS[3],
+            outerFraction = RING_RADIUS_FRACTIONS[4],
             startOffsetDeg = 355f   // First sector 庚子 centred at 355° (352–358° → mid 355°)
         )
 
         // Pre-compute sector divider angles
         ring2SectorAnglesRad = computeSectorBoundaryAnglesRad(8, 45f, 0f)
-        ring3SectorAnglesRad = computeSectorBoundaryAnglesRad(8, 45f, 0f)
-        ring4SectorAnglesRad = computeSectorBoundaryAnglesRad(12, 30f, 345f)
-        ring5SectorAnglesRad = computeSectorBoundaryAnglesRad(24, 15f, 337.5f)
-        ring6SectorAnglesRad = computeSectorBoundaryAnglesRad(60, 6f, 352f)
+        ring3SectorAnglesRad = computeSectorBoundaryAnglesRad(12, 30f, 345f)
+        ring4SectorAnglesRad = computeSectorBoundaryAnglesRad(24, 15f, 337.5f)
+        ring5SectorAnglesRad = computeSectorBoundaryAnglesRad(60, 6f, 352f)
 
         // Recompute tick mark position if lock is active
         recomputeTickPosition()
@@ -440,7 +423,7 @@ class LuopanView @JvmOverloads constructor(
         val tickBearing = displayXiangBearingState ?: return
         if (baseRadius == 0f) return
         val tickAngleRad = Math.toRadians(tickBearing.toDouble())
-        val outerR = baseRadius * RING_RADIUS_FRACTIONS[4]  // outer edge of Ring 5
+        val outerR = baseRadius * RING_RADIUS_FRACTIONS[3]  // outer edge of Ring 4
         val innerR = outerR * 0.92f
         tickInnerPoint = PointF(
             cx + (innerR * sin(tickAngleRad)).toFloat(),
@@ -479,10 +462,9 @@ class LuopanView @JvmOverloads constructor(
         if (ringVisible[2]) drawRing3Labels(canvas)
         if (ringVisible[3]) drawRing4Labels(canvas)
         if (ringVisible[4]) drawRing5Labels(canvas)
-        if (ringVisible[5]) drawRing6Labels(canvas)
 
         // 6. Gold tick mark — drawn inside rotation so it rotates with the dial
-        if (isLockActiveState && ringVisible[4]) drawGoldTickMark(canvas)
+        if (isLockActiveState && ringVisible[3]) drawGoldTickMark(canvas)
 
         canvas.restore()  // undo rotation
 
@@ -514,14 +496,14 @@ class LuopanView @JvmOverloads constructor(
      */
     private fun drawRingBands(canvas: Canvas) {
         // Step 1: fill rings from outside-in — each inner circle naturally clips the outer
-        for (ringIdx in 5 downTo 0) {
+        for (ringIdx in 4 downTo 0) {
             val outerR = baseRadius * RING_RADIUS_FRACTIONS[ringIdx]
             val bgPaint = if (ringIdx % 2 == 0) ringBgPaintEven else ringBgPaintOdd
             canvas.drawCircle(cx, cy, outerR, bgPaint)
         }
 
         // Step 2: draw border circles on top of all fills
-        for (ringIdx in 0 until 6) {
+        for (ringIdx in 0 until 5) {
             val outerR = baseRadius * RING_RADIUS_FRACTIONS[ringIdx]
             canvas.drawCircle(cx, cy, outerR, borderPaint)
         }
@@ -561,69 +543,57 @@ class LuopanView @JvmOverloads constructor(
     }
 
     /**
-     * Draws Ring 2 (先天八卦) labels — 8 sectors × 45°.
+     * Draws Ring 2 (後天八卦) labels — 8 sectors × 45°.
      * Pre-computed positions from [ring2LabelPositions].
      */
     private fun drawRing2Labels(canvas: Canvas) {
         ring2LabelPositions.forEachIndexed { i, pos ->
             val label = RingLabelProvider.ring2Label(i)
-            canvas.drawText(label.character, pos.x, pos.y + ring2TextPaint.textSize * 0.35f, ring2TextPaint)
+            // Ring 2 has compound labels "☵ 坎 北" — draw first CJK char only in ring
+            val shortLabel = label.character.take(1)
+            canvas.drawText(shortLabel, pos.x, pos.y + ring2TextPaint.textSize * 0.35f, ring2TextPaint)
         }
         drawSectorDividers(canvas, 8, ring2SectorAnglesRad,
             RING_RADIUS_FRACTIONS[0], RING_RADIUS_FRACTIONS[1])
     }
 
     /**
-     * Draws Ring 3 (後天八卦) labels — 8 sectors × 45°.
+     * Draws Ring 3 (十二地支) labels — 12 sectors × 30°.
      */
     private fun drawRing3Labels(canvas: Canvas) {
         ring3LabelPositions.forEachIndexed { i, pos ->
             val label = RingLabelProvider.ring3Label(i)
-            // Ring 3 has compound labels "☵ 坎 北" — draw first CJK char only in ring
-            val shortLabel = label.character.take(1)
-            canvas.drawText(shortLabel, pos.x, pos.y + ring3TextPaint.textSize * 0.35f, ring3TextPaint)
+            canvas.drawText(label.character, pos.x, pos.y + ring3TextPaint.textSize * 0.35f, ring3TextPaint)
         }
-        drawSectorDividers(canvas, 8, ring3SectorAnglesRad,
+        drawSectorDividers(canvas, 12, ring3SectorAnglesRad,
             RING_RADIUS_FRACTIONS[1], RING_RADIUS_FRACTIONS[2])
     }
 
     /**
-     * Draws Ring 4 (十二地支) labels — 12 sectors × 30°.
+     * Draws Ring 4 (二十四山) labels — 24 sectors × 15°.
      */
     private fun drawRing4Labels(canvas: Canvas) {
         ring4LabelPositions.forEachIndexed { i, pos ->
             val label = RingLabelProvider.ring4Label(i)
             canvas.drawText(label.character, pos.x, pos.y + ring4TextPaint.textSize * 0.35f, ring4TextPaint)
         }
-        drawSectorDividers(canvas, 12, ring4SectorAnglesRad,
+        drawSectorDividers(canvas, 24, ring4SectorAnglesRad,
             RING_RADIUS_FRACTIONS[2], RING_RADIUS_FRACTIONS[3])
     }
 
     /**
-     * Draws Ring 5 (二十四山) labels — 24 sectors × 15°.
+     * Draws Ring 5 (六十分金) labels — 60 sectors × 6°.
+     * Labels are small (8sp); 2–4 characters each.
      */
     private fun drawRing5Labels(canvas: Canvas) {
         ring5LabelPositions.forEachIndexed { i, pos ->
             val label = RingLabelProvider.ring5Label(i)
-            canvas.drawText(label.character, pos.x, pos.y + ring5TextPaint.textSize * 0.35f, ring5TextPaint)
-        }
-        drawSectorDividers(canvas, 24, ring5SectorAnglesRad,
-            RING_RADIUS_FRACTIONS[3], RING_RADIUS_FRACTIONS[4])
-    }
-
-    /**
-     * Draws Ring 6 (六十分金) labels — 60 sectors × 6°.
-     * Labels are small (8sp); 2–4 characters each.
-     */
-    private fun drawRing6Labels(canvas: Canvas) {
-        ring6LabelPositions.forEachIndexed { i, pos ->
-            val label = RingLabelProvider.ring6Label(i)
-            // Ring 6 labels are 4 chars "壬午分金" — draw abbreviated (first 2 chars) to fit
+            // Ring 5 labels are 4 chars "壬午分金" — draw abbreviated (first 2 chars) to fit
             val shortLabel = label.character.take(2)
-            canvas.drawText(shortLabel, pos.x, pos.y + ring6TextPaint.textSize * 0.35f, ring6TextPaint)
+            canvas.drawText(shortLabel, pos.x, pos.y + ring5TextPaint.textSize * 0.35f, ring5TextPaint)
         }
-        drawSectorDividers(canvas, 60, ring6SectorAnglesRad,
-            RING_RADIUS_FRACTIONS[4], RING_RADIUS_FRACTIONS[5])
+        drawSectorDividers(canvas, 60, ring5SectorAnglesRad,
+            RING_RADIUS_FRACTIONS[3], RING_RADIUS_FRACTIONS[4])
     }
 
     /**
@@ -720,8 +690,8 @@ class LuopanView @JvmOverloads constructor(
     }
 
     /**
-     * Updates all six ring visibility flags atomically and redraws.
-     * [visible] must have at least 6 elements (0-based: Ring 1 = index 0).
+     * Updates all five ring visibility flags atomically and redraws.
+     * [visible] must have at least 5 elements (0-based: Ring 1 = index 0).
      * FSPEC Flow 5.
      */
     fun setRingVisible(visible: BooleanArray) {
@@ -774,16 +744,15 @@ class LuopanView @JvmOverloads constructor(
         3 -> ring3LabelPositions.size
         4 -> ring4LabelPositions.size
         5 -> ring5LabelPositions.size
-        6 -> ring6LabelPositions.size
         else -> 0
     }
+
+    /** Returns the configured Ring 3 text size in pixels (set in [onSizeChanged]). */
+    internal fun getRing3TextSizePx(): Float = ring3TextPaint.textSize
 
     /** Returns the configured Ring 4 text size in pixels (set in [onSizeChanged]). */
     internal fun getRing4TextSizePx(): Float = ring4TextPaint.textSize
 
     /** Returns the configured Ring 5 text size in pixels (set in [onSizeChanged]). */
     internal fun getRing5TextSizePx(): Float = ring5TextPaint.textSize
-
-    /** Returns the configured Ring 6 text size in pixels (set in [onSizeChanged]). */
-    internal fun getRing6TextSizePx(): Float = ring6TextPaint.textSize
 }

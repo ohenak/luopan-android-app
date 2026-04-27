@@ -641,24 +641,24 @@ class LuopanFragmentLogicTest {
 
     /**
      * AC-14 / FSPEC Flow 5 decision point:
-     * When Ring 5 (index 4) is hidden and the lock is active, the gold tick mark
+     * When Ring 4 (index 3) is hidden and the lock is active, the gold tick mark
      * must NOT be drawn. This verifies the guard condition in LuopanView.onDraw():
-     *   `if (isLockActiveState && ringVisible[4]) drawGoldTickMark(canvas)`
+     *   `if (isLockActiveState && ringVisible[3]) drawGoldTickMark(canvas)`
      *
-     * PLAN Task 5.2 test: `ring5_hidden_gold_tick_mark_should_not_show`.
+     * PLAN Task 5.2 test: `ring4_hidden_gold_tick_mark_should_not_show`.
      */
     @Test
-    fun ring5_hidden_gold_tick_mark_should_not_show() {
+    fun ring4_hidden_gold_tick_mark_should_not_show() {
         val isLockActive = true
-        val ringVisible = BooleanArray(6) { true }
-        ringVisible[4] = false  // Hide Ring 5 (二十四山)
+        val ringVisible = BooleanArray(5) { true }
+        ringVisible[3] = false  // Hide Ring 4 (二十四山)
 
         // Guard condition from LuopanView.onDraw():
-        //   `if (isLockActiveState && ringVisible[4]) drawGoldTickMark(canvas)`
-        // When ringVisible[4] is false, shouldDraw must be false.
-        val shouldDrawTickMark = isLockActive && ringVisible[4]
+        //   `if (isLockActiveState && ringVisible[3]) drawGoldTickMark(canvas)`
+        // When ringVisible[3] is false, shouldDraw must be false.
+        val shouldDrawTickMark = isLockActive && ringVisible[3]
         assertFalse(
-            "Gold tick mark must NOT draw when Ring 5 (index 4) is hidden, even with lock active",
+            "Gold tick mark must NOT draw when Ring 4 (index 3) is hidden, even with lock active",
             shouldDrawTickMark
         )
     }

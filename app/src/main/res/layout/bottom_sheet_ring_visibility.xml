@@ -52,7 +52,7 @@
 
     </LinearLayout>
 
-    <!-- Ring 2 — 先天八卦 -->
+    <!-- Ring 2 — 後天八卦 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -77,7 +77,7 @@
 
     </LinearLayout>
 
-    <!-- Ring 3 — 後天八卦 -->
+    <!-- Ring 3 — 十二地支 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -102,7 +102,7 @@
 
     </LinearLayout>
 
-    <!-- Ring 4 — 十二地支 -->
+    <!-- Ring 4 — 二十四山 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -127,7 +127,7 @@
 
     </LinearLayout>
 
-    <!-- Ring 5 — 二十四山 -->
+    <!-- Ring 5 — 六十分金 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -147,31 +147,6 @@
             android:layout_weight="1"
             android:layout_marginStart="12dp"
             android:text="@string/ring5_label"
-            android:textColor="#E8C97A"
-            android:textSize="14sp" />
-
-    </LinearLayout>
-
-    <!-- Ring 6 — 六十分金 -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingVertical="8dp">
-
-        <Switch
-            android:id="@+id/switchRing6"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:contentDescription="@string/ring6_label" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="12dp"
-            android:text="@string/ring6_label"
             android:textColor="#E8C97A"
             android:textSize="14sp" />
 

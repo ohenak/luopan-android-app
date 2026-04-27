@@ -54,8 +54,7 @@ class RingVisibilityBottomSheet : BottomSheetDialogFragment() {
             view.findViewById<Switch>(R.id.switchRing2),
             view.findViewById<Switch>(R.id.switchRing3),
             view.findViewById<Switch>(R.id.switchRing4),
-            view.findViewById<Switch>(R.id.switchRing5),
-            view.findViewById<Switch>(R.id.switchRing6)
+            view.findViewById<Switch>(R.id.switchRing5)
         )
 
         // Initialise each switch from the current ring visibility state (FSPEC Flow 5 step 3).

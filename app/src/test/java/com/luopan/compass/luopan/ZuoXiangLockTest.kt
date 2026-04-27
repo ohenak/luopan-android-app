@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * Covers:
  *   - Initial null state
  *   - lock() zuoBearing derivation (BR-06)
- *   - lock() 山 label lookups via SectorLookup.ring5() + RingLabelProvider.ring5Label()
+ *   - lock() 山 label lookups via SectorLookup.ring4() + RingLabelProvider.ring4Label()
  *   - clear() resets to null
  *   - rederive() updates only display bearings; stored True North never changes (FSPEC §4d)
  *   - Thread-safety: concurrent lock()/read produces no torn state (TE-F04)

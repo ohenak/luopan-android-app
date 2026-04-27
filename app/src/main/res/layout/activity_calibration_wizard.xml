@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black">
+    android:background="@color/brand_ivory">
 
     <!-- Step 0: Pre-check -->
     <LinearLayout
@@ -21,7 +21,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Environment Check"
-            android:textColor="@android:color/white"
+            android:textColor="@color/brand_teal"
             android:textSize="20sp"
             android:layout_marginBottom="16dp" />
 
@@ -29,7 +29,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Move away from metal objects and electronic devices for best results."
-            android:textColor="@android:color/white"
+            android:textColor="@color/brand_forest_green"
             android:textSize="14sp"
             android:layout_marginBottom="24dp"
             android:gravity="center" />
@@ -52,10 +52,13 @@
     <LinearLayout
         android:id="@+id/stepGuidance"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="24dp"
-        android:gravity="center"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:gravity="center_horizontal"
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
@@ -64,23 +67,22 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Calibration Motion"
-            android:textColor="@android:color/white"
+            android:textColor="@color/brand_teal"
             android:textSize="20sp"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="12dp" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Rotate your device slowly in a figure-8 pattern in all orientations. Cover all axes for best accuracy."
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:layout_marginBottom="32dp"
-            android:gravity="center" />
+        <WebView
+            android:id="@+id/wvFigure8"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="#1A0A0A" />
 
         <Button
             android:id="@+id/btnStartCollection"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
             android:text="Start" />
 
         <Button
@@ -112,20 +114,20 @@
             android:id="@+id/tvSampleCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
+            android:textColor="@color/brand_teal"
             android:textSize="16sp"
             android:text="0 samples"
             android:layout_marginTop="8dp" />
 
-        <TextView android:id="@+id/tvCoverageX" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@android:color/white" android:text="X: 0%" />
-        <TextView android:id="@+id/tvCoverageY" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@android:color/white" android:text="Y: 0%" />
-        <TextView android:id="@+id/tvCoverageZ" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@android:color/white" android:text="Z: 0%" />
+        <TextView android:id="@+id/tvCoverageX" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/brand_teal" android:text="X: 0%" />
+        <TextView android:id="@+id/tvCoverageY" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/brand_teal" android:text="Y: 0%" />
+        <TextView android:id="@+id/tvCoverageZ" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/brand_teal" android:text="Z: 0%" />
 
         <TextView
             android:id="@+id/tvHint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
+            android:textColor="@color/brand_forest_green"
             android:textSize="14sp"
             android:layout_marginTop="8dp"
             android:text="Rotate in all directions" />
@@ -183,7 +185,7 @@
             android:id="@+id/tvResidual"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
+            android:textColor="@color/brand_teal"
             android:textSize="16sp"
             android:layout_marginBottom="8dp" />
 
@@ -191,7 +193,7 @@
             android:id="@+id/tvFairCaption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
+            android:textColor="@color/brand_forest_green"
             android:textSize="12sp"
             android:gravity="center"
             android:layout_marginBottom="16dp"

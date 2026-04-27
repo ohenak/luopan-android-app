@@ -29,34 +29,7 @@ object SectorLookup {
     // -------------------------------------------------------------------------
 
     /**
-     * Ring 2 — 先天八卦 (Fuxi / Earlier Heaven), 8 sectors × 45°.
-     *
-     * Corrected arrangement (TE-F01): 乾(☰) at South [157.5°, 202.5°), index 4.
-     * ☴ 巽 is centred on North (0°) and wraps around the 0°/360° boundary.
-     *
-     * Index | Sector  | Start   | End
-     *   0   | ☴ 巽 北 | 337.5°  | 22.5°   (wrap)
-     *   1   | ☳ 震 東北| 22.5°  | 67.5°
-     *   2   | ☲ 離 東  | 67.5°  | 112.5°
-     *   3   | ☱ 兌 東南| 112.5° | 157.5°
-     *   4   | ☰ 乾 南  | 157.5° | 202.5°
-     *   5   | ☷ 坤 西南| 202.5° | 247.5°
-     *   6   | ☶ 艮 西  | 247.5° | 292.5°
-     *   7   | ☵ 坎 西北| 292.5° | 337.5°
-     */
-    private val RING2_SECTORS = arrayOf(
-        SectorEntry(337.5f,  22.5f, wrapsAround = true),  // 0: ☴ 巽
-        SectorEntry( 22.5f,  67.5f),                      // 1: ☳ 震
-        SectorEntry( 67.5f, 112.5f),                      // 2: ☲ 離
-        SectorEntry(112.5f, 157.5f),                      // 3: ☱ 兌
-        SectorEntry(157.5f, 202.5f),                      // 4: ☰ 乾
-        SectorEntry(202.5f, 247.5f),                      // 5: ☷ 坤
-        SectorEntry(247.5f, 292.5f),                      // 6: ☶ 艮
-        SectorEntry(292.5f, 337.5f)                       // 7: ☵ 坎
-    )
-
-    /**
-     * Ring 3 — 後天八卦 (King Wen / Later Heaven), 8 sectors × 45°.
+     * Ring 2 — 後天八卦 (King Wen / Later Heaven), 8 sectors × 45°.
      *
      * ☵ 坎 北 wraps around 0° per BR-03.
      *
@@ -70,7 +43,7 @@ object SectorLookup {
      *   6   | ☱ 兌 西  | 247.5° | 292.5°
      *   7   | ☰ 乾 西北| 292.5° | 337.5°
      */
-    private val RING3_SECTORS = arrayOf(
+    private val RING2_SECTORS = arrayOf(
         SectorEntry(337.5f,  22.5f, wrapsAround = true),  // 0: ☵ 坎
         SectorEntry( 22.5f,  67.5f),                      // 1: ☶ 艮
         SectorEntry( 67.5f, 112.5f),                      // 2: ☳ 震
@@ -82,7 +55,7 @@ object SectorLookup {
     )
 
     /**
-     * Ring 4 — 十二地支 (Twelve Earthly Branches), 12 sectors × 30°.
+     * Ring 3 — 十二地支 (Twelve Earthly Branches), 12 sectors × 30°.
      *
      * 子 wraps around 0° per BR-02: [345°, 15°).
      *
@@ -100,7 +73,7 @@ object SectorLookup {
      *  10   | 戌   | 285°   | 315°
      *  11   | 亥   | 315°   | 345°
      */
-    private val RING4_SECTORS = arrayOf(
+    private val RING3_SECTORS = arrayOf(
         SectorEntry(345.0f,  15.0f, wrapsAround = true),  // 0:  子
         SectorEntry( 15.0f,  45.0f),                      // 1:  丑
         SectorEntry( 45.0f,  75.0f),                      // 2:  寅
@@ -116,7 +89,7 @@ object SectorLookup {
     )
 
     /**
-     * Ring 5 — 二十四山 (Twenty-Four Mountains), 24 sectors × 15°.
+     * Ring 4 — 二十四山 (Twenty-Four Mountains), 24 sectors × 15°.
      *
      * 子 wraps around 0° per BR-03: [352.5°, 7.5°).
      * 壬 does NOT wrap: [337.5°, 352.5°).
@@ -147,7 +120,7 @@ object SectorLookup {
      *  22   | 乾 | 307.5°  | 322.5°
      *  23   | 亥 | 322.5°  | 337.5°
      */
-    private val RING5_SECTORS = arrayOf(
+    private val RING4_SECTORS = arrayOf(
         SectorEntry(337.5f, 352.5f),                      // 0:  壬
         SectorEntry(352.5f,   7.5f, wrapsAround = true),  // 1:  子
         SectorEntry(  7.5f,  22.5f),                      // 2:  癸
@@ -175,7 +148,7 @@ object SectorLookup {
     )
 
     /**
-     * Ring 6 — 六十分金 (Sixty Gold Divisions), 60 sectors × 6°.
+     * Ring 5 — 六十分金 (Sixty Gold Divisions), 60 sectors × 6°.
      *
      * 壬子分金 wraps around 0° per BR-04: [358°, 4°).
      *
@@ -191,7 +164,7 @@ object SectorLookup {
      *
      * Source: FSPEC §4.7 (1-based index → 0-based).
      */
-    private val RING6_SECTORS = arrayOf(
+    private val RING5_SECTORS = arrayOf(
         SectorEntry(352.0f, 358.0f),                      // 0:  庚子分金
         SectorEntry(358.0f,   4.0f, wrapsAround = true),  // 1:  壬子分金
         SectorEntry(  4.0f,  10.0f),                      // 2:  甲子分金
@@ -286,18 +259,15 @@ object SectorLookup {
     // Public API
     // -------------------------------------------------------------------------
 
-    /** Returns the 0-based 先天八卦 sector index (0–7) for the given bearing. */
+    /** Returns the 0-based 後天八卦 sector index (0–7) for the given bearing. */
     fun ring2(bearing: Float): Int = lookupSector(bearing, RING2_SECTORS)
 
-    /** Returns the 0-based 後天八卦 sector index (0–7) for the given bearing. */
+    /** Returns the 0-based 十二地支 sector index (0–11) for the given bearing. */
     fun ring3(bearing: Float): Int = lookupSector(bearing, RING3_SECTORS)
 
-    /** Returns the 0-based 十二地支 sector index (0–11) for the given bearing. */
+    /** Returns the 0-based 二十四山 sector index (0–23) for the given bearing. */
     fun ring4(bearing: Float): Int = lookupSector(bearing, RING4_SECTORS)
 
-    /** Returns the 0-based 二十四山 sector index (0–23) for the given bearing. */
-    fun ring5(bearing: Float): Int = lookupSector(bearing, RING5_SECTORS)
-
     /** Returns the 0-based 六十分金 sector index (0–59) for the given bearing. */
-    fun ring6(bearing: Float): Int = lookupSector(bearing, RING6_SECTORS)
+    fun ring5(bearing: Float): Int = lookupSector(bearing, RING5_SECTORS)
 }
