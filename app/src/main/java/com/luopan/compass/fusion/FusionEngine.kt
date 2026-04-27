@@ -7,10 +7,12 @@ import kotlin.math.sqrt
 class FusionEngine(private val filter: MadgwickFilter = MadgwickFilter()) {
 
     private var lastTimestampNs: Long = -1L
+    private var smoothedHeading: Double = Double.NaN
 
     fun reset() {
         filter.reset()
         lastTimestampNs = -1L
+        smoothedHeading = Double.NaN
     }
 
     fun process(frame: SensorFrame): FusionResult {
@@ -36,7 +38,11 @@ class FusionEngine(private val filter: MadgwickFilter = MadgwickFilter()) {
             )
         }
 
-        val heading = quaternionToHeadingDeg(filter.getQuaternion())
+        // Prefer Android's hardware sensor-fusion heading (TYPE_ROTATION_VECTOR) — it is
+        // always current and accounts for gyro + mag + accel calibrated by the device HAL.
+        // Fall back to Madgwick-derived heading only when rotation vector is unavailable.
+        val rawHeading = frame.android_heading_deg ?: quaternionToHeadingDeg(filter.getQuaternion())
+        val heading = smoothHeading(rawHeading, dt)
         val (pitch, roll, tilt) = quaternionToEuler(filter.getQuaternion())
 
         return FusionResult(
@@ -46,6 +52,16 @@ class FusionEngine(private val filter: MadgwickFilter = MadgwickFilter()) {
             tilt_deg = tilt,
             timestamp_ns = frame.timestamp_ns
         )
+    }
+
+    private fun smoothHeading(raw: Double, dt: Float): Double {
+        if (smoothedHeading.isNaN()) { smoothedHeading = raw; return raw }
+        val alpha = dt / (dt + 0.1f)
+        var diff = raw - smoothedHeading
+        if (diff > 180) diff -= 360
+        if (diff < -180) diff += 360
+        smoothedHeading = ((smoothedHeading + alpha * diff) + 360.0) % 360.0
+        return smoothedHeading
     }
 
     internal fun quaternionToHeadingDeg(q: FloatArray): Double {

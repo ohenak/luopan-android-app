@@ -13,5 +13,6 @@ data class SensorFrame(
     val accel_z: Float,
     val gyro_x: Float?,
     val gyro_y: Float?,
-    val gyro_z: Float?
+    val gyro_z: Float?,
+    val android_heading_deg: Double? = null
 )
