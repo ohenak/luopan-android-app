@@ -1,5 +1,6 @@
 package com.luopan.compass.calibration
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -19,5 +20,8 @@ data class CalibrationRecord(
     val soft_iron_20: Float,
     val soft_iron_21: Float,
     val soft_iron_22: Float,
-    val quality: String  // "GOOD" | "FAIR" | "POOR"
+    val quality: String,  // "GOOD" | "FAIR" | "POOR"
+
+    @ColumnInfo(name = "expected_field_ut", defaultValue = "0.0")
+    val expected_field_ut: Float = 0.0f  // REAL NOT NULL DEFAULT 0.0; calibration-time sphere radius in µT
 )

@@ -1,5 +1,7 @@
 package com.luopan.compass.bearing
 
+import kotlinx.coroutines.flow.Flow
+
 /**
  * Room-backed implementation of [BearingRepository].
  *
@@ -31,7 +33,19 @@ class BearingRepositoryImpl(private val dao: BearingDao) : BearingRepository {
 
     /**
      * Deletes a single record by id. No-op if the id does not exist.
-     * Used in Phase 4.
      */
     override suspend fun delete(id: String) = dao.delete(id)
+
+    /**
+     * Returns a reactive stream of all records, newest-first.
+     * Phase 4 — TSPEC §4.5
+     */
+    override fun getAllFlow(): Flow<List<BearingRecord>> = dao.getAllFlow()
+
+    /**
+     * Returns a reactive stream of records whose name contains [query] (case-insensitive).
+     * An empty [query] matches all records.
+     * Phase 4 — TSPEC §4.5
+     */
+    override fun searchFlow(query: String): Flow<List<BearingRecord>> = dao.searchFlow(query)
 }

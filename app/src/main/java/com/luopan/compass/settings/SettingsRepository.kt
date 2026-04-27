@@ -28,6 +28,10 @@ class SettingsRepository(context: Context) {
 
         const val DISPLAY_MODE_MODERN = "MODERN"
         const val DISPLAY_MODE_LUOPAN = "LUOPAN"
+
+        // Phase 4 additions
+        const val KEY_DRIFT_COOLDOWN_TIMESTAMP_MS = "drift_cooldown_timestamp_ms"
+        const val KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION = "sensor_profile_written_for_version"
     }
 
     var declinationMode: String
@@ -59,4 +63,24 @@ class SettingsRepository(context: Context) {
     var luopanShowMyLanguage: Boolean
         get() = prefs.getBoolean(KEY_LUOPAN_MY_LANGUAGE, false)
         set(value) = prefs.edit { putBoolean(KEY_LUOPAN_MY_LANGUAGE, value) }
+
+    // Phase 4 additions
+
+    /**
+     * Timestamp (epoch ms) when the drift banner was last dismissed by the user.
+     * 0L = no active cooldown (never dismissed, or expired). Default 0L.
+     * Phase 4 — TSPEC §4.7
+     */
+    var driftCooldownTimestampMs: Long
+        get() = prefs.getLong(KEY_DRIFT_COOLDOWN_TIMESTAMP_MS, 0L)
+        set(value) = prefs.edit { putLong(KEY_DRIFT_COOLDOWN_TIMESTAMP_MS, value) }
+
+    /**
+     * The app versionCode for which sensor_profile.json was last written.
+     * 0 = not yet written (triggers write on first launch). Default 0.
+     * Phase 4 — TSPEC §4.7
+     */
+    var sensorProfileWrittenForVersion: Int
+        get() = prefs.getInt(KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION, 0)
+        set(value) = prefs.edit { putInt(KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION, value) }
 }

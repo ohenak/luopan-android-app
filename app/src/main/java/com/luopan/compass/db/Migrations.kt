@@ -28,3 +28,17 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         )
     }
 }
+
+/**
+ * Migration v2 → v3: adds `expected_field_ut` to `calibration_records`.
+ *
+ * Existing rows get the default value 0.0, which disables Condition B drift detection
+ * (precondition: expectedFieldUt > 0.0) until the user recalibrates. Per REQ-CAL-05.
+ */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE calibration_records ADD COLUMN expected_field_ut REAL NOT NULL DEFAULT 0.0"
+        )
+    }
+}

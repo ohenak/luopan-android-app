@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -15,7 +16,6 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * Test-only in-memory Room database wrapping only BearingDao.
- * LuopanDatabase is NOT modified in P1.2 (that is P1.3).
  */
 @Database(entities = [BearingRecord::class], version = 1, exportSchema = false)
 abstract class TestBearingDatabase : RoomDatabase() {
@@ -268,5 +268,99 @@ class BearingDaoTest {
     fun `interference_flag true is stored and retrieved correctly`() = runBlocking {
         dao.insert(makeRecord(interferenceFlag = true))
         assertTrue(dao.getAll()[0].interference_flag)
+    }
+
+    // ── getAllFlow (Phase 4 — A-7) ─────────────────────────────────────────────
+
+    @Test
+    fun `getAllFlow returns empty list when no records exist`() = runBlocking {
+        val result = dao.getAllFlow().first()
+        assertTrue("getAllFlow must return empty list on empty table", result.isEmpty())
+    }
+
+    @Test
+    fun `getAllFlow returns records ordered by captured_at descending`() = runBlocking {
+        val earliest = makeRecord(id = "flow-id-1", capturedAt = 1_000L)
+        val middle   = makeRecord(id = "flow-id-2", capturedAt = 2_000L)
+        val latest   = makeRecord(id = "flow-id-3", capturedAt = 3_000L)
+
+        dao.insert(earliest)
+        dao.insert(latest)
+        dao.insert(middle)
+
+        val result = dao.getAllFlow().first()
+        assertEquals(3, result.size)
+        assertEquals("flow-id-3", result[0].id) // newest first
+        assertEquals("flow-id-2", result[1].id)
+        assertEquals("flow-id-1", result[2].id) // oldest last
+    }
+
+    @Test
+    fun `getAllFlow is reactive — emits updated list after insert`() = runBlocking {
+        // Start with empty list
+        val empty = dao.getAllFlow().first()
+        assertTrue(empty.isEmpty())
+
+        // Insert a record and collect the new emission
+        dao.insert(makeRecord(id = "reactive-1", capturedAt = 5_000L))
+        val afterInsert = dao.getAllFlow().first()
+        assertEquals(1, afterInsert.size)
+        assertEquals("reactive-1", afterInsert[0].id)
+    }
+
+    // ── searchFlow (Phase 4 — A-7) ────────────────────────────────────────────
+
+    @Test
+    fun `searchFlow returns empty list when no records match`() = runBlocking {
+        dao.insert(makeRecord(id = "s-1", name = "North Wall"))
+        val result = dao.searchFlow("xyz").first()
+        assertTrue("searchFlow must return empty list when no match", result.isEmpty())
+    }
+
+    @Test
+    fun `searchFlow returns case-insensitive substring matches`() = runBlocking {
+        dao.insert(makeRecord(id = "s-1", name = "North Wall", capturedAt = 1_000L))
+        dao.insert(makeRecord(id = "s-2", name = "NORTH Door", capturedAt = 2_000L))
+        dao.insert(makeRecord(id = "s-3", name = "South Garden", capturedAt = 3_000L))
+
+        val result = dao.searchFlow("north").first()
+        assertEquals("searchFlow must return 2 records matching 'north' case-insensitively", 2, result.size)
+        val ids = result.map { it.id }
+        assertTrue(ids.contains("s-1"))
+        assertTrue(ids.contains("s-2"))
+        assertFalse(ids.contains("s-3"))
+    }
+
+    @Test
+    fun `searchFlow results are ordered by captured_at descending`() = runBlocking {
+        dao.insert(makeRecord(id = "s-a", name = "Entry Point", capturedAt = 1_000L))
+        dao.insert(makeRecord(id = "s-b", name = "Entry Gate",  capturedAt = 3_000L))
+        dao.insert(makeRecord(id = "s-c", name = "Entry Hall",  capturedAt = 2_000L))
+
+        val result = dao.searchFlow("entry").first()
+        assertEquals(3, result.size)
+        assertEquals("s-b", result[0].id) // newest first
+        assertEquals("s-c", result[1].id)
+        assertEquals("s-a", result[2].id)
+    }
+
+    @Test
+    fun `searchFlow with empty query returns all records`() = runBlocking {
+        dao.insert(makeRecord(id = "s-x", name = "Alpha", capturedAt = 1_000L))
+        dao.insert(makeRecord(id = "s-y", name = "Beta",  capturedAt = 2_000L))
+
+        val result = dao.searchFlow("").first()
+        assertEquals("searchFlow with empty query must return all records", 2, result.size)
+    }
+
+    @Test
+    fun `searchFlow is reactive — emits updated results after insert`() = runBlocking {
+        dao.insert(makeRecord(id = "s-1", name = "Living Room", capturedAt = 1_000L))
+        val initial = dao.searchFlow("living").first()
+        assertEquals(1, initial.size)
+
+        dao.insert(makeRecord(id = "s-2", name = "Living Area", capturedAt = 2_000L))
+        val afterInsert = dao.searchFlow("living").first()
+        assertEquals("searchFlow must emit updated results after insert", 2, afterInsert.size)
     }
 }
