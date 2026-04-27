@@ -37,6 +37,12 @@ android {
                 "proguard-rules.pro"
             )
         }
+        create("benchmark") {
+            initWith(buildTypes.getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+        }
     }
 
     compileOptions {
@@ -94,4 +100,16 @@ dependencies {
     androidTestImplementation(libs.room.testing)
 
     lintChecks(project(":lint"))
+}
+
+// The lintChecks configuration is non-variant-aware: pin it to the release variant of :lint
+// so the benchmark build type doesn't cause resolution ambiguity (lint rules are identical
+// across build types).
+configurations.named("lintChecks") {
+    attributes {
+        attribute(
+            com.android.build.api.attributes.BuildTypeAttr.ATTRIBUTE,
+            objects.named(com.android.build.api.attributes.BuildTypeAttr::class.java, "release")
+        )
+    }
 }
