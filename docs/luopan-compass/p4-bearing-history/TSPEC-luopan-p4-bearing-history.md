@@ -3,13 +3,13 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.2-draft |
+| **Version** | 0.3-draft |
 | **Date** | 2026-04-27 |
 | **Status** | Draft |
 | **Phase** | 4 of 5 |
 | **Source REQ** | [REQ-luopan-p4-bearing-history v0.4-draft](REQ-luopan-p4-bearing-history.md) |
-| **Source FSPEC** | [FSPEC-luopan-p4-bearing-history v0.2-draft](FSPEC-luopan-p4-bearing-history.md) |
-| **Cross-reviews addressed** | SE FSPEC-v2 (F-01–F-03 Medium); TE FSPEC-v2 (F-01–F-04 Medium); PM TSPEC-v1 (F-01–F-06); TE TSPEC-v1 (F-01–F-10) |
+| **Source FSPEC** | [FSPEC-luopan-p4-bearing-history v0.3-draft](FSPEC-luopan-p4-bearing-history.md) |
+| **Cross-reviews addressed** | SE FSPEC-v2 (F-01–F-03 Medium); TE FSPEC-v2 (F-01–F-04 Medium); PM TSPEC-v1 (F-01–F-06); TE TSPEC-v1 (F-01–F-10); SE PROPERTIES-v2 (F-01: IDriftDetector interface on Factory + CompassViewModel field + FakeDriftDetector implements IDriftDetector) |
 
 ---
 
@@ -660,7 +660,7 @@ class SensorCapabilityLogger(
 ```kotlin
 // Phase 4 — Drift detection
 private val accVarianceTracker: AccelerometerVarianceTracker  // injected via constructor
-private val driftDetector: DriftDetector                      // injected via constructor
+private val driftDetector: IDriftDetector                     // IDriftDetector for testability (SE PROPERTIES-v2 F-01)
 
 private val _driftBannerState = MutableStateFlow(DriftBannerState.HIDDEN)
 val driftBannerState: StateFlow<DriftBannerState> = _driftBannerState.asStateFlow()
@@ -797,12 +797,12 @@ class Factory(
     private val locationRepository: LocationRepository?,
     private val clock: Clock,
     // Phase 4 additions (optional for backward compatibility with tests)
-    private val driftDetector: DriftDetector? = null,
+    private val driftDetector: IDriftDetector? = null,   // IDriftDetector, not DriftDetector (SE PROPERTIES-v2 F-01)
     private val accVarianceTracker: AccelerometerVarianceTracker? = null
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         // ...
-        val drift = driftDetector ?: DriftDetector(clock)
+        val drift = driftDetector ?: DriftDetector(clock)       // DriftDetector implements IDriftDetector
         val tracker = accVarianceTracker ?: AccelerometerVarianceTracker(clock)
         return CompassViewModel(application, modelProvider, locationRepository, clock, captureUseCase, calibrationRepo, drift, tracker) as T
     }
@@ -1575,12 +1575,23 @@ fun `AT-VM-DRIFT-01b TRIGGERED with active cooldown does NOT set driftBannerStat
 **`FakeDriftDetector`** is a new test double added to `app/src/test/java/com/luopan/compass/drift/`:
 
 ```kotlin
-class FakeDriftDetector(private val nextEvent: DriftEvent?) : DriftDetector(FakeClock(0L)) {
+/**
+ * Test double implementing [IDriftDetector] (not subclassing [DriftDetector]).
+ *
+ * SE PROPERTIES-v2 F-01 / TE PLAN-v1 F-01 resolution: CompassViewModel accepts [IDriftDetector],
+ * so FakeDriftDetector must implement the interface directly. Subclassing the concrete
+ * DriftDetector(FakeClock(0L)) is fragile and couples the fake to implementation details.
+ */
+class FakeDriftDetector(private val nextEvent: DriftEvent?) : IDriftDetector {
     var onFrameCallCount = 0
+    var resetCallCount = 0
     override fun onFrame(accVariance: Float, measuredMagnitudeUt: Float,
                          interferenceState: InterferenceState, expectedFieldUt: Float): DriftEvent? {
         onFrameCallCount++
         return nextEvent
+    }
+    override fun reset() {
+        resetCallCount++
     }
 }
 ```

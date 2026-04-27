@@ -3,13 +3,13 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.2-draft |
+| **Version** | 0.3-draft |
 | **Date** | 2026-04-27 |
-| **Status** | Draft |
+| **Status** | In Progress |
 | **Phase** | 4 of 5 |
 | **Source REQ** | [REQ-luopan-p4-bearing-history v0.4-draft](REQ-luopan-p4-bearing-history.md) |
-| **Source FSPEC** | [FSPEC-luopan-p4-bearing-history v0.2-draft](FSPEC-luopan-p4-bearing-history.md) |
-| **Source TSPEC** | [TSPEC-luopan-p4-bearing-history v0.2-draft](TSPEC-luopan-p4-bearing-history.md) |
+| **Source FSPEC** | [FSPEC-luopan-p4-bearing-history v0.3-draft](FSPEC-luopan-p4-bearing-history.md) |
+| **Source TSPEC** | [TSPEC-luopan-p4-bearing-history v0.3-draft](TSPEC-luopan-p4-bearing-history.md) |
 | **Cross-reviews addressed** | TE TSPEC-v1 (F-01 DriftDetector interface; F-02 FakeDriftDetector for AT-VM-DRIFT-01); PM TSPEC-v1 (F-01 COUNTING-past-60s rule backport to FSPEC-CAL-03); PM PLAN-v1 (F-01 A-0 dependency arc; F-04 AT-CAL-01-C); TE PLAN-v1 (F-01 B-3 red task; F-02 dismissBanner unit tests; F-03 AT-CAL-02-D/E; F-04 updateListState unit test; F-06 AT-CAL-01-C; F-07 perf test isolation; F-08 DoD manual sign-off; F-09 onCalibrationCompleteFromHistory unit test) |
 
 ---
@@ -83,7 +83,9 @@ The following issues raised in TSPEC cross-reviews are addressed as explicit tas
 
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
-| A-0-1 | Add "COUNTING past 60 s when deviation ≤ 10%" as an explicit approved edge-case rule in FSPEC-CAL-03. This backports the TSPEC §5.3 "re-evaluate each frame" decision into the FSPEC so it is not a silent TSPEC invention. Update the DriftDetector state diagram and Timer Behavior section of FSPEC-CAL-03. (PM TSPEC-v1 F-01) | — | `docs/luopan-compass/p4-bearing-history/FSPEC-luopan-p4-bearing-history.md` | ⬚ |
+| A-0-1 | Add "COUNTING past 60 s when deviation ≤ 10%" as an explicit approved edge-case rule in FSPEC-CAL-03. This backports the TSPEC §5.3 "re-evaluate each frame" decision into the FSPEC so it is not a silent TSPEC invention. Update the DriftDetector state diagram and Timer Behavior section of FSPEC-CAL-03. (PM TSPEC-v1 F-01) | — | `docs/luopan-compass/p4-bearing-history/FSPEC-luopan-p4-bearing-history.md` | ✅ |
+| A-0-2 | Fix FSPEC-HIST-03 Snackbar text from "Deleted" to "Bearing deleted" (PM PROPERTIES-v1 F-01). | — | `docs/luopan-compass/p4-bearing-history/FSPEC-luopan-p4-bearing-history.md` | ✅ |
+| A-0-3 | Update TSPEC §9.3b FakeDriftDetector from `DriftDetector` subclass to `IDriftDetector` implementor; update TSPEC §6.1.5 Factory parameter type from `DriftDetector?` to `IDriftDetector?`; update §6.1.1 CompassViewModel field type (SE PROPERTIES-v2 F-01). | — | `docs/luopan-compass/p4-bearing-history/TSPEC-luopan-p4-bearing-history.md` | ✅ |
 
 ---
 
