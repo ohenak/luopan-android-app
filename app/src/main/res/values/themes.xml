@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.LuopanCompass" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+    <style name="Theme.LuopanCompass" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/brand_teal</item>
         <item name="colorPrimaryVariant">@color/brand_forest_green</item>
         <item name="colorSecondary">@color/brand_gold</item>
