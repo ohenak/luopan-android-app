@@ -18,30 +18,14 @@ interface BearingDao {
     @Query("SELECT * FROM bearing_records ORDER BY captured_at DESC")
     suspend fun getAll(): List<BearingRecord>
 
+    /** Reactive stream of all records, newest-first with rowid tiebreaker. Phase 4 — TSPEC §4.5 */
     @Query("SELECT * FROM bearing_records ORDER BY captured_at DESC, rowid DESC")
     fun getAllFlow(): Flow<List<BearingRecord>>
 
+    /** Reactive stream filtered by name LIKE '%query%', same ordering. Phase 4 — TSPEC §4.5 */
     @Query("SELECT * FROM bearing_records WHERE name LIKE '%' || :query || '%' ORDER BY captured_at DESC, rowid DESC")
     fun searchFlow(query: String): Flow<List<BearingRecord>>
 
     @Query("DELETE FROM bearing_records WHERE id = :id")
     suspend fun delete(id: String)
-
-    /**
-     * Returns a reactive stream of all bearing records, sorted newest-first.
-     * Secondary sort by rowid provides a deterministic tiebreaker for same-millisecond inserts.
-     *
-     * Phase 4 — TSPEC §4.5
-     */
-    @Query("SELECT * FROM bearing_records ORDER BY captured_at DESC, rowid DESC")
-    fun getAllFlow(): Flow<List<BearingRecord>>
-
-    /**
-     * Returns a reactive stream of bearing records whose name contains [query] (case-insensitive).
-     * An empty [query] matches all records.
-     *
-     * Phase 4 — TSPEC §4.5
-     */
-    @Query("SELECT * FROM bearing_records WHERE name LIKE '%' || :query || '%' ORDER BY captured_at DESC, rowid DESC")
-    fun searchFlow(query: String): Flow<List<BearingRecord>>
 }

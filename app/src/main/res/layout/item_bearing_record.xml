@@ -21,20 +21,20 @@
             android:orientation="vertical">
 
             <TextView
-                android:id="@+id/bearing_name"
+                android:id="@+id/name_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/bearing_value"
+                android:id="@+id/bearing_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="14sp" />
 
             <TextView
-                android:id="@+id/bearing_timestamp"
+                android:id="@+id/timestamp_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="12sp" />

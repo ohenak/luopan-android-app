@@ -109,9 +109,7 @@ class BearingHistoryFragment : Fragment() {
         driftBannerClose = view.findViewById(R.id.banner_drift_close)
 
         // Set up RecyclerView and adapter
-        adapter = BearingAdapter { record, position ->
-            adapter.toggleExpanded(record.id, position)
-        }
+        adapter = BearingAdapter()
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
 
