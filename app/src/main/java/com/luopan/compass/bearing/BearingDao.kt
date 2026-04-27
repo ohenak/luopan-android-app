@@ -18,6 +18,12 @@ interface BearingDao {
     @Query("SELECT * FROM bearing_records ORDER BY captured_at DESC")
     suspend fun getAll(): List<BearingRecord>
 
+    @Query("SELECT * FROM bearing_records ORDER BY captured_at DESC, rowid DESC")
+    fun getAllFlow(): Flow<List<BearingRecord>>
+
+    @Query("SELECT * FROM bearing_records WHERE name LIKE '%' || :query || '%' ORDER BY captured_at DESC, rowid DESC")
+    fun searchFlow(query: String): Flow<List<BearingRecord>>
+
     @Query("DELETE FROM bearing_records WHERE id = :id")
     suspend fun delete(id: String)
 

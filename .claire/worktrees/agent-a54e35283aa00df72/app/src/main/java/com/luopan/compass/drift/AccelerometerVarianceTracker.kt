@@ -12,7 +12,7 @@ import kotlin.math.sqrt
  *
  * Thread-safety: not thread-safe; must be called from a single thread.
  */
-open class AccelerometerVarianceTracker(
+class AccelerometerVarianceTracker(
     private val clock: Clock,
     private val windowMs: Long = 5_000L
 ) {
@@ -20,7 +20,7 @@ open class AccelerometerVarianceTracker(
 
     private val samples = ArrayDeque<Sample>()
 
-    open fun update(ax: Float, ay: Float, az: Float): Float {
+    fun update(ax: Float, ay: Float, az: Float): Float {
         val magnitude = sqrt((ax * ax + ay * ay + az * az).toDouble()).toFloat()
         val nowMs = clock.nowMs()
 

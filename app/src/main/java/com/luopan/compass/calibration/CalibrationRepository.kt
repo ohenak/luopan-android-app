@@ -36,7 +36,7 @@ class CalibrationRepository(private val dao: CalibrationDao) {
             soft_iron_10 = si[1][0], soft_iron_11 = si[1][1], soft_iron_12 = si[1][2],
             soft_iron_20 = si[2][0], soft_iron_21 = si[2][1], soft_iron_22 = si[2][2],
             quality = result.quality.name,
-            expected_field_ut = result.sphereRadius_uT   // calibration-time sphere radius in µT
+            expected_field_ut = result.sphereRadius_uT
         )
     }
 

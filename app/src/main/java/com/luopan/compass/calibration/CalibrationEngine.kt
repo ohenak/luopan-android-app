@@ -128,7 +128,7 @@ class CalibrationEngine {
             residualMicroTesla = residual,
             coverageScore = coverage,
             quality = classifyQuality(residual, coverage),
-            sphereRadius_uT = r       // sphere radius from fit; used by drift detection
+            sphereRadius_uT = r
         )
     }
 }
@@ -139,7 +139,7 @@ data class CalibrationResult(
     val residualMicroTesla: Float,
     val coverageScore: Float,
     val quality: CalibrationQuality,
-    val sphereRadius_uT: Float = 0.0f  // sphere radius r from fitEllipsoid(); 0.0 if not computed
+    val sphereRadius_uT: Float = 0.0f  // Phase 4: sphere radius r from fitEllipsoid(); 0.0 if not computed
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

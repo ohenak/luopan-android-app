@@ -66,20 +66,10 @@ class SettingsRepository(context: Context) {
 
     // Phase 4 additions
 
-    /**
-     * Timestamp (epoch ms) when the drift banner was last dismissed by the user.
-     * 0L = no active cooldown (never dismissed, or expired). Default 0L.
-     * Phase 4 — TSPEC §4.7
-     */
     var driftCooldownTimestampMs: Long
         get() = prefs.getLong(KEY_DRIFT_COOLDOWN_TIMESTAMP_MS, 0L)
         set(value) = prefs.edit { putLong(KEY_DRIFT_COOLDOWN_TIMESTAMP_MS, value) }
 
-    /**
-     * The app versionCode for which sensor_profile.json was last written.
-     * 0 = not yet written (triggers write on first launch). Default 0.
-     * Phase 4 — TSPEC §4.7
-     */
     var sensorProfileWrittenForVersion: Int
         get() = prefs.getInt(KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION, 0)
         set(value) = prefs.edit { putInt(KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION, value) }

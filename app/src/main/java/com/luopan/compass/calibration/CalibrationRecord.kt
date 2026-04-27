@@ -22,6 +22,7 @@ data class CalibrationRecord(
     val soft_iron_22: Float,
     val quality: String,  // "GOOD" | "FAIR" | "POOR"
 
+    // Phase 4 addition: sphere radius from fitEllipsoid() in µT; 0.0 if not computed
     @ColumnInfo(name = "expected_field_ut", defaultValue = "0.0")
-    val expected_field_ut: Float = 0.0f  // REAL NOT NULL DEFAULT 0.0; calibration-time sphere radius in µT
+    val expected_field_ut: Float = 0.0f
 )

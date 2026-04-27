@@ -3,18 +3,10 @@ package com.luopan.compass.drift
 import com.luopan.compass.model.InterferenceState
 
 /**
- * Contract for drift detection implementations.
- *
- * Extracted as an interface to allow [FakeDriftDetector] injection in unit tests
- * (AT-VM-DRIFT-01 in Phase D). [DriftDetector] is the production implementation.
- *
- * Thread-safety: implementations are not required to be thread-safe.
- * Must be called from a single thread (Dispatchers.Default in CompassViewModel).
- *
- * Phase 4 — TSPEC §5.3; TE TSPEC-v1 F-01; SE PROPERTIES-v2 F-01
+ * Interface for drift detection, extracted from [DriftDetector] to allow
+ * [FakeDriftDetector] injection in unit tests (TE TSPEC-v1 F-01).
  */
 interface IDriftDetector {
-
     /**
      * Called once per sensor frame from [CompassViewModel.startSensorCollection()].
      *
@@ -22,8 +14,8 @@ interface IDriftDetector {
      * @param measuredMagnitudeUt Current magnetometer field magnitude in µT.
      * @param interferenceState Current InterferenceState from InterferenceDetector.
      * @param expectedFieldUt  CalibrationRecord.expected_field_ut (0.0 if no calibration).
-     * @return [DriftEvent.TRIGGERED] when the drift condition is met; [DriftEvent.RESET] on
-     *         precondition violation transition; null otherwise.
+     * @return [DriftEvent.TRIGGERED] when drift condition is met; [DriftEvent.RESET] on precondition
+     *         violation from COUNTING state; null otherwise.
      */
     fun onFrame(
         accVariance: Float,
@@ -32,9 +24,6 @@ interface IDriftDetector {
         expectedFieldUt: Float
     ): DriftEvent?
 
-    /**
-     * Resets the detector to IDLE with a cleared timer.
-     * Called by CompassViewModel on RESULT_OK from CalibrationWizardActivity.
-     */
+    /** Resets the detector to IDLE with a cleared timer. */
     fun reset()
 }

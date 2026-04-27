@@ -4,10 +4,12 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.google.android.material.tabs.TabLayout
 import com.luopan.compass.R
+import com.luopan.compass.diagnostics.SensorCapabilityLogger
 import com.luopan.compass.location.LocationRepository
 import com.luopan.compass.magnetic.AndroidGeoFieldModel
 import com.luopan.compass.magnetic.MagneticFieldModelProvider
@@ -15,6 +17,8 @@ import com.luopan.compass.magnetic.Wmm2025Model
 import com.luopan.compass.model.NorthType
 import com.luopan.compass.settings.SettingsRepository
 import com.luopan.compass.util.WallClock
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Single Activity host for the Luopan compass app.
@@ -58,6 +62,11 @@ class CompassActivity : AppCompatActivity() {
         // any Fragment calls activityViewModels() during onStart → onViewCreated.
         viewModel
         setContentView(R.layout.activity_compass)
+
+        // Phase 4 — Sensor capability logging (dispatched to IO to avoid blocking main thread)
+        lifecycleScope.launch(Dispatchers.IO) {
+            SensorCapabilityLogger(applicationContext, SettingsRepository(applicationContext)).maybeWrite()
+        }
 
         tabLayout = findViewById(R.id.tabLayout)
 
@@ -104,8 +113,9 @@ class CompassActivity : AppCompatActivity() {
             override fun onTabSelected(tab: TabLayout.Tab) {
                 if (isProgrammaticTabSelect) return
                 when (tab.position) {
-                    TAB_MODERN -> navController.navigate(R.id.dest_modern)
-                    TAB_LUOPAN -> navController.navigate(R.id.dest_luopan)
+                    TAB_MODERN  -> navController.navigate(R.id.dest_modern)
+                    TAB_LUOPAN  -> navController.navigate(R.id.dest_luopan)
+                    TAB_HISTORY -> navController.navigate(R.id.dest_history)
                 }
             }
 
@@ -116,8 +126,9 @@ class CompassActivity : AppCompatActivity() {
         // NavController destination changes → sync TabLayout selection
         navController.addOnDestinationChangedListener { _, destination, _ ->
             val targetPosition = when (destination.id) {
-                R.id.dest_modern -> TAB_MODERN
-                R.id.dest_luopan -> TAB_LUOPAN
+                R.id.dest_modern  -> TAB_MODERN
+                R.id.dest_luopan  -> TAB_LUOPAN
+                R.id.dest_history -> TAB_HISTORY
                 else -> return@addOnDestinationChangedListener
             }
             val currentTab = tabLayout.getTabAt(targetPosition)
@@ -142,7 +153,8 @@ class CompassActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val TAB_MODERN = 0
-        private const val TAB_LUOPAN = 1
+        private const val TAB_MODERN  = 0
+        private const val TAB_LUOPAN  = 1
+        private const val TAB_HISTORY = 2
     }
 }
