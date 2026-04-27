@@ -236,7 +236,7 @@ class LuopanFragment : Fragment() {
      */
     internal fun formatTrigramField(state: LuopanState): String {
         if (state.trigramSymbol == SENSOR_ERROR_DASH) return SENSOR_ERROR_DASH
-        return "${state.trigramSymbol} ${state.trigramName} ${state.trigramDirection}"
+        return "${state.trigramSymbol} ${state.trigramName}"
     }
 
     /**
