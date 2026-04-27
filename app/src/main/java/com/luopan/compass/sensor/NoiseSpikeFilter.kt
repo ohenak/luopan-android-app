@@ -5,14 +5,17 @@ import kotlin.math.sqrt
 
 class NoiseSpikeFilter(
     val windowSize: Int = 5,
-    val spikeThreshold: Float = 50f
+    val spikeThreshold: Float = 50f,
+    private val maxConsecutiveRejects: Int = 10
 ) {
     private val window = ArrayDeque<FloatArray>(windowSize)
+    private var consecutiveRejects: Int = 0
 
     fun filter(x: Float, y: Float, z: Float): FloatArray? {
         val current = floatArrayOf(x, y, z)
         if (window.isEmpty()) {
             window.addLast(current)
+            consecutiveRejects = 0
             return current
         }
         val mean = window.fold(FloatArray(3)) { acc, s ->
@@ -25,12 +28,26 @@ class NoiseSpikeFilter(
             (z - mean[2]) * (z - mean[2])
         )
 
-        if (deviation > spikeThreshold) return null
+        if (deviation > spikeThreshold) {
+            consecutiveRejects++
+            if (consecutiveRejects >= maxConsecutiveRejects) {
+                // Filter got stuck on a legitimate field change — accept and reset window
+                window.clear()
+                window.addLast(current)
+                consecutiveRejects = 0
+                return current
+            }
+            return null
+        }
 
+        consecutiveRejects = 0
         if (window.size >= windowSize) window.removeFirst()
         window.addLast(current)
         return current
     }
 
-    fun reset() { window.clear() }
+    fun reset() {
+        window.clear()
+        consecutiveRejects = 0
+    }
 }

@@ -63,11 +63,11 @@ class CompassRoseView @JvmOverloads constructor(
         val cy = height / 2f
         val radius = min(cx, cy) * 0.85f
 
-        drawBezel(canvas, cx, cy, radius)
-        drawCardinalTicks(canvas, cx, cy, radius)
-
+        // Rotate the entire compass card (ring + needle) together
         canvas.save()
         canvas.rotate(-headingDeg, cx, cy)
+        drawBezel(canvas, cx, cy, radius)
+        drawCardinalTicks(canvas, cx, cy, radius)
         drawNeedle(canvas, cx, cy, radius * 0.7f)
         canvas.restore()
 

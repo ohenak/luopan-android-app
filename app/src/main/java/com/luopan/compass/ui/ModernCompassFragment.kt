@@ -20,7 +20,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
@@ -230,13 +232,15 @@ class ModernCompassFragment : Fragment() {
     private fun observeNorthType() {
         // P4.3: Observe northType StateFlow and keep toggle group in sync
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.northType.collect { northType ->
-                val targetId = when (northType) {
-                    NorthType.TRUE -> R.id.btn_true_n
-                    NorthType.MAGNETIC, NorthType.GRID -> R.id.btn_magnetic_n
-                }
-                if (northTypeToggleGroup.checkedButtonId != targetId) {
-                    northTypeToggleGroup.check(targetId)
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.northType.collect { northType ->
+                    val targetId = when (northType) {
+                        NorthType.TRUE -> R.id.btn_true_n
+                        NorthType.MAGNETIC, NorthType.GRID -> R.id.btn_magnetic_n
+                    }
+                    if (northTypeToggleGroup.checkedButtonId != targetId) {
+                        northTypeToggleGroup.check(targetId)
+                    }
                 }
             }
         }
@@ -245,8 +249,10 @@ class ModernCompassFragment : Fragment() {
     private fun observeManualLocationDialog() {
         // P7.2: Observe showManualLocationDialog — show manual entry dialog when GPS unavailable
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.showManualLocationDialog.collect {
-                showManualCoordinateEntryDialog()
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.showManualLocationDialog.collect {
+                    showManualCoordinateEntryDialog()
+                }
             }
         }
     }
@@ -254,9 +260,11 @@ class ModernCompassFragment : Fragment() {
     private fun observeCaptureConfirmation() {
         // P6.3: Observe capture confirmation events → show Toast
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.captureConfirmation.collect { name ->
-                val message = getString(R.string.bearing_saved_toast, name)
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.captureConfirmation.collect { name ->
+                    val message = getString(R.string.bearing_saved_toast, name)
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -264,14 +272,17 @@ class ModernCompassFragment : Fragment() {
     private fun observeCaptureButtonEnabled() {
         // P8.3 / BR-CAP-08: Observe captureButtonEnabled → enable/disable FAB
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.captureButtonEnabled.collect { enabled ->
-                fabSaveBearing.isEnabled = enabled
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.captureButtonEnabled.collect { enabled ->
+                    fabSaveBearing.isEnabled = enabled
+                }
             }
         }
     }
 
     private fun observeUiState() {
         viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.uiState.collect { state ->
 
                 // --- Heading update: freeze when sensor is STUCK ---
@@ -379,6 +390,7 @@ class ModernCompassFragment : Fragment() {
                 } else if (!state.show_calibration_cta) {
                     dismissBannerPermanently()
                 }
+            }
             }
         }
     }
