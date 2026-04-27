@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phase 4 E-7: Root layout for BearingHistoryFragment (TSPEC §7.4)
+     View IDs per TSPEC §7.4:
+       R.id.search_bar          — SearchView
+       R.id.banner_age_root     — age banner root ConstraintLayout
+       R.id.banner_age_text     — age banner TextView
+       R.id.banner_age_close    — age banner X ImageButton
+       R.id.banner_drift_root   — drift banner root ConstraintLayout
+       R.id.banner_drift_text   — drift banner TextView
+       R.id.banner_drift_close  — drift banner X ImageButton
+       R.id.recycler_history    — RecyclerView
+       R.id.empty_state_no_records  — empty state for zero records
+       R.id.empty_state_no_results  — empty state for zero search results
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- 1. Search bar — GONE in State A (zero records, TSPEC §7.1) -->
+    <SearchView
+        android:id="@+id/search_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:iconifiedByDefault="false"
+        android:queryHint="Search bearings"
+        android:visibility="visible" />
+
+    <!-- 2. Age-based recalibration banner (GONE by default) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/banner_age_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/banner_age_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/banner_age_close"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+        <ImageButton
+            android:id="@+id/banner_age_close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            xmlns:app2="http://schemas.android.com/apk/res-auto"
+            app2:layout_constraintEnd_toEndOf="parent"
+            app2:layout_constraintTop_toTopOf="parent"
+            app2:layout_constraintBottom_toBottomOf="parent"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Dismiss calibration age banner" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 3. Drift-based recalibration banner (GONE by default) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/banner_drift_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/banner_drift_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            xmlns:app3="http://schemas.android.com/apk/res-auto"
+            app3:layout_constraintStart_toStartOf="parent"
+            app3:layout_constraintEnd_toStartOf="@id/banner_drift_close"
+            app3:layout_constraintTop_toTopOf="parent"
+            app3:layout_constraintBottom_toBottomOf="parent"
+            android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+        <ImageButton
+            android:id="@+id/banner_drift_close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            xmlns:app4="http://schemas.android.com/apk/res-auto"
+            app4:layout_constraintEnd_toEndOf="parent"
+            app4:layout_constraintTop_toTopOf="parent"
+            app4:layout_constraintBottom_toBottomOf="parent"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Dismiss drift banner" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 4. RecyclerView — GONE when empty state is shown -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_history"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="visible" />
+
+    <!-- 5a. Empty state — zero records (State A: no bearings yet) -->
+    <LinearLayout
+        android:id="@+id/empty_state_no_records"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/empty_no_bearings"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+    <!-- 5b. Empty state — zero search results (State B) -->
+    <LinearLayout
+        android:id="@+id/empty_state_no_results"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/empty_no_results"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+</LinearLayout>

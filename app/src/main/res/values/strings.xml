@@ -111,6 +111,16 @@
     <string name="confidence_stabilizing">Calibrating…</string>
     <string name="confidence_sensor_error">Sensor error</string>
 
+    <!-- Phase 4 E-8: Bearing History tab and UI strings (TSPEC §7.5, PLAN E-8) -->
+    <string name="tab_history">History</string>
+    <string name="banner_cal_age">Your calibration is %1$d days old — consider recalibrating</string>
+    <string name="banner_drift">Magnetic environment may have changed — recalibrate for best accuracy</string>
+    <string name="bearing_deleted">Bearing deleted</string>
+    <string name="undo">Undo</string>
+    <string name="empty_no_bearings">No bearings yet — capture your first bearing from the compass screen</string>
+    <string name="empty_no_results">No bearings match your search</string>
+    <string name="interference_badge">⚠ Captured under interference</string>
+
     <!-- Task 5.2: Ring visibility BottomSheet (TSPEC §6.4, FSPEC Flow 5) -->
     <string name="ring_visibility_sheet_title">Show / Hide Rings</string>
     <string name="ring_visibility_done">Done</string>
