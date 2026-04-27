@@ -3,7 +3,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.3-draft |
+| **Version** | 0.4-draft |
 | **Date** | 2026-04-27 |
 | **Status** | Draft |
 | **Phase** | 4 of 5 |
@@ -109,7 +109,7 @@ Two independent prompt conditions exist. Both are non-blocking banners; the app 
 - Tapping the banner opens `CalibrationWizardActivity` directly via `ActivityResultLauncher`; on `RESULT_OK`, banner is dismissed and `viewModel.loadCalibrationAge()` is called
 - Dismissal: per-session (stored in ViewModel only); banner re-appears on the next app launch if the condition still holds
 - No daily cooldown for the age-based prompt; it reappears every launch until the user recalibrates
-- **Confidence impact (from master REQ §8.3):** When calibration age > 30 days, the `cal_age` dimension scores POOR in the confidence model. The `min()` across all dimensions means overall confidence is capped at MODERATE if all other dimensions are GOOD. If any other dimension is also degraded, confidence may be POOR. Scenario D is updated accordingly — see §7.
+- **Confidence impact (from master REQ §8.3):** When calibration age > 30 days, `ConfidenceModel.scoreCalibrationAge()` returns `ConfidenceScore.POOR` (numericValue = 1). `normalCompute()` takes `minOf(scores)` across all five dimensions; a minScore of 1 maps to `OverallConfidence.POOR`. The `!hasGyroscope` and `extremeLatitudeActive` branches only cap HIGH → MODERATE and cannot upgrade POOR. Therefore, when cal_age > 30 days and all other dimensions score GOOD, overall confidence is **POOR** (not MODERATE). Scenario D is updated accordingly — see §7.
 
 **Condition B — Systematic field drift:**
 - Trigger preconditions (ALL must hold continuously for the timer to count):
@@ -232,7 +232,7 @@ File is pretty-printed (2-space indent). Non-transmission is a design guarantee 
 *Then*:
 - A non-blocking banner appears: "Your calibration is 31 days old — consider recalibrating" (N = floor division of elapsed time; 31 days and 23 hours → "31 days old")
 - User can dismiss the banner; the compass remains fully functional
-- Per master REQ §8.3: overall confidence is capped at MODERATE if all other dimensions are GOOD (min over all dimensions: POOR from cal_age → MODERATE cap from the scoring formula); if another dimension is also POOR the overall confidence shows POOR
+- Per master REQ §8.3 and `ConfidenceModel.normalCompute()`: overall confidence is **POOR** when cal_age > 30 days, even if all other dimensions score GOOD (`minOf(scores)` with a POOR cal_age score maps directly to `OverallConfidence.POOR`; no mechanism upgrades POOR to MODERATE)
 - Banner re-appears on next launch if calibration is still >30 days old
 
 **Scenario D2 — Age-based banner boundary (negative)**
