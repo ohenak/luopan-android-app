@@ -24,7 +24,7 @@ class CompassRoseView @JvmOverloads constructor(
     private val rosePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 3f
-        color = Color.WHITE
+        color = 0xFFC8A020.toInt() // brand gold
     }
     private val northPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -32,15 +32,15 @@ class CompassRoseView @JvmOverloads constructor(
     }
     private val southPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = Color.WHITE
+        color = 0xFF2D6E8A.toInt() // brand teal
     }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
+        color = 0xFFC8A020.toInt() // brand gold
         textAlign = Paint.Align.CENTER
         textSize = 36f
     }
     private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
+        color = 0xFFC8A020.toInt() // brand gold
         strokeWidth = 2f
         style = Paint.Style.STROKE
     }

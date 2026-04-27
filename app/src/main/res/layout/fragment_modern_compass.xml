@@ -60,7 +60,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/magnetic_north"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:textColor="@color/toggle_text"
+            android:backgroundTint="@color/toggle_bg"
+            app:strokeColor="@color/brand_teal" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_true_n"
@@ -68,7 +71,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/true_north"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:textColor="@color/toggle_text"
+            android:backgroundTint="@color/toggle_bg"
+            app:strokeColor="@color/brand_teal" />
 
     </com.google.android.material.button.MaterialButtonToggleGroup>
 
