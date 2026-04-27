@@ -44,11 +44,6 @@ class CompassRoseView @JvmOverloads constructor(
         strokeWidth = 2f
         style = Paint.Style.STROKE
     }
-    private val dimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(128, 128, 128, 128)
-        style = Paint.Style.FILL
-    }
-
     private val needlePath = Path()
     private val outerRect = RectF()
 
@@ -76,9 +71,6 @@ class CompassRoseView @JvmOverloads constructor(
         drawNeedle(canvas, cx, cy, radius * 0.7f)
         canvas.restore()
 
-        if (confidence == "POOR" || confidence == "SENSOR_ERROR") {
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), dimPaint)
-        }
     }
 
     private fun drawBezel(canvas: Canvas, cx: Float, cy: Float, radius: Float) {
