@@ -53,7 +53,6 @@ class LuopanFragment : Fragment() {
     // Views — bound in onViewCreated, released in onDestroyView
     private lateinit var luopanView: LuopanView
     private lateinit var tvMountain: TextView
-    private lateinit var tvEarthlyBranch: TextView
     private lateinit var tvTrigram: TextView
     private lateinit var tvBearing: TextView
     private lateinit var tvNorthType: TextView
@@ -85,7 +84,6 @@ class LuopanFragment : Fragment() {
         // Bind views
         luopanView = view.findViewById(R.id.luopanView)
         tvMountain = view.findViewById(R.id.tvMountain)
-        tvEarthlyBranch = view.findViewById(R.id.tvEarthlyBranch)
         tvTrigram = view.findViewById(R.id.tvTrigram)
         tvBearing = view.findViewById(R.id.tvBearing)
         tvNorthType = view.findViewById(R.id.tvNorthType)
@@ -200,7 +198,6 @@ class LuopanFragment : Fragment() {
 
     private fun updateNumericReadout(state: LuopanState) {
         tvMountain.text = formatMountainField(state)
-        tvEarthlyBranch.text = formatEarthlyBranchField(state)
         tvTrigram.text = formatTrigramField(state)
 
         // SENSOR_ERROR: suppress computed bearing; retain north type and badge (FSPEC ES-01)
@@ -227,18 +224,6 @@ class LuopanFragment : Fragment() {
     internal fun formatMountainField(state: LuopanState): String {
         if (state.confidence == OverallConfidence.SENSOR_ERROR) return state.mountainChar
         return buildCharPinyinField(state.mountainChar, state.mountainPinyin, state.showRomanization)
-    }
-
-    /**
-     * Formats the 地支 (Ring 4 — 十二地支) field.
-     *
-     * Rules mirror the 山 field: SENSOR_ERROR → "—", pinyin shown when showRomanization=true.
-     */
-    internal fun formatEarthlyBranchField(state: LuopanState): String {
-        if (state.confidence == OverallConfidence.SENSOR_ERROR) return state.earthlyBranchChar
-        return buildCharPinyinField(
-            state.earthlyBranchChar, state.earthlyBranchPinyin, state.showRomanization
-        )
     }
 
     /**

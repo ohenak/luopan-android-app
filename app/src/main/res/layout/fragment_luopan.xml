@@ -59,15 +59,6 @@
                 android:layout_marginEnd="8dp" />
 
             <TextView
-                android:id="@+id/tvEarthlyBranch"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#FFDAB9"
-                android:textSize="14sp"
-                android:text="—"
-                android:layout_marginEnd="8dp" />
-
-            <TextView
                 android:id="@+id/tvTrigram"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
