@@ -38,10 +38,14 @@ class FusionEngine(private val filter: MadgwickFilter = MadgwickFilter()) {
             )
         }
 
-        // Prefer Android's hardware sensor-fusion heading (TYPE_ROTATION_VECTOR) — it is
-        // always current and accounts for gyro + mag + accel calibrated by the device HAL.
-        // Fall back to Madgwick-derived heading only when rotation vector is unavailable.
-        val rawHeading = frame.android_heading_deg ?: quaternionToHeadingDeg(filter.getQuaternion())
+        // Primary: instantaneous tilt-compensated heading from bias-corrected magnetometer.
+        // No convergence delay; correct for Android device axes (atan2(-hx, hy)).
+        // Fallback chain: Android rotation vector → Madgwick quaternion.
+        val rawHeading = tiltCompensatedHeading(
+            frame.accel_x, frame.accel_y, frame.accel_z,
+            corrMagX, corrMagY, corrMagZ
+        ) ?: frame.android_heading_deg
+          ?: quaternionToHeadingDeg(filter.getQuaternion())
         val heading = smoothHeading(rawHeading, dt)
         val (pitch, roll, tilt) = quaternionToEuler(filter.getQuaternion())
 
@@ -52,6 +56,27 @@ class FusionEngine(private val filter: MadgwickFilter = MadgwickFilter()) {
             tilt_deg = tilt,
             timestamp_ns = frame.timestamp_ns
         )
+    }
+
+    // Tilt-compensated magnetic heading from bias-corrected mag + accel.
+    // In Android device coordinates (X=right, Y=top, Z=screen-out) the correct
+    // compass bearing is atan2(-hx, hy) where h is the horizontal mag projection.
+    // Returns null when accel magnitude is too small to provide a gravity reference.
+    internal fun tiltCompensatedHeading(
+        ax: Float, ay: Float, az: Float,
+        mx: Float, my: Float, mz: Float
+    ): Double? {
+        val aMag = sqrt((ax * ax + ay * ay + az * az).toDouble())
+        if (aMag < 1.0) return null
+        val gx = (ax / aMag).toFloat()
+        val gy = (ay / aMag).toFloat()
+        val gz = (az / aMag).toFloat()
+        val dot = mx * gx + my * gy + mz * gz
+        val hx = mx - dot * gx
+        val hy = my - dot * gy
+        if (hx * hx + hy * hy < 1e-6f) return null
+        val heading = Math.toDegrees(atan2(-hx.toDouble(), hy.toDouble()))
+        return ((heading % 360.0) + 360.0) % 360.0
     }
 
     private fun smoothHeading(raw: Double, dt: Float): Double {
