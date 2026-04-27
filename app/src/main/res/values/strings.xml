@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Luopan</string>
+    <string name="app_name">易機閣－專用羅盤</string>
     <string name="magnetic_north">Mag N</string>
     <string name="true_north">True N</string>
     <string name="calibrate_now">Calibrate Now</string>
