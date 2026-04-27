@@ -57,10 +57,7 @@ jobs:
           avd-name: benchmark_avd
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: |
-            ./gradlew :benchmark:connectedBenchmarkAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR,LOW-BATTERY,NOT-PROFILEABLE \
-              --no-daemon
+          script: ./gradlew :benchmark:connectedBenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR,LOW-BATTERY,NOT-PROFILEABLE --no-daemon
 
       - name: Upload benchmark results
         if: always()
