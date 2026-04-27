@@ -3,14 +3,14 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.1-draft |
+| **Version** | 0.2-draft |
 | **Date** | 2026-04-27 |
 | **Status** | Draft |
 | **Phase** | 4 of 5 |
 | **Source REQ** | [REQ-luopan-p4-bearing-history v0.4-draft](REQ-luopan-p4-bearing-history.md) |
 | **Source FSPEC** | [FSPEC-luopan-p4-bearing-history v0.2-draft](FSPEC-luopan-p4-bearing-history.md) |
 | **Source TSPEC** | [TSPEC-luopan-p4-bearing-history v0.2-draft](TSPEC-luopan-p4-bearing-history.md) |
-| **Cross-reviews addressed** | TE TSPEC-v1 (F-01 DriftDetector interface; F-02 FakeDriftDetector for AT-VM-DRIFT-01); PM TSPEC-v1 (F-01 COUNTING-past-60s rule backport to FSPEC-CAL-03) |
+| **Cross-reviews addressed** | TE TSPEC-v1 (F-01 DriftDetector interface; F-02 FakeDriftDetector for AT-VM-DRIFT-01); PM TSPEC-v1 (F-01 COUNTING-past-60s rule backport to FSPEC-CAL-03); PM PLAN-v1 (F-01 A-0 dependency arc; F-04 AT-CAL-01-C); TE PLAN-v1 (F-01 B-3 red task; F-02 dismissBanner unit tests; F-03 AT-CAL-02-D/E; F-04 updateListState unit test; F-06 AT-CAL-01-C; F-07 perf test isolation; F-08 DoD manual sign-off; F-09 onCalibrationCompleteFromHistory unit test) |
 
 ---
 
@@ -63,6 +63,16 @@ The following issues raised in TSPEC cross-reviews are addressed as explicit tas
 | TE TSPEC-v1 F-02 | `AT-VM-DRIFT-01` (CompassViewModel TRIGGERED→cooldown→VISIBLE wiring) requires `FakeDriftDetector` | Phase B task B-4 creates `FakeDriftDetector`; Phase D task D-4 writes and wires `AT-VM-DRIFT-01` and `AT-VM-DRIFT-01b`. |
 | TE TSPEC-v1 F-07 | `SensorCapabilityLogger.buildJson()` must be a pure function to enable JVM unit tests | Phase C task C-1 specifies `buildJsonFromSensors()` extraction as the primary design point; all unit tests (AT-SENSOR-01-E through G) call `buildJsonFromSensors()` directly. |
 | PM TSPEC-v1 F-01 | "COUNTING past 60 s when deviation ≤ 10%" rule must be backported to FSPEC-CAL-03 | Phase A-0 includes an explicit task to update FSPEC-CAL-03 before implementation begins. |
+| PM PLAN-v1 F-01 | Phase A-0 gate not enforced structurally in the dependency graph — Phase A could appear parallelizable with A-0 | Dependency graph updated: Phase A entry now explicitly lists A-0 as a required predecessor. |
+| PM PLAN-v1 F-04 | AT-CAL-01-C (floor-division unit test for `computeCalibrationAgeDays()`) not named in any PLAN task | New task D-1a added to Phase D: write failing unit test AT-CAL-01-C before implementing calibration age logic. |
+| TE PLAN-v1 F-01 | B-3 (`IDriftDetector` creation) has no preceding red-phase task — pure interface/enum with no failing test first | New task B-2a added before B-3: write failing structural/contract test for `IDriftDetector` interface and `DriftEvent` enum. |
+| TE PLAN-v1 F-02 | `dismissCalAgeBanner()` and `dismissDriftBanner()` have no dedicated unit test tasks in Phase D | New task D-1b added to Phase D: write failing unit tests for `dismissCalAgeBanner()` and `dismissDriftBanner()` state transitions. |
+| TE PLAN-v1 F-03 | AT-CAL-02-D (cooldown suppression) and AT-CAL-02-E (cooldown re-arm) absent from all Phase D tasks | New task D-1c added to Phase D: write failing unit tests AT-CAL-02-D and AT-CAL-02-E for cooldown suppression and re-arm logic. |
+| TE PLAN-v1 F-04 | No failing-test task for `updateListState()` four-branch visibility logic in Phase E | New task E-2a added to Phase E: write failing unit test for `updateListState()` four-branch logic. |
+| TE PLAN-v1 F-06 | AT-CAL-01-C not in Test File Inventory (same gap as PM PLAN-v1 F-04) | Resolved by D-1a (same fix covers both findings). |
+| TE PLAN-v1 F-07 | 500-record performance test co-located in `BearingHistoryFragmentTest.kt` alongside functional tests | Phase G task G-1 updated to use dedicated `BearingHistoryPerfTest.kt`; Test File Inventory updated. |
+| TE PLAN-v1 F-08 | Manual test AT-HIST-03-D has no DoD gate requiring a recorded sign-off artifact | DoD checklist entry updated to require explicit sign-off record. |
+| TE PLAN-v1 F-09 | No PLAN task covers `onCalibrationCompleteFromHistory()` re-flash mitigation unit test | New task D-1d added to Phase D: write failing unit test for the async suppress-then-clear race path. |
 
 ---
 
@@ -79,7 +89,7 @@ The following issues raised in TSPEC cross-reviews are addressed as explicit tas
 
 ## Phase A: Database Migration and Data Layer
 
-**Dependency:** None (no prior phase dependency; builds on existing codebase).
+**Dependency:** Phase A-0 (FSPEC backport must complete before any implementation begins). Builds on existing codebase.
 **Parallelizable with:** Nothing at the start — Phases B and C depend on A completing first.
 
 This phase completes all data layer changes: Room migration, entity changes, DAO additions, and SettingsRepository additions. It lays the groundwork for all other phases.
@@ -128,7 +138,8 @@ This phase delivers the `IDriftDetector` interface (for testability), `DriftDete
 |---|------|-----------|-------------|--------|
 | B-1 | Write failing unit tests for `AccelerometerVarianceTracker`: AT-VAR-01 (population variance formula — magnitudes 3,5,4 → variance ≈ 0.6667, NOT sample variance 1.0); rolling window eviction (samples older than 5 s are removed); n<2 guard (returns 0f). | `app/src/test/java/com/luopan/compass/drift/AccelerometerVarianceTrackerTest.kt` | — | ⬚ |
 | B-2 | Implement `AccelerometerVarianceTracker`: time-based 5,000 ms rolling window over combined 3-axis accelerometer magnitude; population variance formula (`/ n`); `Clock`-injected; `reset()` method. | `app/src/test/java/com/luopan/compass/drift/AccelerometerVarianceTrackerTest.kt` | `app/src/main/java/com/luopan/compass/drift/AccelerometerVarianceTracker.kt` | ⬚ |
-| B-3 | Create `IDriftDetector` interface exposing `onFrame(accVariance, measuredMagnitudeUt, interferenceState, expectedFieldUt): DriftEvent?` and `reset()`. Also create `DriftEvent` enum (`TRIGGERED`, `RESET`). | — | `app/src/main/java/com/luopan/compass/drift/IDriftDetector.kt`, `app/src/main/java/com/luopan/compass/drift/DriftEvent.kt` | ⬚ |
+| B-2a | Write failing structural/contract test for `IDriftDetector` interface and `DriftEvent` enum: assert `DriftEvent.TRIGGERED` and `DriftEvent.RESET` enum constants exist; assert `FakeDriftDetector` (once created in B-4) compiles as an `IDriftDetector`; assert `onFrame()` signature matches the contract. This red task drives and documents the interface contract before the interface is created. (TE PLAN-v1 F-01) | `app/src/test/java/com/luopan/compass/drift/IDriftDetectorContractTest.kt` | — | ⬚ |
+| B-3 | Create `IDriftDetector` interface exposing `onFrame(accVariance, measuredMagnitudeUt, interferenceState, expectedFieldUt): DriftEvent?` and `reset()`. Also create `DriftEvent` enum (`TRIGGERED`, `RESET`). | `app/src/test/java/com/luopan/compass/drift/IDriftDetectorContractTest.kt` | `app/src/main/java/com/luopan/compass/drift/IDriftDetector.kt`, `app/src/main/java/com/luopan/compass/drift/DriftEvent.kt` | ⬚ |
 | B-4 | Create `FakeDriftDetector` test double: implements `IDriftDetector`; constructor-configured `nextEvent: DriftEvent?`; records `onFrameCallCount`; `reset()` records call. Create `FakeAccelerometerVarianceTracker` test double: returns configured `variance: Float`. | `app/src/test/java/com/luopan/compass/drift/DriftDetectorTest.kt` | `app/src/test/java/com/luopan/compass/drift/FakeDriftDetector.kt`, `app/src/test/java/com/luopan/compass/drift/FakeAccelerometerVarianceTracker.kt` | ⬚ |
 | B-5 | Write failing unit tests for `DriftDetector` (AT-CAL-03-A through AT-CAL-03-F, AT-CAL-03-B2): timer reset on precondition violation; TRIGGERED after 60 s with >10% deviation; no TRIGGERED at ≤10% (including exactly 10%); expectedFieldUt=0.0 disables; no hysteresis; post-trigger requires new 60 s window. Also include "COUNTING past 60 s stays COUNTING when deviation ≤10%" test (FSPEC-CAL-03 backported rule). | `app/src/test/java/com/luopan/compass/drift/DriftDetectorTest.kt` | — | ⬚ |
 | B-6 | Implement `DriftDetector` implementing `IDriftDetector`: IDLE/COUNTING state machine; `Clock`-injected; `countingStartMs: Long?`; `onFrame()` per TSPEC §5.3 (including re-evaluate-each-frame rule after 60 s when deviation ≤ 10%); `reset()`; `elapsedCountingMs()` internal accessor. | `app/src/test/java/com/luopan/compass/drift/DriftDetectorTest.kt` | `app/src/main/java/com/luopan/compass/drift/DriftDetector.kt` | ⬚ |
@@ -142,9 +153,10 @@ This phase delivers the `IDriftDetector` interface (for testability), `DriftDete
 - `app/src/main/java/com/luopan/compass/drift/DriftDetector.kt` (new class)
 - `app/src/main/java/com/luopan/compass/drift/AccelerometerVarianceTracker.kt` (new class)
 - `app/src/main/java/com/luopan/compass/ui/DriftBannerState.kt` (new enum — needed by phase D but defined early)
+- `app/src/test/java/com/luopan/compass/drift/IDriftDetectorContractTest.kt` (new — B-2a contract test)
 - `app/src/test/java/com/luopan/compass/drift/DriftDetectorTest.kt` (new)
 - `app/src/test/java/com/luopan/compass/drift/AccelerometerVarianceTrackerTest.kt` (new)
-- `app/src/test/java/com/luopan/compass/drift/DriftDetectorIntegrationTest.kt` (new)
+- `app/src/test/java/com/luopan/compass/drift/DriftDetectorIntegrationTest.kt` (new JVM integration)
 - `app/src/test/java/com/luopan/compass/drift/FakeDriftDetector.kt` (new test double)
 - `app/src/test/java/com/luopan/compass/drift/FakeAccelerometerVarianceTracker.kt` (new test double)
 
@@ -186,6 +198,10 @@ This phase wires drift detection into `CompassViewModel`: new fields, modified `
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
 | D-1 | Write failing unit tests AT-VM-DRIFT-01 and AT-VM-DRIFT-01b: inject `FakeDriftDetector` and `FakeAccelerometerVarianceTracker` into `CompassViewModel`; assert `driftBannerState` emits `VISIBLE` when TRIGGERED with no cooldown; assert `driftBannerState` stays `HIDDEN` when TRIGGERED with active cooldown. | `app/src/test/java/com/luopan/compass/ui/CompassViewModelDriftTest.kt` | — | ⬚ |
+| D-1a | Write failing unit test AT-CAL-01-C for `computeCalibrationAgeDays()` floor division: inject `FakeClock` with timestamp representing 31d 23h elapsed; assert return value equals 31 (not 32). This ensures floor-division semantics before the function is implemented. (PM PLAN-v1 F-04; TE PLAN-v1 F-06) | `app/src/test/java/com/luopan/compass/ui/CompassViewModelDriftTest.kt` | — | ⬚ |
+| D-1b | Write failing unit tests for `dismissCalAgeBanner()` and `dismissDriftBanner()` ViewModel state transitions: assert `dismissCalAgeBanner()` sets `calAgeBannerDismissed = true` and `calAgeBanner` StateFlow emits `GONE`; assert `dismissDriftBanner()` writes `driftCooldownTimestampMs` to `SettingsRepository` and `driftBannerState` emits `HIDDEN`. (TE PLAN-v1 F-02) | `app/src/test/java/com/luopan/compass/ui/CompassViewModelDriftTest.kt` | — | ⬚ |
+| D-1c | Write failing unit tests AT-CAL-02-D and AT-CAL-02-E for drift banner cooldown logic: AT-CAL-02-D asserts that when `driftCooldownTimestampMs` is set and has not expired (< 10 min elapsed), a new TRIGGERED event does not emit `VISIBLE`; AT-CAL-02-E asserts that after the cooldown expires, the next TRIGGERED event does emit `VISIBLE`. (TE PLAN-v1 F-03) | `app/src/test/java/com/luopan/compass/ui/CompassViewModelDriftTest.kt` | — | ⬚ |
+| D-1d | Write failing unit test for `onCalibrationCompleteFromHistory()` async re-flash mitigation: assert that `calAgeBannerDismissed` is set to `true` synchronously before the IO coroutine resolves; assert that if the refreshed calibration age is ≤ 30, the flag is cleared to `false` after IO completes; use `TestCoroutineScheduler` to control coroutine advancement. (TE PLAN-v1 F-09) | `app/src/test/java/com/luopan/compass/ui/CompassViewModelDriftTest.kt` | — | ⬚ |
 | D-2 | Update `CompassViewModel` constructor to accept `IDriftDetector` and `AccelerometerVarianceTracker` parameters (with production defaults); update `Factory` accordingly. Add `DriftBannerState` StateFlow, `calAgeBannerDismissed` field, `expectedFieldUt` cache field. Add `@VisibleForTesting simulateSensorFrame()` method. | `app/src/test/java/com/luopan/compass/ui/CompassViewModelDriftTest.kt` | `app/src/main/java/com/luopan/compass/ui/CompassViewModel.kt` | ⬚ |
 | D-3 | Promote `loadCalibrationAge()` from `private` to `internal`; update it to also populate `expectedFieldUt` from `CalibrationRecord.expected_field_ut`. Add `AccelerometerVarianceTracker.update()` call and `DriftDetector.onFrame()` call in sensor loop; check 10-minute cooldown; update `_driftBannerState` on TRIGGERED. | `app/src/test/java/com/luopan/compass/ui/CompassViewModelDriftTest.kt` | `app/src/main/java/com/luopan/compass/ui/CompassViewModel.kt` | ⬚ |
 | D-4 | Implement `dismissCalAgeBanner()`, `onCalibrationCompleteFromHistory()` (with re-flash mitigation: set `calAgeBannerDismissed = true` immediately; clear flag if age ≤ 30 after IO resolves), `resetDriftDetector()`, `dismissDriftBanner()` methods in `CompassViewModel`. | `app/src/test/java/com/luopan/compass/ui/CompassViewModelDriftTest.kt` | `app/src/main/java/com/luopan/compass/ui/CompassViewModel.kt` | ⬚ |
@@ -209,6 +225,7 @@ This phase delivers `BearingHistoryViewModel`, `FakeBearingDao`, all ViewModel u
 |---|------|-----------|-------------|--------|
 | E-1 | Create `FakeBearingDao`: recording fake implementing `BearingDao`; tracks `searchFlowCalls` list and `getAllFlowCallCount`; backed by `MutableStateFlow<List<BearingRecord>>`; implements `insert`, `getAll`, `count`, `delete`. | `app/src/test/java/com/luopan/compass/ui/FakeBearingDao.kt` | `app/src/test/java/com/luopan/compass/ui/FakeBearingDao.kt` | ⬚ |
 | E-2 | Write failing unit tests for `BearingHistoryViewModel` search: AT-HIST-02-A (substring match, fake DAO); AT-HIST-02-B (debounce — no call at 200 ms, one call at 500 ms); AT-HIST-02-C (timer restart on keystroke — no call at 300 ms from t=0, fires at t=550 ms); AT-HIST-02-D (immediate restore on empty query, no debounce). | `app/src/test/java/com/luopan/compass/ui/BearingHistoryViewModelTest.kt` | — | ⬚ |
+| E-2a | Write failing unit test for `updateListState()` four-branch visibility logic: (1) zero records + empty query → State A (search bar GONE, empty-no-bearings VISIBLE, RecyclerView GONE); (2) ≥1 record + empty query → normal list (search bar VISIBLE, empty views GONE, RecyclerView VISIBLE); (3) ≥1 record + active query + matches → search results (RecyclerView VISIBLE, no-results GONE); (4) ≥1 record + active query + no matches → empty-no-results VISIBLE. Extract `updateListState()` as an `internal` pure function on `BearingHistoryViewModel` (or a companion helper) so it can be called in JVM unit tests without a Fragment. (TE PLAN-v1 F-04) | `app/src/test/java/com/luopan/compass/ui/BearingHistoryViewModelTest.kt` | — | ⬚ |
 | E-3 | Write failing unit tests for `BearingHistoryViewModel` undo state machine: AT-UNDO-VM-01 (`deleteRecord()` sets `pendingUndo`); AT-UNDO-VM-02 (`undoDelete()` clears and re-inserts); AT-UNDO-VM-03 (`commitDelete()` clears without re-inserting). | `app/src/test/java/com/luopan/compass/ui/BearingHistoryViewModelTest.kt` | — | ⬚ |
 | E-4 | Implement `BearingHistoryViewModel`: `_searchQuery: MutableStateFlow<String>`; `bearingList: Flow<List<BearingRecord>>` with `debounce { if (empty) 0L else 300L }` + `flatMapLatest`; `pendingUndo: BearingRecord?`; `deleteRecord()`, `undoDelete()`, `commitDelete()`, `hasPendingUndo()`; `Factory`. | `app/src/test/java/com/luopan/compass/ui/BearingHistoryViewModelTest.kt` | `app/src/main/java/com/luopan/compass/ui/BearingHistoryViewModel.kt` | ⬚ |
 | E-5 | Write failing unit test for inclinationDeviation format function (AT-HIST-05-D): -2.3 → "-2°", 4.7 → "4°", 0f → "0°", -0.9f → "0°". Write failing unit test for fieldDeviation format: 0.25 → "25%", 0.0 → "0%", 2.5 → "250%". | `app/src/test/java/com/luopan/compass/ui/BearingAdapterFormatTest.kt` | — | ⬚ |
@@ -273,13 +290,14 @@ This phase wires everything into the app: third tab navigation, `BearingHistoryF
 
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
-| G-1 | Write instrumented performance test: seed 500 records in Room in-memory DB; time `dao.getAllFlow().first()` on `Dispatchers.IO`; assert elapsed < 500 ms. | `app/src/androidTest/java/com/luopan/compass/ui/BearingHistoryFragmentTest.kt` | — | ⬚ |
+| G-1 | Write instrumented performance test in a dedicated file: seed 500 records in Room in-memory DB; time `dao.getAllFlow().first()` on `Dispatchers.IO`; assert elapsed < 500 ms. Kept separate from `BearingHistoryFragmentTest.kt` to avoid slow data-seeding bleed into functional test runs. (TE PLAN-v1 F-07) | `app/src/androidTest/java/com/luopan/compass/ui/BearingHistoryPerfTest.kt` | — | ⬚ |
 | G-2 | Write macrobenchmark fling test: `FrameTimingMetric` with `BearingHistoryFragment` fling scenario at 500 records; non-blocking CI gate (regression alert only). | `benchmark/src/main/java/com/luopan/compass/benchmark/BearingHistoryBenchmark.kt` | — | ⬚ |
 | G-3 | Run full test suite (unit + instrumented); confirm zero regressions in existing tests. | All test files | — | ⬚ |
 | G-4 | Manual test AT-HIST-03-D: launch app, save bearing, swipe to delete, press Home, force-stop via Settings → Apps, relaunch, open History tab, verify deleted record absent and no Snackbar shown. Record result in task tracking. | — | — | ⬚ |
 
 **Files touched in Phase G:**
 
+- `app/src/androidTest/java/com/luopan/compass/ui/BearingHistoryPerfTest.kt` (new — 500-record Room perf test, isolated from functional tests)
 - `benchmark/src/main/java/com/luopan/compass/benchmark/BearingHistoryBenchmark.kt` (new or additions to existing benchmark module)
 
 ---
@@ -287,25 +305,23 @@ This phase wires everything into the app: third tab navigation, `BearingHistoryF
 ## Dependency Graph
 
 ```
-A-0: FSPEC Backport
+A-0: FSPEC Backport  ← GATE: no implementation phase may start until A-0 is complete
     │
-    └── (gate: all phases start after A-0)
-    
-Phase A: DB Migration + Data Layer
-    │
-    ├── Phase B: Drift Detection (parallel with C)
-    │       │
-    │       └── Phase D: CompassViewModel Wiring
-    │               │
-    │               └── Phase E: BearingHistoryViewModel + Adapter
-    │                       │
-    │                       └── Phase F: Navigation + Fragment + Instrumented Tests
-    │                               │
-    │                               └── Phase G: Performance + Final Integration
-    │
-    └── Phase C: Sensor Capability Logging (parallel with B)
+    └── Phase A: DB Migration + Data Layer  [requires A-0]
             │
-            └── (merges into Phase F — SensorCapabilityLogger called from CompassActivity in F-2)
+            ├── Phase B: Drift Detection (parallel with C)  [requires A]
+            │       │
+            │       └── Phase D: CompassViewModel Wiring  [requires B]
+            │               │
+            │               └── Phase E: BearingHistoryViewModel + Adapter  [requires A + D]
+            │                       │
+            │                       └── Phase F: Navigation + Fragment + Instrumented Tests  [requires C + E]
+            │                               │
+            │                               └── Phase G: Performance + Final Integration  [requires F]
+            │
+            └── Phase C: Sensor Capability Logging (parallel with B)  [requires A]
+                    │
+                    └── (merges into Phase F — SensorCapabilityLogger called from CompassActivity in F-2)
 ```
 
 **Parallelizable pairs:**
@@ -342,12 +358,13 @@ Phase A: DB Migration + Data Layer
 | File | Tests |
 |------|-------|
 | `app/src/test/java/com/luopan/compass/drift/AccelerometerVarianceTrackerTest.kt` | AT-VAR-01; window eviction; n<2 guard |
+| `app/src/test/java/com/luopan/compass/drift/IDriftDetectorContractTest.kt` | IDriftDetector interface contract; DriftEvent enum values (B-2a) |
 | `app/src/test/java/com/luopan/compass/drift/DriftDetectorTest.kt` | AT-CAL-03-A through F; AT-CAL-03-B2 |
-| `app/src/test/java/com/luopan/compass/drift/DriftDetectorIntegrationTest.kt` | AT-CAL-INT-01 (two-phase: pre-threshold negative + post-threshold positive) |
+| `app/src/test/java/com/luopan/compass/drift/DriftDetectorIntegrationTest.kt` | AT-CAL-INT-01 JVM integration (two-phase: pre-threshold negative + post-threshold positive) |
 | `app/src/test/java/com/luopan/compass/drift/FakeDriftDetector.kt` | Test double (no tests; used by CompassViewModelDriftTest) |
 | `app/src/test/java/com/luopan/compass/drift/FakeAccelerometerVarianceTracker.kt` | Test double (no tests; used by CompassViewModelDriftTest) |
-| `app/src/test/java/com/luopan/compass/ui/CompassViewModelDriftTest.kt` | AT-VM-DRIFT-01; AT-VM-DRIFT-01b |
-| `app/src/test/java/com/luopan/compass/ui/BearingHistoryViewModelTest.kt` | AT-HIST-02-A through D; AT-UNDO-VM-01 through 03 |
+| `app/src/test/java/com/luopan/compass/ui/CompassViewModelDriftTest.kt` | AT-VM-DRIFT-01; AT-VM-DRIFT-01b; AT-CAL-01-C (floor division); dismissCalAgeBanner() state transition; dismissDriftBanner() cooldown write; AT-CAL-02-D (cooldown suppression); AT-CAL-02-E (cooldown re-arm); onCalibrationCompleteFromHistory() re-flash mitigation |
+| `app/src/test/java/com/luopan/compass/ui/BearingHistoryViewModelTest.kt` | AT-HIST-02-A through D; AT-UNDO-VM-01 through 03; updateListState() four-branch logic (E-2a) |
 | `app/src/test/java/com/luopan/compass/ui/FakeBearingDao.kt` | Recording fake (no tests; used by BearingHistoryViewModelTest) |
 | `app/src/test/java/com/luopan/compass/ui/BearingAdapterFormatTest.kt` | AT-HIST-05-D; field deviation format tests |
 | `app/src/test/java/com/luopan/compass/diagnostics/SensorCapabilityLoggerTest.kt` | AT-SENSOR-01-E through G; reporting mode mapping |
@@ -364,7 +381,8 @@ Phase A: DB Migration + Data Layer
 
 | File | Tests |
 |------|-------|
-| `app/src/androidTest/java/com/luopan/compass/ui/BearingHistoryFragmentTest.kt` | AT-HIST-01-A through C; AT-HIST-04-A through B; AT-HIST-05-A through C; AT-HIST-02-E; 500-record performance test |
+| `app/src/androidTest/java/com/luopan/compass/ui/BearingHistoryFragmentTest.kt` | AT-HIST-01-A through C; AT-HIST-04-A through B; AT-HIST-05-A through C; AT-HIST-02-E |
+| `app/src/androidTest/java/com/luopan/compass/ui/BearingHistoryPerfTest.kt` | 500-record Room performance test (isolated from functional tests per TE PLAN-v1 F-07) |
 | `app/src/androidTest/java/com/luopan/compass/ui/BearingHistorySwipeTest.kt` | AT-HIST-03-A through C; AT-HIST-03-E |
 | `app/src/androidTest/java/com/luopan/compass/ui/RecalibrationBannerTest.kt` | AT-CAL-01-A through G; AT-CAL-02-B through C; AT-CAL-02-F |
 | `app/src/androidTest/java/com/luopan/compass/ui/NavigationTabTest.kt` | AT-NAV-01-A through C |
@@ -407,5 +425,12 @@ Phase A: DB Migration + Data Layer
 - [ ] Snackbar body text is "Bearing deleted" (not "Deleted")
 - [ ] AT-HIST-01-A badge assertion uses `scrollToPosition` inside per-position loop
 - [ ] AT-CAL-INT-01 has two-phase structure: pre-threshold negative assertion (58 s) + post-threshold positive assertion (62 s)
-- [ ] Manual test AT-HIST-03-D executed and result recorded
+- [ ] AT-CAL-01-C (floor-division unit test for `computeCalibrationAgeDays()`) written and passing
+- [ ] AT-CAL-02-D (cooldown suppression) and AT-CAL-02-E (cooldown re-arm) unit tests written and passing in `CompassViewModelDriftTest.kt`
+- [ ] `dismissCalAgeBanner()` and `dismissDriftBanner()` have dedicated unit tests asserting ViewModel state transitions
+- [ ] `onCalibrationCompleteFromHistory()` async re-flash mitigation has a unit test asserting synchronous flag set and post-IO flag clear
+- [ ] `updateListState()` four-branch logic has a unit test covering all four visibility combinations
+- [ ] `IDriftDetector` interface contract and `DriftEvent` enum values are asserted by `IDriftDetectorContractTest`
+- [ ] Performance test is in dedicated `BearingHistoryPerfTest.kt` (not co-located in `BearingHistoryFragmentTest.kt`)
+- [ ] Manual test AT-HIST-03-D executed, result signed off, and sign-off record linked in task tracking (sign-off is required to close this DoD item)
 - [ ] Macrobenchmark fling test added to `:benchmark` module and CI reports result (non-blocking gate)
