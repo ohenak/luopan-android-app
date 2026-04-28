@@ -83,6 +83,56 @@ class SettingsRepositoryTest {
         assertTrue(repo.luopanShowMyLanguage)
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Phase 4 additions — A-9
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Test fun driftCooldownTimestampMs_default_is_zero() {
+        assertEquals(0L, repo.driftCooldownTimestampMs)
+    }
+
+    @Test fun driftCooldownTimestampMs_roundtrip() {
+        val ts = 1_714_003_200_000L
+        repo.driftCooldownTimestampMs = ts
+        assertEquals(ts, repo.driftCooldownTimestampMs)
+    }
+
+    @Test fun driftCooldownTimestampMs_overwrites_previous_value() {
+        repo.driftCooldownTimestampMs = 1_000L
+        repo.driftCooldownTimestampMs = 2_000L
+        assertEquals(2_000L, repo.driftCooldownTimestampMs)
+    }
+
+    /**
+     * PROP-SENSOR-038: KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION must be a named public constant
+     * with the exact string value "sensor_profile_written_for_version".
+     *
+     * This assertion locks down the contract: property round-trip tests alone would pass even if
+     * the implementation used an inline string literal with the wrong value or no constant at all.
+     */
+    @Test fun `PROP-SENSOR-038 KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION is named constant with correct value`() {
+        assertEquals(
+            "PROP-SENSOR-038: KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION must equal 'sensor_profile_written_for_version'",
+            "sensor_profile_written_for_version",
+            SettingsRepository.KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION
+        )
+    }
+
+    @Test fun sensorProfileWrittenForVersion_default_is_zero() {
+        assertEquals(0, repo.sensorProfileWrittenForVersion)
+    }
+
+    @Test fun sensorProfileWrittenForVersion_roundtrip() {
+        repo.sensorProfileWrittenForVersion = 42
+        assertEquals(42, repo.sensorProfileWrittenForVersion)
+    }
+
+    @Test fun sensorProfileWrittenForVersion_overwrites_previous_value() {
+        repo.sensorProfileWrittenForVersion = 39
+        repo.sensorProfileWrittenForVersion = 40
+        assertEquals(40, repo.sensorProfileWrittenForVersion)
+    }
+
     @Test fun noSessionOnlyKeysInSharedPreferences() {
         // Perform normal operations that use the persisted keys
         repo.displayMode = SettingsRepository.DISPLAY_MODE_LUOPAN

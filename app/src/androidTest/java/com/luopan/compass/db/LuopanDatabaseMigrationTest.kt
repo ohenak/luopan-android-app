@@ -142,6 +142,126 @@ class LuopanDatabaseMigrationTest {
         v2Db.close()
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Phase 4 — v2 → v3 migration tests (A-1)
+    // INSTRUMENTED TEST: requires a device or emulator.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * AT-DB-MIGRATE-01: Verifies MIGRATION_2_3 adds `expected_field_ut` column to
+     * calibration_records. Existing rows must default to 0.0.
+     */
+    @Test
+    @Throws(IOException::class)
+    fun migrationFromV2ToV3_addsExpectedFieldUtColumn_existingRowsDefaultToZero() {
+        // --- Create v2 database with a calibration row ---
+        val dbName = testDbName + "_v2tov3"
+        val v2Db = helper.createDatabase(dbName, 2)
+        v2Db.execSQL(
+            """
+            INSERT INTO calibration_records (
+                id, recorded_at,
+                hard_iron_x, hard_iron_y, hard_iron_z,
+                soft_iron_00, soft_iron_01, soft_iron_02,
+                soft_iron_10, soft_iron_11, soft_iron_12,
+                soft_iron_20, soft_iron_21, soft_iron_22,
+                quality
+            ) VALUES (
+                1, 1714003200000,
+                0.1, 0.2, 0.3,
+                1.0, 0.0, 0.0,
+                0.0, 1.0, 0.0,
+                0.0, 0.0, 1.0,
+                'GOOD'
+            )
+            """.trimIndent()
+        )
+        v2Db.close()
+
+        // --- Run MIGRATION_2_3 and validate ---
+        val v3Db = helper.runMigrationsAndValidate(dbName, 3, true, MIGRATION_1_2, MIGRATION_2_3)
+
+        // Assert `expected_field_ut` column exists
+        val schemaCursor = v3Db.query("PRAGMA table_info(calibration_records)")
+        val columnNames = mutableListOf<String>()
+        schemaCursor.use { cursor ->
+            while (cursor.moveToNext()) {
+                columnNames.add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+            }
+        }
+        assert(columnNames.contains("expected_field_ut")) {
+            "calibration_records must contain 'expected_field_ut' after v2→v3 migration; found: $columnNames"
+        }
+        assertEquals(
+            "calibration_records must have exactly 16 columns after v2→v3 migration",
+            16,
+            columnNames.size
+        )
+
+        // Assert existing row defaults to 0.0
+        val cursor = v3Db.query("SELECT expected_field_ut FROM calibration_records WHERE id = 1")
+        cursor.use {
+            assertEquals("Existing row must be readable after migration", 1, it.count)
+            it.moveToFirst()
+            val value = it.getFloat(it.getColumnIndexOrThrow("expected_field_ut"))
+            assertEquals("Existing row expected_field_ut must default to 0.0", 0.0f, value, 0.001f)
+        }
+
+        v3Db.close()
+    }
+
+    /**
+     * AT-DB-MIGRATE-02: Verifies that after MIGRATION_2_3, a newly inserted CalibrationRecord
+     * can round-trip expected_field_ut through the DAO.
+     */
+    @Test
+    @Throws(IOException::class)
+    fun migrationFromV2ToV3_expectedFieldUtRoundTripsThroughDao() {
+        val dbName = testDbName + "_v2tov3_roundtrip"
+        val v2Db = helper.createDatabase(dbName, 2)
+        v2Db.close()
+
+        // Migrate to v3
+        helper.runMigrationsAndValidate(dbName, 3, true, MIGRATION_1_2, MIGRATION_2_3).close()
+
+        // Open with Room (fully validated schema) and verify a new record with expected_field_ut can be inserted and read back
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = androidx.room.Room.databaseBuilder(context, LuopanDatabase::class.java, dbName)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .allowMainThreadQueries()
+            .build()
+
+        try {
+            val dao = db.calibrationDao()
+            val record = com.luopan.compass.calibration.CalibrationRecord(
+                id = 1,
+                recorded_at = 1714003200000L,
+                hard_iron_x = 0.1f, hard_iron_y = 0.2f, hard_iron_z = 0.3f,
+                soft_iron_00 = 1f, soft_iron_01 = 0f, soft_iron_02 = 0f,
+                soft_iron_10 = 0f, soft_iron_11 = 1f, soft_iron_12 = 0f,
+                soft_iron_20 = 0f, soft_iron_21 = 0f, soft_iron_22 = 1f,
+                quality = "GOOD",
+                expected_field_ut = 47.5f
+            )
+            dao.upsert(record)
+
+            val loaded = dao.getCurrent()
+            assertNotNull("Inserted record must be retrievable", loaded)
+            assertEquals(
+                "expected_field_ut must round-trip through DAO",
+                47.5f,
+                loaded!!.expected_field_ut,
+                0.001f
+            )
+        } finally {
+            db.close()
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Original v1 → v2 tests (unchanged)
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
      * Verifies that the calibration_records table structure is unchanged after migration:
      * it must still contain the expected 15 columns from v1 schema.

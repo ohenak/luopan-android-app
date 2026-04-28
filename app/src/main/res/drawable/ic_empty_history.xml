@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Empty-state illustration for the bearing history screen.
+    Shown when the user has no captured bearings yet (State A: zero records, no search).
+    REQ-CAPTURE-03 §5.1; PM CR-IMPL F-01 (empty-state illustration required by Scenario A2).
+
+    Design: compass dial with cardinal marks and a centered needle — same visual language
+    as the app launcher foreground icon (ic_launcher_foreground.xml).
+    Canvas: 96×96dp.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+
+    <!-- Outer compass ring -->
+    <path
+        android:strokeColor="#c8a020"
+        android:strokeWidth="2.5"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M48,8 A40,40 0 1,1 47.999,8 Z"/>
+
+    <!-- Cardinal tick — North -->
+    <path
+        android:strokeColor="#c8a020"
+        android:strokeWidth="2"
+        android:pathData="M48,10 L48,16"/>
+
+    <!-- Cardinal tick — South -->
+    <path
+        android:strokeColor="#c8a020"
+        android:strokeWidth="2"
+        android:pathData="M48,80 L48,86"/>
+
+    <!-- Cardinal tick — East -->
+    <path
+        android:strokeColor="#c8a020"
+        android:strokeWidth="2"
+        android:pathData="M80,48 L86,48"/>
+
+    <!-- Cardinal tick — West -->
+    <path
+        android:strokeColor="#c8a020"
+        android:strokeWidth="2"
+        android:pathData="M10,48 L16,48"/>
+
+    <!-- North needle — gold, points up -->
+    <path
+        android:fillColor="#c8a020"
+        android:pathData="M48,14 L53,48 L48,44 L43,48 Z"/>
+
+    <!-- South needle — ivory, points down -->
+    <path
+        android:fillColor="#f5efd8"
+        android:pathData="M48,82 L53,48 L48,52 L43,48 Z"/>
+
+    <!-- Center cap -->
+    <path
+        android:fillColor="#3d5c3a"
+        android:pathData="M48,43 A5,5 0 1,1 47.999,43 Z"/>
+
+</vector>

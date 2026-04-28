@@ -127,7 +127,8 @@ class CalibrationEngine {
             softIron = softIron,
             residualMicroTesla = residual,
             coverageScore = coverage,
-            quality = classifyQuality(residual, coverage)
+            quality = classifyQuality(residual, coverage),
+            sphereRadius_uT = r
         )
     }
 }
@@ -137,7 +138,8 @@ data class CalibrationResult(
     val softIron: Array<FloatArray>,
     val residualMicroTesla: Float,
     val coverageScore: Float,
-    val quality: CalibrationQuality
+    val quality: CalibrationQuality,
+    val sphereRadius_uT: Float = 0.0f  // Phase 4: sphere radius r from fitEllipsoid(); 0.0 if not computed
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -146,7 +148,16 @@ data class CalibrationResult(
                softIron.contentDeepEquals(other.softIron) &&
                residualMicroTesla == other.residualMicroTesla &&
                coverageScore == other.coverageScore &&
-               quality == other.quality
+               quality == other.quality &&
+               sphereRadius_uT == other.sphereRadius_uT
     }
-    override fun hashCode(): Int = hardIron.contentHashCode()
+    override fun hashCode(): Int {
+        var result = hardIron.contentHashCode()
+        result = 31 * result + softIron.contentDeepHashCode()
+        result = 31 * result + residualMicroTesla.hashCode()
+        result = 31 * result + coverageScore.hashCode()
+        result = 31 * result + quality.hashCode()
+        result = 31 * result + sphereRadius_uT.hashCode()
+        return result
+    }
 }

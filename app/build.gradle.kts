@@ -71,6 +71,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.recyclerview)
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.lifecycle.viewmodel.ktx)
@@ -96,6 +97,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.espresso.intents)
+    androidTestImplementation(libs.espresso.contrib)
     androidTestImplementation(libs.process.phoenix)
     androidTestImplementation(libs.room.testing)
 

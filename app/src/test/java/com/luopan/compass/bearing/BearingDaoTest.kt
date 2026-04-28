@@ -5,7 +5,11 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -15,13 +19,13 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * Test-only in-memory Room database wrapping only BearingDao.
- * LuopanDatabase is NOT modified in P1.2 (that is P1.3).
  */
 @Database(entities = [BearingRecord::class], version = 1, exportSchema = false)
 abstract class TestBearingDatabase : RoomDatabase() {
     abstract fun bearingDao(): BearingDao
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class BearingDaoTest {
 
@@ -268,5 +272,156 @@ class BearingDaoTest {
     fun `interference_flag true is stored and retrieved correctly`() = runBlocking {
         dao.insert(makeRecord(interferenceFlag = true))
         assertTrue(dao.getAll()[0].interference_flag)
+    }
+
+    // ── getAllFlow (Phase 4 — A-7) ─────────────────────────────────────────────
+
+    @Test
+    fun `getAllFlow returns empty list when no records exist`() = runTest(StandardTestDispatcher()) {
+        val result = dao.getAllFlow().first()
+        assertTrue("getAllFlow must return empty list on empty table", result.isEmpty())
+    }
+
+    @Test
+    fun `getAllFlow returns records ordered by captured_at descending`() = runTest(StandardTestDispatcher()) {
+        val earliest = makeRecord(id = "flow-id-1", capturedAt = 1_000L)
+        val middle   = makeRecord(id = "flow-id-2", capturedAt = 2_000L)
+        val latest   = makeRecord(id = "flow-id-3", capturedAt = 3_000L)
+
+        dao.insert(earliest)
+        dao.insert(latest)
+        dao.insert(middle)
+
+        val result = dao.getAllFlow().first()
+        assertEquals(3, result.size)
+        assertEquals("flow-id-3", result[0].id) // newest first
+        assertEquals("flow-id-2", result[1].id)
+        assertEquals("flow-id-1", result[2].id) // oldest last
+    }
+
+    @Test
+    fun `getAllFlow is reactive — emits updated list after insert`() = runTest(StandardTestDispatcher()) {
+        // Start with empty list
+        val empty = dao.getAllFlow().first()
+        assertTrue(empty.isEmpty())
+
+        // Insert a record and collect the new emission
+        dao.insert(makeRecord(id = "reactive-1", capturedAt = 5_000L))
+        val afterInsert = dao.getAllFlow().first()
+        assertEquals(1, afterInsert.size)
+        assertEquals("reactive-1", afterInsert[0].id)
+    }
+
+    // ── searchFlow (Phase 4 — A-7) ────────────────────────────────────────────
+
+    @Test
+    fun `searchFlow returns empty list when no records match`() = runTest(StandardTestDispatcher()) {
+        dao.insert(makeRecord(id = "s-1", name = "North Wall"))
+        val result = dao.searchFlow("xyz").first()
+        assertTrue("searchFlow must return empty list when no match", result.isEmpty())
+    }
+
+    @Test
+    fun `searchFlow returns case-insensitive substring matches`() = runTest(StandardTestDispatcher()) {
+        dao.insert(makeRecord(id = "s-1", name = "North Wall", capturedAt = 1_000L))
+        dao.insert(makeRecord(id = "s-2", name = "NORTH Door", capturedAt = 2_000L))
+        dao.insert(makeRecord(id = "s-3", name = "South Garden", capturedAt = 3_000L))
+
+        val result = dao.searchFlow("north").first()
+        assertEquals("searchFlow must return 2 records matching 'north' case-insensitively", 2, result.size)
+        val ids = result.map { it.id }
+        assertTrue(ids.contains("s-1"))
+        assertTrue(ids.contains("s-2"))
+        assertFalse(ids.contains("s-3"))
+    }
+
+    @Test
+    fun `searchFlow results are ordered by captured_at descending`() = runTest(StandardTestDispatcher()) {
+        dao.insert(makeRecord(id = "s-a", name = "Entry Point", capturedAt = 1_000L))
+        dao.insert(makeRecord(id = "s-b", name = "Entry Gate",  capturedAt = 3_000L))
+        dao.insert(makeRecord(id = "s-c", name = "Entry Hall",  capturedAt = 2_000L))
+
+        val result = dao.searchFlow("entry").first()
+        assertEquals(3, result.size)
+        assertEquals("s-b", result[0].id) // newest first
+        assertEquals("s-c", result[1].id)
+        assertEquals("s-a", result[2].id)
+    }
+
+    @Test
+    fun `searchFlow with empty query returns all records`() = runTest(StandardTestDispatcher()) {
+        dao.insert(makeRecord(id = "s-x", name = "Alpha", capturedAt = 1_000L))
+        dao.insert(makeRecord(id = "s-y", name = "Beta",  capturedAt = 2_000L))
+
+        val result = dao.searchFlow("").first()
+        assertEquals("searchFlow with empty query must return all records", 2, result.size)
+    }
+
+    @Test
+    fun `searchFlow is reactive — emits updated results after insert`() = runTest(StandardTestDispatcher()) {
+        dao.insert(makeRecord(id = "s-1", name = "Living Room", capturedAt = 1_000L))
+        val initial = dao.searchFlow("living").first()
+        assertEquals(1, initial.size)
+
+        dao.insert(makeRecord(id = "s-2", name = "Living Area", capturedAt = 2_000L))
+        val afterInsert = dao.searchFlow("living").first()
+        assertEquals("searchFlow must emit updated results after insert", 2, afterInsert.size)
+    }
+
+    // ── PROP-HIST-002: getAllFlow rowid tiebreaker ─────────────────────────────
+
+    /**
+     * PROP-HIST-002: When two records share the same captured_at timestamp, getAllFlow() must
+     * break ties by rowid descending (the record inserted later appears first).
+     *
+     * SQLite assigns rowid in insertion order; inserting record B after record A means
+     * rowid(B) > rowid(A), so B must appear first in the flow emission.
+     */
+    @Test
+    fun `PROP-HIST-002 getAllFlow breaks captured_at ties by rowid descending`() = runTest(StandardTestDispatcher()) {
+        val sameTimestamp = 5_000L
+        // Insert A first → lower rowid
+        val recordA = makeRecord(id = "tie-A", capturedAt = sameTimestamp)
+        // Insert B second → higher rowid → must appear first
+        val recordB = makeRecord(id = "tie-B", capturedAt = sameTimestamp)
+
+        dao.insert(recordA)
+        dao.insert(recordB)
+
+        val result = dao.getAllFlow().first()
+        assertEquals("getAllFlow must return both tie records", 2, result.size)
+        assertEquals(
+            "PROP-HIST-002: record with higher rowid (inserted last) must appear first when captured_at is equal",
+            "tie-B",
+            result[0].id
+        )
+        assertEquals("tie-A", result[1].id)
+    }
+
+    // ── PROP-HIST-004: searchFlow rowid tiebreaker ────────────────────────────
+
+    /**
+     * PROP-HIST-004: searchFlow() must order results identically to getAllFlow() —
+     * captured_at DESC with rowid DESC as tiebreaker for records with equal captured_at.
+     */
+    @Test
+    fun `PROP-HIST-004 searchFlow breaks captured_at ties by rowid descending`() = runTest(StandardTestDispatcher()) {
+        val sameTimestamp = 7_000L
+        // Insert X first → lower rowid
+        val recordX = makeRecord(id = "search-tie-X", name = "Entry Alpha", capturedAt = sameTimestamp)
+        // Insert Y second → higher rowid → must appear first in searchFlow results
+        val recordY = makeRecord(id = "search-tie-Y", name = "Entry Beta", capturedAt = sameTimestamp)
+
+        dao.insert(recordX)
+        dao.insert(recordY)
+
+        val result = dao.searchFlow("Entry").first()
+        assertEquals("searchFlow must return both tie records", 2, result.size)
+        assertEquals(
+            "PROP-HIST-004: searchFlow must break captured_at ties by rowid DESC (same as getAllFlow)",
+            "search-tie-Y",
+            result[0].id
+        )
+        assertEquals("search-tie-X", result[1].id)
     }
 }

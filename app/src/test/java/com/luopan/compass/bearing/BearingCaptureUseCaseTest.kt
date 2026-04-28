@@ -302,4 +302,12 @@ class FakeBearingRepository : BearingRepository {
     override suspend fun delete(id: String) {
         insertedRecords.removeAll { it.id == id }
     }
+
+    override fun getAllFlow(): kotlinx.coroutines.flow.Flow<List<BearingRecord>> =
+        kotlinx.coroutines.flow.MutableStateFlow(insertedRecords.toList())
+
+    override fun searchFlow(query: String): kotlinx.coroutines.flow.Flow<List<BearingRecord>> =
+        kotlinx.coroutines.flow.MutableStateFlow(
+            insertedRecords.filter { it.name.contains(query, ignoreCase = true) }
+        )
 }
