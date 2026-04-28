@@ -14,6 +14,8 @@
 | US-10 | Operating without GPS | REQ-NORTH-03 | TBD |
 | US-11 | Holding device vertically | REQ-SENSOR-02, REQ-DISPLAY-02 | TBD |
 | US-12 | 後天八卦 方位 and 十二地支 direction reading | REQ-LUOPAN-01, REQ-LUOPAN-02, REQ-DISPLAY-05 | TBD |
+| US-ABOUT-01 | Learn who made the app | REQ-ABOUT-01, REQ-ABOUT-03 | — |
+| US-ABOUT-02 | Visit the website | REQ-ABOUT-02, REQ-ABOUT-03 | — |
 
 ## Requirement → User Story Reverse Index
 
@@ -66,3 +68,6 @@
 | REQ-L10N-02 | Luopan terminology handling | US-07, US-08 | — |
 | REQ-LUOPAN-01 | 後天八卦 ring — trigram + 方位 direction labels | US-02, US-07, US-12 | — |
 | REQ-LUOPAN-02 | 十二地支 ring — twelve directional sectors | US-02, US-07, US-12 | — |
+| REQ-ABOUT-01 | Studio name and tagline | US-ABOUT-01 | — |
+| REQ-ABOUT-02 | Tappable website link | US-ABOUT-02 | — |
+| REQ-ABOUT-03 | Navigation entry point | US-ABOUT-01, US-ABOUT-02 | — |
