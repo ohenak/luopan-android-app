@@ -3,12 +3,12 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.2-draft |
+| **Version** | 0.3-draft |
 | **Date** | 2026-04-27 |
 | **Status** | Draft |
 | **Phase** | 4 of 5 |
 | **Source REQ** | [REQ-luopan-p4-bearing-history v0.4-draft](REQ-luopan-p4-bearing-history.md) |
-| **Cross-reviews addressed** | SE FSPEC-v1 (F-01–F-07 High/Medium); TE FSPEC-v1 (F-01–F-08 High/Medium) |
+| **Cross-reviews addressed** | SE FSPEC-v1 (F-01–F-07 High/Medium); TE FSPEC-v1 (F-01–F-08 High/Medium); PM PROPERTIES-v1 (F-01: Snackbar "Bearing deleted" backport); PM TSPEC-v1 (F-01: re-evaluate-each-frame rule backport to FSPEC-CAL-03) |
 
 ---
 
@@ -215,7 +215,7 @@ Room's `LIKE` operator is case-insensitive by default on Android (SQLite default
 
 1. User swipes a list row left (or right, per platform convention). `ItemTouchHelper` triggers the swipe callback.
 2. **Immediately on swipe:** The record is deleted from the Room database (committed, not staged).
-3. A Snackbar appears with message "Deleted" and an "Undo" action button. The Snackbar auto-dismisses after exactly 5 seconds.
+3. A Snackbar appears with message "Bearing deleted" and an "Undo" action button. The Snackbar auto-dismisses after exactly 5 seconds.
 4. **While Snackbar is visible:**
    - Tapping "Undo": The deleted record is re-inserted into Room; the Snackbar dismisses; the row reappears in its correct `captured_at`-ordered position in the `RecyclerView`.
    - Snackbar times out (5 s with no tap): deletion is permanent; no further action.
@@ -685,6 +685,7 @@ All transitions to `[IDLE]` reset the internal elapsed timer to 0.
 - **No hysteresis:** A single frame where any precondition is violated immediately resets the timer to 0. There is no grace period or hysteresis window.
 - **Continuous counting:** The timer increments only during frames where ALL three preconditions hold simultaneously.
 - **Threshold:** Timer must exceed 60 seconds continuously. "60 seconds elapsed" means the timer value crosses 60,000 ms; it is not satisfied by 60,000 ms accumulated across non-contiguous windows.
+- **Re-evaluate-each-frame rule (approved edge case — PM TSPEC-v1 F-01 backport):** When the 60-second timer has elapsed but field deviation is ≤ 10%, the detector does **NOT** reset the timer. It stays in COUNTING and re-evaluates the deviation condition on every subsequent frame. If deviation later crosses 10% (even well after the initial 60 s), `TRIGGERED` fires at that frame. This means there is no maximum COUNTING duration: the detector remains COUNTING indefinitely as long as all preconditions hold, even past 60 s when deviation ≤ 10%. Rationale: a legitimate gradual environmental drift may stay just under 10% for a while before crossing the threshold. Resetting the timer in this case would permanently suppress the banner.
 - **Post-trigger:** Once `TRIGGERED` is emitted, the detector transitions to `IDLE` (timer reset). A new 60-second window is required for a subsequent trigger (subject to cooldown).
 
 ### Drift Threshold Formula

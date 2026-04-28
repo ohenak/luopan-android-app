@@ -81,4 +81,70 @@ class CalibrationRepositoryTest {
         assertEquals(2f, record.hard_iron_y, 0.001f)
         assertEquals(3f, record.hard_iron_z, 0.001f)
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Phase 4 — A-4: sphereRadius_uT field and toRecord() mapping
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Test fun `CalibrationResult sphereRadius_uT is populated by fitEllipsoid`() {
+        // Add enough samples for computeCalibration to succeed (needs >= 9)
+        val engine = CalibrationEngine()
+        // Distribute samples around a sphere of radius ~47µT
+        val r = 47f
+        val pts = listOf(
+            floatArrayOf(r, 0f, 0f), floatArrayOf(-r, 0f, 0f),
+            floatArrayOf(0f, r, 0f), floatArrayOf(0f, -r, 0f),
+            floatArrayOf(0f, 0f, r), floatArrayOf(0f, 0f, -r),
+            floatArrayOf(r * 0.7f, r * 0.7f, 0f),
+            floatArrayOf(-r * 0.7f, -r * 0.7f, 0f),
+            floatArrayOf(0f, r * 0.7f, r * 0.7f)
+        )
+        pts.forEach { engine.addSample(it[0], it[1], it[2]) }
+
+        val result = engine.computeCalibration()
+        assertNotNull("computeCalibration must succeed with 9+ samples", result)
+        // The sphere radius from fitEllipsoid should be close to ~47µT
+        assertTrue(
+            "sphereRadius_uT must be > 0 when fitEllipsoid succeeds; got ${result!!.sphereRadius_uT}",
+            result.sphereRadius_uT > 0f
+        )
+    }
+
+    @Test fun `toRecord maps sphereRadius_uT to expected_field_ut`() {
+        val result = CalibrationResult(
+            hardIron = floatArrayOf(1f, 2f, 3f),
+            softIron = Array(3) { i -> FloatArray(3) { j -> if (i == j) 1f else 0f } },
+            residualMicroTesla = 0.5f,
+            coverageScore = 0.8f,
+            quality = com.luopan.compass.model.CalibrationQuality.GOOD,
+            sphereRadius_uT = 47.5f
+        )
+
+        val record = repo.toRecord(result, id = 1, timestamp = 12345L)
+        assertEquals(
+            "toRecord must map sphereRadius_uT to expected_field_ut",
+            47.5f,
+            record.expected_field_ut,
+            0.001f
+        )
+    }
+
+    @Test fun `toRecord maps sphereRadius_uT zero when not computed`() {
+        val result = CalibrationResult(
+            hardIron = floatArrayOf(0f, 0f, 0f),
+            softIron = Array(3) { i -> FloatArray(3) { j -> if (i == j) 1f else 0f } },
+            residualMicroTesla = 0f,
+            coverageScore = 0f,
+            quality = com.luopan.compass.model.CalibrationQuality.POOR,
+            sphereRadius_uT = 0.0f
+        )
+
+        val record = repo.toRecord(result, id = 1, timestamp = 12345L)
+        assertEquals(
+            "toRecord must map sphereRadius_uT=0.0 to expected_field_ut=0.0",
+            0.0f,
+            record.expected_field_ut,
+            0.001f
+        )
+    }
 }
