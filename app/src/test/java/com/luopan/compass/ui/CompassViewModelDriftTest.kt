@@ -15,6 +15,7 @@ import com.luopan.compass.settings.SettingsRepository
 import com.luopan.compass.util.FakeClock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -79,7 +80,8 @@ class CompassViewModelDriftTest {
         accVarianceTracker: AccelerometerVarianceTracker = FakeAccelerometerVarianceTracker(variance = 0.001f),
         settings: SettingsRepository = SettingsRepository(application),
         // Always provide a fake repo to avoid real DB/Keystore access in unit tests
-        calibrationRepo: CalibrationRepository = FakeCalibrationRepository()
+        calibrationRepo: CalibrationRepository = FakeCalibrationRepository(),
+        ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Unconfined
     ): CompassViewModel {
         return CompassViewModel(
             application = application,
@@ -90,7 +92,8 @@ class CompassViewModelDriftTest {
             calibrationRepository = calibrationRepo,
             driftDetector = driftDetector,
             accVarianceTracker = accVarianceTracker,
-            settingsOverride = settings
+            settingsOverride = settings,
+            ioDispatcher = ioDispatcher
         )
     }
 
@@ -359,20 +362,13 @@ class CompassViewModelDriftTest {
         val record = makeCalibrationRecord(recordedAt = 0L, expectedFieldUt = 50.0f)
         val fakeRepo = FakeCalibrationRepository(current = record)
 
-        val viewModel = makeViewModel(clock = clock, calibrationRepo = fakeRepo)
+        // Inject StandardTestDispatcher so advanceUntilIdle() can drain the IO coroutine
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val viewModel = makeViewModel(clock = clock, calibrationRepo = fakeRepo, ioDispatcher = testDispatcher)
 
-        // Call onCalibrationCompleteFromHistory and wait for IO to complete
+        // Call onCalibrationCompleteFromHistory and wait for IO coroutine to complete
         viewModel.onCalibrationCompleteFromHistory()
-
-        // Wait for the IO coroutine (real Dispatchers.IO) to complete.
-        // Since FakeCalibrationDao.getCurrent() returns synchronously (no delay),
-        // the IO coroutine completes quickly. We wait for the ViewModel scope to settle.
-        // Thread.sleep required: onCalibrationCompleteFromHistory launches on Dispatchers.IO
-        // (not test-injected), so advanceUntilIdle() cannot drain the coroutine.
-        // TODO: inject IO dispatcher in CompassViewModel to replace Thread.sleep with advanceUntilIdle().
-        // Increased from 100 ms to 500 ms to reduce flakiness on heavily-loaded CI machines
-        // (TE CR-IMPL F-05). Full fix: inject IO dispatcher in Phase 5 Hilt migration.
-        Thread.sleep(500L)  // allow real IO thread to complete
+        advanceUntilIdle()
 
         // After IO coroutine resolves: age = 10 days ≤ 30 → flag must be cleared to false
         assertFalse(

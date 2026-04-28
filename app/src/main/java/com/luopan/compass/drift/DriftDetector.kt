@@ -53,7 +53,9 @@ class DriftDetector(private val clock: Clock) : IDriftDetector {
                     countingStartMs = null
                     return DriftEvent.RESET
                 }
-                val elapsedMs = clock.nowMs() - (countingStartMs ?: clock.nowMs())
+                val elapsedMs = clock.nowMs() - checkNotNull(countingStartMs) {
+                    "countingStartMs must be non-null in COUNTING state"
+                }
                 if (elapsedMs > DRIFT_WINDOW_MS) {
                     val deviation = abs(measuredMagnitudeUt - expectedFieldUt) / expectedFieldUt
                     if (deviation > DRIFT_THRESHOLD) {

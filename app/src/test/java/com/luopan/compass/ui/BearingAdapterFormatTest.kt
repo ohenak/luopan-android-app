@@ -113,6 +113,14 @@ class BearingAdapterFormatTest {
         )
     }
 
+    // ─── Fix 2: absoluteAdapterPosition note ─────────────────────────────────────
+    //
+    // BearingAdapter.onBindViewHolder() uses holder.absoluteAdapterPosition (not the deprecated
+    // holder.adapterPosition) when calling toggleExpanded().
+    // BearingHistoryFragment.onSwiped() guards with RecyclerView.NO_POSITION (not NO_ID.toInt()).
+    // These are framework-level API changes verified by compilation; the logical toggle behaviour
+    // (mutual exclusion, no notifyDataSetChanged) is covered by the adapter tests below.
+
     // ─── PROP-HIST-042: Snackbar duration constant ─────────────────────────────────
 
     /**

@@ -151,5 +151,13 @@ data class CalibrationResult(
                quality == other.quality &&
                sphereRadius_uT == other.sphereRadius_uT
     }
-    override fun hashCode(): Int = hardIron.contentHashCode()
+    override fun hashCode(): Int {
+        var result = hardIron.contentHashCode()
+        result = 31 * result + softIron.contentDeepHashCode()
+        result = 31 * result + residualMicroTesla.hashCode()
+        result = 31 * result + coverageScore.hashCode()
+        result = 31 * result + quality.hashCode()
+        result = 31 * result + sphereRadius_uT.hashCode()
+        return result
+    }
 }

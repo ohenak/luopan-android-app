@@ -129,6 +129,25 @@ class CalibrationRepositoryTest {
         )
     }
 
+    @Test fun `fromRecord preserves expectedFieldUt`() {
+        val record = CalibrationRecord(
+            id = 1, recorded_at = 0L,
+            hard_iron_x = 0f, hard_iron_y = 0f, hard_iron_z = 0f,
+            soft_iron_00 = 1f, soft_iron_01 = 0f, soft_iron_02 = 0f,
+            soft_iron_10 = 0f, soft_iron_11 = 1f, soft_iron_12 = 0f,
+            soft_iron_20 = 0f, soft_iron_21 = 0f, soft_iron_22 = 1f,
+            quality = "GOOD",
+            expected_field_ut = 47.5f
+        )
+        val result = repo.fromRecord(record)
+        assertEquals(
+            "fromRecord must preserve expected_field_ut as sphereRadius_uT",
+            47.5f,
+            result.sphereRadius_uT,
+            0.001f
+        )
+    }
+
     @Test fun `toRecord maps sphereRadius_uT zero when not computed`() {
         val result = CalibrationResult(
             hardIron = floatArrayOf(0f, 0f, 0f),

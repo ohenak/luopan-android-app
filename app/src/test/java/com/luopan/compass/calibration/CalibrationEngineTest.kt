@@ -77,4 +77,43 @@ class CalibrationEngineTest {
         engine.clearSamples()
         assertEquals(0, engine.getSampleCount())
     }
+
+    // ─── Fix 1 (HIGH): CalibrationResult.hashCode() broken contract ───────────
+
+    /**
+     * Two CalibrationResult objects with identical hardIron but different softIron
+     * must have different hashCodes (broken contract with old code that only hashes hardIron).
+     *
+     * With the old hashCode (hardIron-only), both objects return the same hashCode even though
+     * they are NOT equal — violating the hashCode contract.
+     */
+    @Test fun `hashCode differs when softIron differs despite identical hardIron`() {
+        val hardIron = floatArrayOf(1f, 2f, 3f)
+
+        val softIronIdentity = Array(3) { i -> FloatArray(3) { j -> if (i == j) 1f else 0f } }
+        val softIronScaled = Array(3) { i -> FloatArray(3) { j -> if (i == j) 2f else 0f } }
+
+        val resultA = CalibrationResult(
+            hardIron = hardIron.copyOf(),
+            softIron = softIronIdentity,
+            residualMicroTesla = 0.5f,
+            coverageScore = 0.8f,
+            quality = CalibrationQuality.GOOD,
+            sphereRadius_uT = 47.5f
+        )
+        val resultB = CalibrationResult(
+            hardIron = hardIron.copyOf(),
+            softIron = softIronScaled,
+            residualMicroTesla = 0.5f,
+            coverageScore = 0.8f,
+            quality = CalibrationQuality.GOOD,
+            sphereRadius_uT = 47.5f
+        )
+
+        assertNotEquals(
+            "hashCode must differ when softIron differs (broken contract: old code returns same hashCode)",
+            resultA.hashCode().toLong(),
+            resultB.hashCode().toLong()
+        )
+    }
 }

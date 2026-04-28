@@ -39,6 +39,7 @@ import com.luopan.compass.bearing.BearingCaptureUseCase
 import com.luopan.compass.bearing.BearingRepositoryImpl
 import com.luopan.compass.bearing.BearingSnapshot
 import com.luopan.compass.util.Clock
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,7 +62,9 @@ class CompassViewModel(
     private val driftDetector: IDriftDetector,
     private val accVarianceTracker: AccelerometerVarianceTracker,
     // Phase 4 — Settings (injected for testability; production default uses Application context)
-    settingsOverride: SettingsRepository? = null
+    settingsOverride: SettingsRepository? = null,
+    // Injectable IO dispatcher for testability; production default is Dispatchers.IO
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : AndroidViewModel(application) {
 
     private val sensorLayer = SensorLayer(application)
@@ -427,7 +430,7 @@ class CompassViewModel(
         // activeModel() on the main thread concurrently with the sensor pipeline on Dispatchers.Default.
         val calibrationVersion = _activeModelId.value
         val enrichedSnapshot = snapshot.copy(calibrationVersion = calibrationVersion)
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             try {
                 val record = useCase.execute(enrichedSnapshot)
                 _captureConfirmation.emit(record.name)
@@ -465,7 +468,7 @@ class CompassViewModel(
      * (SE FSPEC-v2 F-01 Resolution: no additional withContext() wrapper needed in Fragment.)
      */
     internal fun loadCalibrationAge() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             val record = calibrationRepo.getCurrent()
             if (record != null) {
                 val ageMs = clock.nowMs() - record.recorded_at
@@ -560,9 +563,7 @@ class CompassViewModel(
                     expectedFieldUt = expectedFieldUt
                 )
                 if (driftEvent == DriftEvent.TRIGGERED) {
-                    val nowMs = clock.nowMs()
-                    val cooldownMs = settings.driftCooldownTimestampMs
-                    if (nowMs - cooldownMs >= 600_000L) {  // 10-minute cooldown
+                    if (isDriftCooldownExpired()) {
                         _driftBannerState.value = DriftBannerState.VISIBLE
                     }
                 }
@@ -783,7 +784,7 @@ class CompassViewModel(
      */
     fun onCalibrationCompleteFromHistory() {
         calAgeBannerDismissed = true   // ① suppress immediately — prevents re-flash
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             val record = calibrationRepo.getCurrent()
             if (record != null) {
                 val ageMs = clock.nowMs() - record.recorded_at
@@ -844,9 +845,7 @@ class CompassViewModel(
             expectedFieldUt = expectedFieldUt
         )
         if (driftEvent == DriftEvent.TRIGGERED) {
-            val nowMs = clock.nowMs()
-            val cooldownMs = settings.driftCooldownTimestampMs
-            if (nowMs - cooldownMs >= 600_000L) {  // 10-minute cooldown
+            if (isDriftCooldownExpired()) {
                 _driftBannerState.value = DriftBannerState.VISIBLE
             }
         }
@@ -870,7 +869,21 @@ class CompassViewModel(
     // Phase 4 — Internal pure functions (testable without Android runtime)
     // -----------------------------------------------------------------------
 
+    /**
+     * Returns true if the drift-banner cooldown has expired (i.e., the banner is eligible to show).
+     *
+     * Cooldown is 10 minutes (600_000 ms). A stored value of 0L means no cooldown has been set,
+     * which also satisfies the condition (clock.nowMs() - 0L is always >= 600_000 after startup).
+     *
+     * Extracted to eliminate duplication between startSensorCollection() and simulateSensorFrame().
+     */
+    private fun isDriftCooldownExpired(): Boolean {
+        val cooldownMs = settings.driftCooldownTimestampMs
+        return (clock.nowMs() - cooldownMs) >= DRIFT_COOLDOWN_MS
+    }
+
     companion object {
+        private const val DRIFT_COOLDOWN_MS = 600_000L  // 10-minute cooldown
         /**
          * Computes calibration age in full days using floor division.
          *

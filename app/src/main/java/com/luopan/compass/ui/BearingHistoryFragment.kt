@@ -141,8 +141,8 @@ class BearingHistoryFragment : Fragment() {
             ) = false
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                val position = viewHolder.adapterPosition
-                if (position == RecyclerView.NO_ID.toInt()) return
+                val position = viewHolder.absoluteAdapterPosition
+                if (position == RecyclerView.NO_POSITION) return
                 val record = adapter.currentList[position]
 
                 // Commit any prior undo before starting a new one
@@ -207,8 +207,10 @@ class BearingHistoryFragment : Fragment() {
                 }
 
                 // Observe CompassViewModel age banner state
+                // collectLatest cancels in-progress updateAgeBanner calls on each new emission
+                // preventing queue buildup at 200 Hz sensor rate (code review Fix 6)
                 launch {
-                    compassViewModel.uiState.collect { state ->
+                    compassViewModel.uiState.collectLatest { state ->
                         updateAgeBanner(state.calibration_age_days)
                     }
                 }

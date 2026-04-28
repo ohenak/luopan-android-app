@@ -163,7 +163,7 @@ class BearingAdapter : ListAdapter<BearingRecord, BearingAdapter.ViewHolder>(DIF
 
         // ── Row click toggles expansion ──
         holder.itemView.setOnClickListener {
-            toggleExpanded(record.id, holder.adapterPosition)
+            toggleExpanded(record.id, holder.absoluteAdapterPosition)
         }
     }
 

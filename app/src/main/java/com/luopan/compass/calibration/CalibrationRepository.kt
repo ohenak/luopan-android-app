@@ -54,7 +54,8 @@ class CalibrationRepository(private val dao: CalibrationDao) {
             softIron = softIron,
             residualMicroTesla = 0f,
             coverageScore = 0f,
-            quality = CalibrationQuality.valueOf(record.quality)
+            quality = CalibrationQuality.valueOf(record.quality),
+            sphereRadius_uT = record.expected_field_ut
         )
     }
 }
