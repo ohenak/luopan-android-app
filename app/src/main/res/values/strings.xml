@@ -104,6 +104,7 @@
     <string name="undo">Undo</string>
     <string name="empty_no_bearings">No bearings yet — capture your first bearing from the compass screen</string>
     <string name="empty_no_results">No bearings match your search</string>
+    <string name="empty_illustration_desc">Compass illustration — no bearings captured yet</string>
     <string name="interference_badge">⚠ Captured under interference</string>
 
     <!-- Task 3.2: LuopanFragment — lock button labels (TSPEC §6.2) -->

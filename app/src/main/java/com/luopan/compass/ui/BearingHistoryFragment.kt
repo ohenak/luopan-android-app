@@ -40,6 +40,15 @@ import kotlinx.coroutines.launch
  */
 class BearingHistoryFragment : Fragment() {
 
+    companion object {
+        /**
+         * Duration in milliseconds for the undo Snackbar after swipe-to-delete.
+         * Exactly 5 seconds — NOT Snackbar.LENGTH_LONG (which is 2750 ms).
+         * PROP-HIST-042: this named constant locks down the user-observable contract.
+         */
+        const val UNDO_SNACKBAR_DURATION_MS = 5000
+    }
+
     private val compassViewModel: CompassViewModel by activityViewModels()
 
     private val historyViewModel: BearingHistoryViewModel by viewModels {
@@ -56,7 +65,7 @@ class BearingHistoryFragment : Fragment() {
     private lateinit var adapter: BearingAdapter
     private lateinit var recyclerView: RecyclerView
     private lateinit var searchBar: SearchView
-    private lateinit var emptyNoRecords: TextView
+    private lateinit var emptyNoRecords: View  // LinearLayout (illustration + text) for State A
     private lateinit var emptyNoResults: TextView
     private lateinit var ageBannerRoot: View
     private lateinit var ageBannerText: TextView
@@ -140,7 +149,7 @@ class BearingHistoryFragment : Fragment() {
                 currentSnackbar?.dismiss()
                 historyViewModel.deleteRecord(record)
 
-                currentSnackbar = Snackbar.make(requireView(), R.string.bearing_deleted, 5000)
+                currentSnackbar = Snackbar.make(requireView(), R.string.bearing_deleted, UNDO_SNACKBAR_DURATION_MS)
                     .setAction(R.string.undo) {
                         historyViewModel.undoDelete()
                     }

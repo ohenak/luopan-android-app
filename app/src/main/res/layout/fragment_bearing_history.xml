@@ -91,16 +91,34 @@
         android:visibility="gone" />
 
     <!-- Empty state: zero records (shown when no records exist and no search active) -->
-    <TextView
+    <!-- REQ-CAPTURE-03 §5.1 Scenario A2: illustration + message both required -->
+    <LinearLayout
         android:id="@+id/empty_state_no_records"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:text="@string/empty_no_bearings"
+        android:orientation="vertical"
         android:gravity="center"
         android:padding="24dp"
-        android:textSize="16sp"
-        android:visibility="visible" />
+        android:visibility="visible">
+
+        <ImageView
+            android:id="@+id/empty_state_illustration"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:src="@drawable/ic_empty_history"
+            android:contentDescription="@string/empty_illustration_desc"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/empty_state_no_records_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/empty_no_bearings"
+            android:gravity="center"
+            android:textSize="16sp" />
+
+    </LinearLayout>
 
     <!-- Empty state: no search results (shown when search active but no matches) -->
     <TextView

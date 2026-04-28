@@ -370,7 +370,9 @@ class CompassViewModelDriftTest {
         // Thread.sleep required: onCalibrationCompleteFromHistory launches on Dispatchers.IO
         // (not test-injected), so advanceUntilIdle() cannot drain the coroutine.
         // TODO: inject IO dispatcher in CompassViewModel to replace Thread.sleep with advanceUntilIdle().
-        Thread.sleep(100L)  // allow real IO thread to complete
+        // Increased from 100 ms to 500 ms to reduce flakiness on heavily-loaded CI machines
+        // (TE CR-IMPL F-05). Full fix: inject IO dispatcher in Phase 5 Hilt migration.
+        Thread.sleep(500L)  // allow real IO thread to complete
 
         // After IO coroutine resolves: age = 10 days ≤ 30 → flag must be cleared to false
         assertFalse(

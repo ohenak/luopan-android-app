@@ -103,6 +103,21 @@ class SettingsRepositoryTest {
         assertEquals(2_000L, repo.driftCooldownTimestampMs)
     }
 
+    /**
+     * PROP-SENSOR-038: KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION must be a named public constant
+     * with the exact string value "sensor_profile_written_for_version".
+     *
+     * This assertion locks down the contract: property round-trip tests alone would pass even if
+     * the implementation used an inline string literal with the wrong value or no constant at all.
+     */
+    @Test fun `PROP-SENSOR-038 KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION is named constant with correct value`() {
+        assertEquals(
+            "PROP-SENSOR-038: KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION must equal 'sensor_profile_written_for_version'",
+            "sensor_profile_written_for_version",
+            SettingsRepository.KEY_SENSOR_PROFILE_WRITTEN_FOR_VERSION
+        )
+    }
+
     @Test fun sensorProfileWrittenForVersion_default_is_zero() {
         assertEquals(0, repo.sensorProfileWrittenForVersion)
     }
