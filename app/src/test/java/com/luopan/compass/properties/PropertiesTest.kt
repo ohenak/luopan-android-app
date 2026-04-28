@@ -93,11 +93,13 @@ class PropertiesTest {
     @Test fun `PROP-FUSION-04 full update converges to North within 50 iterations`() {
         val f = MadgwickFilter(beta = 0.1f)
         val engine = FusionEngine(f)
+        // North input: mx=0, my=30 → tiltCompensatedHeading returns atan2(-0, 30) = 0° (North).
+        // Device flat (az=9.8): gravity = (0,0,1), horizontal projection hx=0, hy=30.
         repeat(50) { i ->
-            engine.process(frame(i * 20_000_000L, mx = 30f, my = 0f, mz = -30f,
+            engine.process(frame(i * 20_000_000L, mx = 0f, my = 30f, mz = 0f,
                                   ax = 0f, ay = 0f, az = 9.8f))
         }
-        val result = engine.process(frame(50 * 20_000_000L, mx = 30f, my = 0f, mz = -30f))
+        val result = engine.process(frame(50 * 20_000_000L, mx = 0f, my = 30f, mz = 0f))
         val diff = abs(result.heading_deg).let { if (it > 180.0) 360.0 - it else it }
         assertTrue("heading should be within 5° of North, was ${result.heading_deg}°", diff <= 5.0)
     }
@@ -106,11 +108,12 @@ class PropertiesTest {
     @Test fun `PROP-FUSION-05 updateNoGyro converges to North within 50 iterations`() {
         val f = MadgwickFilter(beta = 0.1f)
         val engine = FusionEngine(f)
-        // Use null gyro to trigger updateNoGyro path
+        // North input: mx=0, my=30 → tiltCompensatedHeading returns 0° (North).
+        // Use null gyro to trigger updateNoGyro path.
         repeat(50) { i ->
-            engine.process(SensorFrame(i * 20_000_000L, 30f, 0f, -30f, 0f, 0f, 0f, 0f, 0f, 9.8f, null, null, null))
+            engine.process(SensorFrame(i * 20_000_000L, 0f, 30f, 0f, 0f, 0f, 0f, 0f, 0f, 9.8f, null, null, null))
         }
-        val result = engine.process(SensorFrame(50 * 20_000_000L, 30f, 0f, -30f, 0f, 0f, 0f, 0f, 0f, 9.8f, null, null, null))
+        val result = engine.process(SensorFrame(50 * 20_000_000L, 0f, 30f, 0f, 0f, 0f, 0f, 0f, 0f, 9.8f, null, null, null))
         val diff = abs(result.heading_deg).let { if (it > 180.0) 360.0 - it else it }
         assertTrue("heading should be within 5° of North, was ${result.heading_deg}°", diff <= 5.0)
     }
