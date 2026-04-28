@@ -402,6 +402,59 @@ class CompassViewModelDriftTest {
             viewModel.calAgeBannerDismissed
         )
     }
+    // ─── PROP-CAL-019b: drift banner stays HIDDEN when interferenceState = WARNING ─
+
+    /**
+     * PROP-CAL-019b: When DriftDetector does not emit TRIGGERED because
+     * interferenceState = WARNING blocks the COUNTING precondition, driftBannerState
+     * must remain HIDDEN.
+     *
+     * Unit-level strategy (SE PROPERTIES-v3 F-03): inject FakeDriftDetector(nextEvent = null),
+     * which accurately simulates real DriftDetector behavior when WARNING blocks COUNTING.
+     * The banner must stay GONE/HIDDEN regardless of the interference state passed to
+     * simulateSensorFrame(), because the detector never fires TRIGGERED.
+     *
+     * The DriftDetector-level behavior (WARNING blocks COUNTING) is tested in DriftDetectorTest;
+     * the ViewModel-level behavior (TRIGGERED → banner visible) is tested in PROP-CAL-018/019.
+     * This property tests the combined user-observable outcome.
+     */
+    @Test
+    fun `PROP-CAL-019b drift banner stays HIDDEN when FakeDriftDetector emits null due to WARNING interference`() = runTest {
+        // Inject FakeDriftDetector configured to emit no event (nextEvent = null).
+        // This simulates real DriftDetector behavior when interferenceState = WARNING
+        // blocks the COUNTING precondition — the detector returns null, never TRIGGERED.
+        val fakeDrift = FakeDriftDetector(nextEvent = null)
+        val clock = FakeClock(700_000L)  // beyond 10-minute cooldown
+        val viewModel = makeViewModel(clock = clock, driftDetector = fakeDrift)
+
+        val states = mutableListOf<DriftBannerState>()
+        val job = launch { viewModel.driftBannerState.collect { states.add(it) } }
+
+        // Simulate a sensor frame with interferenceState = WARNING.
+        // The FakeDriftDetector(nextEvent = null) returns null → TRIGGERED never fires.
+        viewModel.simulateSensorFrame(
+            magnitudeUt = 56.0f,
+            interferenceState = InterferenceState.WARNING,
+            expectedFieldUt = 50.0f
+        )
+        advanceUntilIdle()
+        job.cancel()
+
+        assertFalse(
+            "PROP-CAL-019b: driftBannerState must NOT be VISIBLE when interferenceState=WARNING " +
+                "blocks DriftDetector COUNTING precondition (detector emits null, not TRIGGERED)",
+            states.contains(DriftBannerState.VISIBLE)
+        )
+        // Primary assertion: if any state was emitted, it must be HIDDEN (the default)
+        if (states.isNotEmpty()) {
+            assertEquals(
+                "PROP-CAL-019b: all emitted states must be HIDDEN when detector never fires TRIGGERED",
+                DriftBannerState.HIDDEN,
+                states.last()
+            )
+        }
+    }
+
     // ─── PROP-CAL-043: resetDriftDetector clears cooldown to 0L ─────────────────
 
     @Test

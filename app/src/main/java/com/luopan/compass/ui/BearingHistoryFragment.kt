@@ -45,7 +45,7 @@ class BearingHistoryFragment : Fragment() {
     private val historyViewModel: BearingHistoryViewModel by viewModels {
         val keyManager = DatabaseKeyManager(requireActivity().application)
         val db = LuopanDatabase.getInstance(requireActivity().application, keyManager.getOrCreatePassphrase())
-        object : AbstractSavedStateViewModelFactory(this, arguments) {
+        object : AbstractSavedStateViewModelFactory(this@BearingHistoryFragment, arguments) {
             override fun <T : ViewModel> create(key: String, modelClass: Class<T>, handle: SavedStateHandle): T {
                 @Suppress("UNCHECKED_CAST")
                 return BearingHistoryViewModel(dao = db.bearingDao(), savedStateHandle = handle) as T

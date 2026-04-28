@@ -367,4 +367,61 @@ class BearingDaoTest {
         val afterInsert = dao.searchFlow("living").first()
         assertEquals("searchFlow must emit updated results after insert", 2, afterInsert.size)
     }
+
+    // ── PROP-HIST-002: getAllFlow rowid tiebreaker ─────────────────────────────
+
+    /**
+     * PROP-HIST-002: When two records share the same captured_at timestamp, getAllFlow() must
+     * break ties by rowid descending (the record inserted later appears first).
+     *
+     * SQLite assigns rowid in insertion order; inserting record B after record A means
+     * rowid(B) > rowid(A), so B must appear first in the flow emission.
+     */
+    @Test
+    fun `PROP-HIST-002 getAllFlow breaks captured_at ties by rowid descending`() = runTest(StandardTestDispatcher()) {
+        val sameTimestamp = 5_000L
+        // Insert A first → lower rowid
+        val recordA = makeRecord(id = "tie-A", capturedAt = sameTimestamp)
+        // Insert B second → higher rowid → must appear first
+        val recordB = makeRecord(id = "tie-B", capturedAt = sameTimestamp)
+
+        dao.insert(recordA)
+        dao.insert(recordB)
+
+        val result = dao.getAllFlow().first()
+        assertEquals("getAllFlow must return both tie records", 2, result.size)
+        assertEquals(
+            "PROP-HIST-002: record with higher rowid (inserted last) must appear first when captured_at is equal",
+            "tie-B",
+            result[0].id
+        )
+        assertEquals("tie-A", result[1].id)
+    }
+
+    // ── PROP-HIST-004: searchFlow rowid tiebreaker ────────────────────────────
+
+    /**
+     * PROP-HIST-004: searchFlow() must order results identically to getAllFlow() —
+     * captured_at DESC with rowid DESC as tiebreaker for records with equal captured_at.
+     */
+    @Test
+    fun `PROP-HIST-004 searchFlow breaks captured_at ties by rowid descending`() = runTest(StandardTestDispatcher()) {
+        val sameTimestamp = 7_000L
+        // Insert X first → lower rowid
+        val recordX = makeRecord(id = "search-tie-X", name = "Entry Alpha", capturedAt = sameTimestamp)
+        // Insert Y second → higher rowid → must appear first in searchFlow results
+        val recordY = makeRecord(id = "search-tie-Y", name = "Entry Beta", capturedAt = sameTimestamp)
+
+        dao.insert(recordX)
+        dao.insert(recordY)
+
+        val result = dao.searchFlow("Entry").first()
+        assertEquals("searchFlow must return both tie records", 2, result.size)
+        assertEquals(
+            "PROP-HIST-004: searchFlow must break captured_at ties by rowid DESC (same as getAllFlow)",
+            "search-tie-Y",
+            result[0].id
+        )
+        assertEquals("search-tie-X", result[1].id)
+    }
 }
