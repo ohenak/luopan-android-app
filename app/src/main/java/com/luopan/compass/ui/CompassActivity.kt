@@ -1,12 +1,18 @@
 package com.luopan.compass.ui
 
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.WindowManager
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.MenuProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
+import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.tabs.TabLayout
 import com.luopan.compass.R
 import com.luopan.compass.diagnostics.SensorCapabilityLogger
@@ -68,6 +74,11 @@ class CompassActivity : AppCompatActivity() {
             SensorCapabilityLogger(applicationContext, SettingsRepository(applicationContext)).maybeWrite()
         }
 
+        // Task 4.2 — Set up MaterialToolbar as the ActionBar
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+
+
         tabLayout = findViewById(R.id.tabLayout)
 
         val navHostFragment = supportFragmentManager
@@ -76,6 +87,29 @@ class CompassActivity : AppCompatActivity() {
 
         // Wire TabLayout ↔ NavController (TSPEC §9.3)
         wireTabNavigation()
+
+        // Task 4.3 — Activity-level MenuProvider for the About overflow item
+        addMenuProvider(object : MenuProvider {
+            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                menuInflater.inflate(R.menu.menu_about, menu)
+            }
+
+            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                return when (menuItem.itemId) {
+                    R.id.action_about -> {
+                        navController.navigate(
+                            R.id.dest_about,
+                            null,
+                            NavOptions.Builder()
+                                .setLaunchSingleTop(true)
+                                .build()
+                        )
+                        true
+                    }
+                    else -> false
+                }
+            }
+        })
 
         // Cold-start mode restoration (TSPEC §8.4):
         // If savedInstanceState is null, this is a fresh start — navigate to the persisted mode.
@@ -129,7 +163,7 @@ class CompassActivity : AppCompatActivity() {
                 R.id.dest_modern  -> TAB_MODERN
                 R.id.dest_luopan  -> TAB_LUOPAN
                 R.id.dest_history -> TAB_HISTORY
-                else -> return@addOnDestinationChangedListener
+                else -> return@addOnDestinationChangedListener // dest_about and any future non-tab destinations fall here — no tab selection change
             }
             val currentTab = tabLayout.getTabAt(targetPosition)
             if (tabLayout.selectedTabPosition != targetPosition && currentTab != null) {

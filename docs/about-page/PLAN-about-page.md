@@ -101,10 +101,10 @@ Wire `dest_about` into the NavController and configure `CompassActivity`.
 
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
-| 4.1 | Add `dest_about` fragment destination to `nav_graph.xml`: `android:name="com.luopan.compass.ui.AboutFragment"`, `android:label="About"` | — | `app/src/main/res/navigation/nav_graph.xml` | ⬚ |
-| 4.2 | Update `CompassActivity.onCreate`: `val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)` → `setSupportActionBar(toolbar)` | — | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | ⬚ |
-| 4.3 | Add Activity-level `MenuProvider` to `CompassActivity.onCreate` (after `wireTabNavigation()`): inflate `menu_about.xml`; on `action_about` → `navController.navigate(R.id.dest_about, null, NavOptions.Builder().setLaunchSingleTop(true).build())` | — | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | ⬚ |
-| 4.4 | Add inline comment in `wireTabNavigation()` destination listener `else -> return` branch: `// dest_about and any future non-tab destinations fall here — no tab selection change` | — | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | ⬚ |
+| 4.1 | Add `dest_about` fragment destination to `nav_graph.xml`: `android:name="com.luopan.compass.ui.AboutFragment"`, `android:label="About"` | — | `app/src/main/res/navigation/nav_graph.xml` | ✅ |
+| 4.2 | Update `CompassActivity.onCreate`: `val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)` → `setSupportActionBar(toolbar)` | — | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | ✅ |
+| 4.3 | Add Activity-level `MenuProvider` to `CompassActivity.onCreate` (after `wireTabNavigation()`): inflate `menu_about.xml`; on `action_about` → `navController.navigate(R.id.dest_about, null, NavOptions.Builder().setLaunchSingleTop(true).build())` | — | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | ✅ |
+| 4.4 | Add inline comment in `wireTabNavigation()` destination listener `else -> return` branch: `// dest_about and any future non-tab destinations fall here — no tab selection change` | — | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | ✅ |
 
 **Dependency:** Phase 3 complete (AboutFragment must exist before it can be added to nav_graph). Tasks 4.1–4.4 are sequential (4.1 must precede 4.2–4.4 to avoid R.id.dest_about unresolved). Phase 4 has no dedicated test tasks — all Phase 4 behaviour is verified by the Phase 5 instrumented tests (`nav_fromModern_aboutScreenShown`, `tabSync_*`, `nav_launchSingleTop_noStackDuplicate`).
 
