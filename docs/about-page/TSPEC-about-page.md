@@ -3,7 +3,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.3 |
+| **Version** | 0.4 |
 | **Date** | 2026-04-28 |
 | **Status** | Draft |
 | **Author** | Engineering |
@@ -232,7 +232,7 @@ navController.addOnDestinationChangedListener { _, destination, _ ->
 }
 ```
 
-No change needed here — the `else -> return` branch is already correct. Document this explicitly in code with a comment referencing `dest_about`.
+No change needed here — the `else -> return` branch is already correct. Document this explicitly in code with a comment referencing `dest_about`. Note: if a future screen (e.g., `dest_bearing_history`) is added to the nav graph, it must also be covered by the `else -> return` branch and by the tab-sync exclusion test matrix.
 
 ### 6.4 Menu Resource (`menu_about.xml`)
 
@@ -332,7 +332,7 @@ Note: `&amp;` is the XML-escaped form of `&` required inside string resources.
 | Test | Level | Assertion |
 |------|-------|-----------|
 | `websiteUrl_isYijiStudio` | JVM | `AboutFragment.WEBSITE_URL == "https://yiji.studio"` — guards against accidental URL change |
-| `systemUrlLauncher_parsesUri_correctly` | JVM | `Uri.parse(AboutFragment.WEBSITE_URL)` scheme == "https", host == "yiji.studio" |
+| `systemUrlLauncher_parsesUri_correctly` | Robolectric | `Uri.parse(AboutFragment.WEBSITE_URL)` scheme == "https", host == "yiji.studio" (`android.net.Uri` requires Robolectric runtime) |
 | `noBrowser_showsSnackbar` | Robolectric | Launch `AboutFragment` via `FragmentScenario`, set `fragment.urlLauncher = FakeUrlLauncher(result = NoBrowserFound)`, click `tv_about_website`, assert `onView(withText(R.string.about_no_browser_error)).check(matches(isDisplayed()))` |
 
 **Robolectric injection pattern for `noBrowser_showsSnackbar`:**
