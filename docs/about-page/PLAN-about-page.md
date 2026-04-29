@@ -50,9 +50,9 @@ Create the injectable seam and its test double. No TDD cycle needed for the inte
 
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
-| 1.1 | Create `UrlLauncher` interface with sealed `Result` (Launched, NoBrowserFound) | — | `app/src/main/java/com/luopan/compass/ui/UrlLauncher.kt` | ⬚ |
-| 1.2 | Implement `SystemUrlLauncher(context: Context)` — `startActivity(ACTION_VIEW)`, catch `ActivityNotFoundException` → return `NoBrowserFound` | — | `app/src/main/java/com/luopan/compass/ui/UrlLauncher.kt` | ⬚ |
-| 1.3 | Create `FakeUrlLauncher` as `internal class` — `var result = Launched`, `var lastUrl: String?`, captures `lastUrl` on `launch()`. Lives in `src/test` (not `src/main`) so it is never compiled into the production APK | — | `app/src/test/java/com/luopan/compass/ui/FakeUrlLauncher.kt` | ⬚ |
+| 1.1 | Create `UrlLauncher` interface with sealed `Result` (Launched, NoBrowserFound) | — | `app/src/main/java/com/luopan/compass/ui/UrlLauncher.kt` | ✅ |
+| 1.2 | Implement `SystemUrlLauncher(context: Context)` — `startActivity(ACTION_VIEW)`, catch `ActivityNotFoundException` → return `NoBrowserFound` | — | `app/src/main/java/com/luopan/compass/ui/UrlLauncher.kt` | ✅ |
+| 1.3 | Create `FakeUrlLauncher` as `internal class` — `var result = Launched`, `var lastUrl: String?`, captures `lastUrl` on `launch()`. Lives in `src/test` (not `src/main`) so it is never compiled into the production APK | — | `app/src/test/java/com/luopan/compass/ui/FakeUrlLauncher.kt` | ✅ |
 
 **Dependency:** Phase 0 complete (build sync needed before IDE compilation).
 
