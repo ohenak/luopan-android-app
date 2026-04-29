@@ -99,9 +99,9 @@ Wire `dest_about` into the NavController and configure `CompassActivity`.
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
 | 4.1 | Add `dest_about` fragment destination to `nav_graph.xml`: `android:name="com.luopan.compass.ui.AboutFragment"`, `android:label="About"` | — | `app/src/main/res/navigation/nav_graph.xml` | ⬚ |
-| 4.2 | Update `CompassActivity.onCreate`: `val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)` → `setSupportActionBar(toolbar)` | — | `app/src/main/java/.../CompassActivity.kt` | ⬚ |
-| 4.3 | Add Activity-level `MenuProvider` to `CompassActivity.onCreate` (after `wireTabNavigation()`): inflate `menu_about.xml`; on `action_about` → `navController.navigate(R.id.dest_about, null, NavOptions.Builder().setLaunchSingleTop(true).build())` | — | `app/src/main/java/.../CompassActivity.kt` | ⬚ |
-| 4.4 | Add inline comment in `wireTabNavigation()` destination listener `else -> return` branch: `// dest_about and any future non-tab destinations fall here — no tab selection change` | — | `app/src/main/java/.../CompassActivity.kt` | ⬚ |
+| 4.2 | Update `CompassActivity.onCreate`: `val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)` → `setSupportActionBar(toolbar)` | — | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | ⬚ |
+| 4.3 | Add Activity-level `MenuProvider` to `CompassActivity.onCreate` (after `wireTabNavigation()`): inflate `menu_about.xml`; on `action_about` → `navController.navigate(R.id.dest_about, null, NavOptions.Builder().setLaunchSingleTop(true).build())` | — | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | ⬚ |
+| 4.4 | Add inline comment in `wireTabNavigation()` destination listener `else -> return` branch: `// dest_about and any future non-tab destinations fall here — no tab selection change` | — | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | ⬚ |
 
 **Dependency:** Phase 3 complete (AboutFragment must exist before it can be added to nav_graph). Tasks 4.1–4.4 are sequential (4.1 must precede 4.2–4.4 to avoid R.id.dest_about unresolved). Phase 4 has no dedicated test tasks — all Phase 4 behaviour is verified by the Phase 5 instrumented tests (`nav_fromModern_aboutScreenShown`, `tabSync_*`, `nav_launchSingleTop_noStackDuplicate`).
 
@@ -113,7 +113,7 @@ Write and verify `AboutScreenTest` against the running app. These run on a devic
 
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
-| 5.1 | Create `AboutScreenTest` with `@Before` (`Intents.init()`, navigate to About) and `@After` (`Intents.release()`). Add 3 content visibility tests: `content_studioNameVisible`, `content_descriptionVisible`, `content_websiteLabelVisible` | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
+| 5.1 | Create `AboutScreenTest` with `@Before` (`Intents.init()` only — do NOT navigate to About here; each test navigates as part of its own Given) and `@After` (`Intents.release()`), following `LocationPermissionTest` pattern. Add 3 content visibility tests: `content_studioNameVisible`, `content_descriptionVisible`, `content_websiteLabelVisible` — each opens overflow and taps `menu_about` before asserting. | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
 | 5.2 | Add `websiteLink_firesActionViewIntent`: stub `Intents.intending(hasAction(ACTION_VIEW)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))`, tap `tv_about_website`, assert `Intents.intended(allOf(hasAction(ACTION_VIEW), hasData("https://yiji.studio")))` | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
 | 5.3 | Add 2 navigation-from tests: `nav_fromModern_aboutScreenShown`, `nav_fromLuopan_aboutScreenShown` (open overflow → tap `menu_about` → assert `tv_about_studio_name` displayed) | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
 | 5.4 | Add 2 back-navigation tests: `nav_backFromAbout_returnsToModern`, `nav_backFromAbout_returnsToLuopan` (`pressBack()` → assert originating view displayed) | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
@@ -128,7 +128,7 @@ Write and verify `AboutScreenTest` against the running app. These run on a devic
 
 | System | Touched by | Risk |
 |--------|-----------|------|
-| `CompassActivity` toolbar + menu | Phase 4 | Toolbar height shifts existing layout; verify NavHostFragment still fills remaining space |
+| `CompassActivity` toolbar + menu | Phase 4 | Toolbar height shifts existing layout; `NavHostFragment` must retain `android:layout_weight="1"` to fill remaining space. Verified implicitly by Phase 5.3 nav-from tests — if content is not visible, those tests fail. |
 | NavController back-stack | Phase 4 | `launchSingleTop` must be set on the navigate call, not in nav_graph XML (XML `launchSingleTop` only applies to action elements) |
 | Tab-sync listener | Phase 4.4 | `else -> return` already handles `dest_about`; comment only, no behaviour change |
 | `LuopanFragment` MenuProvider | Phase 4 | Activity-level menu registered first → "About" appears above "Show/hide rings" in overflow. Acceptable per TSPEC §6.5. |
