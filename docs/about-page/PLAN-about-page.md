@@ -76,15 +76,17 @@ String resources, layouts, and the menu file are pure XML with no runtime depend
 
 Write the Robolectric unit tests first (Red), then implement `AboutFragment` to make them pass (Green).
 
+> **Red-state clarification:** In Tasks 3.1, 3.3, and 3.5 the expected Red state is a **compilation failure**, not a runtime test failure. `AboutFragment` does not exist at 3.1; the click handler does not exist at 3.5. Do not stub-create `AboutFragment` before Task 3.2 — the compilation error itself is the Red state that drives implementation.
+
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
-| 3.1 | **Red** — Write `AboutFragmentLogicTest` with `websiteUrl_isYijiStudio`: assert `AboutFragment.WEBSITE_URL == "https://yiji.studio"`. Annotate `@RunWith(RobolectricTestRunner::class)`. Test fails: `AboutFragment` does not exist yet. | `app/src/test/.../AboutFragmentLogicTest.kt` | — | ⬚ |
-| 3.2 | **Green** — Create `AboutFragment` skeleton: `internal var urlLauncher: UrlLauncher? = null`, `companion object { const val WEBSITE_URL = "https://yiji.studio" }`, `onAttach` assigns `SystemUrlLauncher(context)` if null. Test 3.1 passes. | `app/src/test/.../AboutFragmentLogicTest.kt` | `app/src/main/.../AboutFragment.kt` | ⬚ |
-| 3.3 | **Red** — Add `systemUrlLauncher_parsesUri_correctly` to `AboutFragmentLogicTest`: `Uri.parse(AboutFragment.WEBSITE_URL)` scheme == "https", host == "yiji.studio". Test fails until `Uri` is available under Robolectric (already wired by `@RunWith`). | `app/src/test/.../AboutFragmentLogicTest.kt` | — | ⬚ |
-| 3.4 | **Green** — No production code change needed; Robolectric stubs `android.net.Uri`. Verify test 3.3 passes. | `app/src/test/.../AboutFragmentLogicTest.kt` | — | ⬚ |
-| 3.5 | **Red** — Add `noBrowser_showsSnackbar` to `AboutFragmentLogicTest`: `launchFragmentInContainer<AboutFragment>()`, `scenario.onFragment { it.urlLauncher = FakeUrlLauncher(result = NoBrowserFound) }`, click `tv_about_website`, assert `withText(R.string.about_no_browser_error)` displayed. Test fails: `onViewCreated` click handler not yet implemented. | `app/src/test/.../AboutFragmentLogicTest.kt` | — | ⬚ |
-| 3.6 | **Green** — Implement `AboutFragment.onCreateView` (inflate `fragment_about.xml`) and `onViewCreated` click handler: `urlLauncher.launch(WEBSITE_URL)`; if `NoBrowserFound` → `Snackbar.make(requireView(), R.string.about_no_browser_error, LENGTH_LONG).show()`. Test 3.5 passes. | `app/src/test/.../AboutFragmentLogicTest.kt` | `app/src/main/.../AboutFragment.kt` | ⬚ |
-| 3.7 | **Refactor** — Review `AboutFragment`: clean up any nullability handling on `urlLauncher`, ensure `onAttach` guard is tight. Re-run all three Robolectric tests; all green. | `app/src/test/.../AboutFragmentLogicTest.kt` | `app/src/main/.../AboutFragment.kt` | ⬚ |
+| 3.1 | **Red** — Write `AboutFragmentLogicTest` with `websiteUrl_isYijiStudio`: assert `AboutFragment.WEBSITE_URL == "https://yiji.studio"`. Annotate `@RunWith(RobolectricTestRunner::class)`. Test fails: `AboutFragment` does not exist yet. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | — | ⬚ |
+| 3.2 | **Green** — Create `AboutFragment` skeleton: `internal var urlLauncher: UrlLauncher? = null`, `companion object { const val WEBSITE_URL = "https://yiji.studio" }`, `onAttach` assigns `SystemUrlLauncher(context)` if null. Test 3.1 passes. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | `app/src/main/java/com/luopan/compass/ui/AboutFragment.kt` | ⬚ |
+| 3.3 | **Red** — Add `systemUrlLauncher_parsesUri_correctly` to `AboutFragmentLogicTest`: `Uri.parse(AboutFragment.WEBSITE_URL)` scheme == "https", host == "yiji.studio". Test fails until `Uri` is available under Robolectric (already wired by `@RunWith`). | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | — | ⬚ |
+| 3.4 | **Green** — No production code change needed; Robolectric stubs `android.net.Uri`. Verify test 3.3 passes. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | — | ⬚ |
+| 3.5 | **Red** — Add `noBrowser_showsSnackbar` to `AboutFragmentLogicTest`: `val scenario = launchFragmentInContainer<AboutFragment>()`, then `scenario.onFragment { it.urlLauncher = FakeUrlLauncher().apply { result = NoBrowserFound } }` (injection must happen *after* `launchFragmentInContainer` returns and *before* `perform(click())`), then click `tv_about_website`, assert `onView(withText(R.string.about_no_browser_error)).check(matches(isDisplayed()))`. Test fails: `onViewCreated` click handler not yet implemented. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | — | ⬚ |
+| 3.6 | **Green** — Implement `AboutFragment.onCreateView` (inflate `fragment_about.xml`) and `onViewCreated` click handler: `urlLauncher.launch(WEBSITE_URL)`; if `NoBrowserFound` → `Snackbar.make(requireView(), R.string.about_no_browser_error, LENGTH_LONG).show()`. Test 3.5 passes. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | `app/src/main/java/com/luopan/compass/ui/AboutFragment.kt` | ⬚ |
+| 3.7 | **Refactor** — Review `AboutFragment`: clean up any nullability handling on `urlLauncher`, ensure `onAttach` guard is tight. Re-run all three Robolectric tests; all green. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | `app/src/main/java/com/luopan/compass/ui/AboutFragment.kt` | ⬚ |
 
 **Dependency:** Phase 2 complete (fragment_about.xml and strings must exist for `onCreateView` to compile). Phase 1 complete (UrlLauncher must exist).
 
@@ -101,7 +103,7 @@ Wire `dest_about` into the NavController and configure `CompassActivity`.
 | 4.3 | Add Activity-level `MenuProvider` to `CompassActivity.onCreate` (after `wireTabNavigation()`): inflate `menu_about.xml`; on `action_about` → `navController.navigate(R.id.dest_about, null, NavOptions.Builder().setLaunchSingleTop(true).build())` | — | `app/src/main/java/.../CompassActivity.kt` | ⬚ |
 | 4.4 | Add inline comment in `wireTabNavigation()` destination listener `else -> return` branch: `// dest_about and any future non-tab destinations fall here — no tab selection change` | — | `app/src/main/java/.../CompassActivity.kt` | ⬚ |
 
-**Dependency:** Phase 3 complete (AboutFragment must exist before it can be added to nav_graph). Tasks 4.1–4.4 are sequential (4.1 must precede 4.2–4.4 to avoid R.id.dest_about unresolved).
+**Dependency:** Phase 3 complete (AboutFragment must exist before it can be added to nav_graph). Tasks 4.1–4.4 are sequential (4.1 must precede 4.2–4.4 to avoid R.id.dest_about unresolved). Phase 4 has no dedicated test tasks — all Phase 4 behaviour is verified by the Phase 5 instrumented tests (`nav_fromModern_aboutScreenShown`, `tabSync_*`, `nav_launchSingleTop_noStackDuplicate`).
 
 ---
 
@@ -111,12 +113,12 @@ Write and verify `AboutScreenTest` against the running app. These run on a devic
 
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
-| 5.1 | Create `AboutScreenTest` with `@Before` (`Intents.init()`, navigate to About) and `@After` (`Intents.release()`). Add 3 content visibility tests: `content_studioNameVisible`, `content_descriptionVisible`, `content_websiteLabelVisible` | `app/src/androidTest/.../AboutScreenTest.kt` | — | ⬚ |
-| 5.2 | Add `websiteLink_firesActionViewIntent`: stub `Intents.intending(hasAction(ACTION_VIEW)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))`, tap `tv_about_website`, assert `Intents.intended(allOf(hasAction(ACTION_VIEW), hasData("https://yiji.studio")))` | `app/src/androidTest/.../AboutScreenTest.kt` | — | ⬚ |
-| 5.3 | Add 2 navigation-from tests: `nav_fromModern_aboutScreenShown`, `nav_fromLuopan_aboutScreenShown` (open overflow → tap `menu_about` → assert `tv_about_studio_name` displayed) | `app/src/androidTest/.../AboutScreenTest.kt` | — | ⬚ |
-| 5.4 | Add 2 back-navigation tests: `nav_backFromAbout_returnsToModern`, `nav_backFromAbout_returnsToLuopan` (`pressBack()` → assert originating view displayed) | `app/src/androidTest/.../AboutScreenTest.kt` | — | ⬚ |
-| 5.5 | Add 2 tab-sync tests: `tabSync_fromModern_tabUnchanged`, `tabSync_fromLuopan_tabUnchanged` (open About → `activityRule.scenario.onActivity { assertEquals(N, tabLayout.selectedTabPosition) }`) | `app/src/androidTest/.../AboutScreenTest.kt` | — | ⬚ |
-| 5.6 | Add `nav_launchSingleTop_noStackDuplicate`: navigate to About, open overflow and tap About again, `pressBack()`, assert Modern screen shown | `app/src/androidTest/.../AboutScreenTest.kt` | — | ⬚ |
+| 5.1 | Create `AboutScreenTest` with `@Before` (`Intents.init()`, navigate to About) and `@After` (`Intents.release()`). Add 3 content visibility tests: `content_studioNameVisible`, `content_descriptionVisible`, `content_websiteLabelVisible` | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
+| 5.2 | Add `websiteLink_firesActionViewIntent`: stub `Intents.intending(hasAction(ACTION_VIEW)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))`, tap `tv_about_website`, assert `Intents.intended(allOf(hasAction(ACTION_VIEW), hasData("https://yiji.studio")))` | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
+| 5.3 | Add 2 navigation-from tests: `nav_fromModern_aboutScreenShown`, `nav_fromLuopan_aboutScreenShown` (open overflow → tap `menu_about` → assert `tv_about_studio_name` displayed) | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
+| 5.4 | Add 2 back-navigation tests: `nav_backFromAbout_returnsToModern`, `nav_backFromAbout_returnsToLuopan` (`pressBack()` → assert originating view displayed) | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
+| 5.5 | Add 2 tab-sync tests: `tabSync_fromModern_tabUnchanged`, `tabSync_fromLuopan_tabUnchanged` (open About → `activityRule.scenario.onActivity { assertEquals(N, tabLayout.selectedTabPosition) }`) | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
+| 5.6 | Add `nav_launchSingleTop_noStackDuplicate`: navigate to About, open overflow and tap About again, `pressBack()`, assert Modern screen shown | `app/src/androidTest/java/com/luopan/compass/ui/AboutScreenTest.kt` | — | ⬚ |
 
 **Dependency:** Phase 4 complete (Activity + nav_graph must be wired before any instrumented test can open About).
 
@@ -139,6 +141,8 @@ Write and verify `AboutScreenTest` against the running app. These run on a devic
 - [ ] All Robolectric tests in `AboutFragmentLogicTest` pass: `./gradlew :app:test --tests "*.AboutFragmentLogicTest"`
 - [ ] No-browser Snackbar branch covered by `noBrowser_showsSnackbar` (Robolectric)
 - [ ] All instrumented tests in `AboutScreenTest` pass on a connected device/emulator: `./gradlew :app:connectedAndroidTest`
+- [ ] `nav_launchSingleTop_noStackDuplicate` passes — back from About returns to previous screen, not a duplicate About
 - [ ] `./gradlew :app:assembleDebug` succeeds with no warnings for new files
 - [ ] No regressions in existing test suites: `./gradlew :app:test` and `./gradlew :app:connectedAndroidTest`
 - [ ] REQ traceability: every AC in REQ-ABOUT-01/02/03 has a corresponding passing test
+- [ ] REQ-ABOUT-NFR-01 (no network calls) verified by code review: `AboutFragment` contains no Retrofit/OkHttp/URLConnection calls; all content from string resources
