@@ -348,6 +348,7 @@ fun noBrowser_showsSnackbar() {
     scenario.onFragment { fragment -> fragment.urlLauncher = fake }
     onView(withId(R.id.tv_about_website)).perform(click())
     onView(withText(R.string.about_no_browser_error)).check(matches(isDisplayed()))
+    assertEquals(AboutFragment.WEBSITE_URL, fake.lastUrl)  // P-19: launcher was called with the correct URL
 }
 ```
 
