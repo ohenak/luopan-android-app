@@ -3,7 +3,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.1-draft |
+| **Version** | 0.2 |
 | **Date** | 2026-04-28 |
 | **Status** | Draft |
 | **Author** | Engineering |
@@ -125,8 +125,15 @@ class FakeUrlLauncher : UrlLauncher {
 ```kotlin
 class AboutFragment(
     private val urlLauncher: UrlLauncher = SystemUrlLauncher(/* set in onAttach */)
-) : Fragment() { … }
+) : Fragment() {
+
+    companion object {
+        const val WEBSITE_URL = "https://yiji.studio"
+    }
+}
 ```
+
+`WEBSITE_URL` is a `companion object` constant so it can be asserted in pure JVM unit tests without instantiating the Fragment.
 
 Because `Fragment` requires a no-arg constructor for the system, `UrlLauncher` is supplied via a `FragmentFactory` registered on the `NavHostFragment`'s `childFragmentManager` before navigation, or — more practically — created lazily in `onAttach(context)` if the injected launcher is a sentinel value. The simpler approach (and the one used here) is:
 
@@ -150,7 +157,7 @@ For instrumented tests, use `Intents.intending()` to stub the browser — no `Fa
 
 ```kotlin
 tvAboutWebsite.setOnClickListener {
-    val result = urlLauncher.launch("https://yiji.studio")
+    val result = urlLauncher.launch(WEBSITE_URL)
     if (result is UrlLauncher.Result.NoBrowserFound) {
         Snackbar.make(requireView(), R.string.about_no_browser_error, Snackbar.LENGTH_LONG).show()
     }
@@ -316,15 +323,30 @@ Note: `&amp;` is the XML-escaped form of `&` required inside string resources.
 
 ## 11. Test Strategy
 
-### 11.1 Unit Tests (`AboutFragmentLogicTest`)
+### 11.1 Unit / Robolectric Tests (`AboutFragmentLogicTest`)
 
-Test the `UrlLauncher` dispatch logic in isolation using `FakeUrlLauncher`. These are JVM tests (no device needed).
+`AboutFragmentLogicTest` uses `@RunWith(RobolectricTestRunner::class)`. Pure-JVM assertions (no Fragment instantiation) run fine under Robolectric.
 
-| Test | Assertion |
-|------|-----------|
-| `launch_callsLauncherWithCorrectUrl` | `FakeUrlLauncher.lastUrl == "https://yiji.studio"` |
-| `launch_noBrowser_returnsNoBrowserFound` | `FakeUrlLauncher.result = NoBrowserFound` → `UrlLauncher.Result.NoBrowserFound` returned |
-| `systemUrlLauncher_parsesUri_correctly` | `Uri.parse("https://yiji.studio")` produces expected Uri |
+| Test | Level | Assertion |
+|------|-------|-----------|
+| `websiteUrl_isYijiStudio` | JVM | `AboutFragment.WEBSITE_URL == "https://yiji.studio"` — guards against accidental URL change |
+| `systemUrlLauncher_parsesUri_correctly` | JVM | `Uri.parse(AboutFragment.WEBSITE_URL)` scheme == "https", host == "yiji.studio" |
+| `noBrowser_showsSnackbar` | Robolectric | Launch `AboutFragment` via `FragmentScenario`, set `fragment.urlLauncher = FakeUrlLauncher(result = NoBrowserFound)`, click `tv_about_website`, assert `onView(withText(R.string.about_no_browser_error)).check(matches(isDisplayed()))` |
+
+**Robolectric injection pattern for `noBrowser_showsSnackbar`:**
+
+```kotlin
+@Test
+fun noBrowser_showsSnackbar() {
+    val fake = FakeUrlLauncher().apply { result = UrlLauncher.Result.NoBrowserFound }
+    val scenario = launchFragmentInContainer<AboutFragment>()
+    scenario.onFragment { fragment -> fragment.urlLauncher = fake }
+    onView(withId(R.id.tv_about_website)).perform(click())
+    onView(withText(R.string.about_no_browser_error)).check(matches(isDisplayed()))
+}
+```
+
+`launchFragmentInContainer` is from `androidx.fragment:fragment-testing`; Robolectric inflates the layout and drives the full `onAttach → onViewCreated` lifecycle in the JVM test runner. No emulator or device required.
 
 ### 11.2 Instrumented Tests (`AboutScreenTest`)
 
@@ -340,19 +362,23 @@ Uses `ActivityScenarioRule(CompassActivity::class.java)` with `Intents.init()` /
 | `nav_fromLuopan_aboutScreenShown` | Luopan Mode active | Open overflow, tap `R.string.menu_about` | `onView(withId(R.id.tv_about_studio_name)).check(matches(isDisplayed()))` |
 | `nav_backFromAbout_returnsToModern` | Navigated to About from Modern | `pressBack()` | `onView(withId(R.id.compassRose)).check(matches(isDisplayed()))` |
 | `nav_backFromAbout_returnsToLuopan` | Navigated to About from Luopan | `pressBack()` | `onView(withId(R.id.luopanView)).check(matches(isDisplayed()))` |
-
-**No-browser Snackbar test** (`noBrowser_showsSnackbar`): Cannot be reliably automated via Espresso Intents alone because `Intents.intending()` stubs the intent result, not an `ActivityNotFoundException`. This case is covered by the unit test (`FakeUrlLauncher.result = NoBrowserFound` → Snackbar shown). The unit test plus `REQ-ABOUT-NFR-02` code-review verification provides adequate coverage without fragile instrumented hacks.
+| `tabSync_fromModern_tabUnchanged` | Modern tab active (position 0) | Open overflow, tap `R.string.menu_about` | `tabLayout.selectedTabPosition == 0` |
+| `tabSync_fromLuopan_tabUnchanged` | Luopan tab active (position 1) | Open overflow, tap `R.string.menu_about` | `tabLayout.selectedTabPosition == 1` |
+| `nav_launchSingleTop_noStackDuplicate` | About screen open | Open overflow, tap `R.string.menu_about` again; `pressBack()` | `onView(withId(R.id.compassRose)).check(matches(isDisplayed()))` — back returns to Modern, not a second About |
 
 ### 11.3 Test Level Summary
 
 | Property | Level | Rationale |
 |----------|-------|-----------|
-| UrlLauncher dispatches correct URI | Unit | Pure logic, no Android framework |
-| No-browser Snackbar branch | Unit | `ActivityNotFoundException` not injectable via `Intents.intending()` |
+| `WEBSITE_URL` constant value | JVM | Pure string assertion, no Android framework |
+| `Uri.parse` correctness | JVM | Pure parse check, no Android framework |
+| No-browser Snackbar branch | Robolectric | `ActivityNotFoundException` not injectable via `Intents.intending()`; `FakeUrlLauncher` + `FragmentScenario` exercises the real Fragment path in the JVM |
 | Content visible on screen | Instrumented | Requires inflated layout |
 | Intent fired with correct URI | Instrumented | Requires real Activity + Intents library |
 | Navigation from Modern/Luopan | Instrumented | Requires real NavController |
 | Back-press returns to origin | Instrumented | Requires real back-stack |
+| Tab selection unchanged after About | Instrumented | Requires real TabLayout + NavController |
+| `launchSingleTop` prevents duplicate destination | Instrumented | Requires real back-stack |
 
 ---
 
