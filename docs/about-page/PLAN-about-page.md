@@ -35,10 +35,10 @@ Must complete before any test in Phase 3 can compile.
 
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
-| 0.1 | Add `fragment = "1.6.1"` version to `[versions]` in `libs.versions.toml` | — | `gradle/libs.versions.toml` | ⬚ |
-| 0.2 | Add `fragment-testing = { group = "androidx.fragment", name = "fragment-testing", version.ref = "fragment" }` to `[libraries]` in `libs.versions.toml` | — | `gradle/libs.versions.toml` | ⬚ |
-| 0.3 | Add `testImplementation(libs.fragment.testing)` to `app/build.gradle.kts` | — | `app/build.gradle.kts` | ⬚ |
-| 0.4 | Add `testImplementation(libs.espresso.core)` to `app/build.gradle.kts` — required by `onView`/`withText`/`isDisplayed`/`doesNotExist` in Robolectric tests (`espresso-core` is currently `androidTestImplementation` only) | — | `app/build.gradle.kts` | ⬚ |
+| 0.1 | Add `fragment = "1.6.1"` version to `[versions]` in `libs.versions.toml` | — | `gradle/libs.versions.toml` | ✅ |
+| 0.2 | Add `fragment-testing = { group = "androidx.fragment", name = "fragment-testing", version.ref = "fragment" }` to `[libraries]` in `libs.versions.toml` | — | `gradle/libs.versions.toml` | ✅ |
+| 0.3 | Add `testImplementation(libs.fragment.testing)` to `app/build.gradle.kts` | — | `app/build.gradle.kts` | ✅ |
+| 0.4 | Add `testImplementation(libs.espresso.core)` to `app/build.gradle.kts` — required by `onView`/`withText`/`isDisplayed`/`doesNotExist` in Robolectric tests (`espresso-core` is currently `androidTestImplementation` only) | — | `app/build.gradle.kts` | ✅ |
 
 **Dependency:** Tasks 0.1 → 0.2 → 0.3 → 0.4 (sequential within phase).
 
