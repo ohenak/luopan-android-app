@@ -64,10 +64,10 @@ String resources, layouts, and the menu file are pure XML with no runtime depend
 
 | # | Task | Test File | Source File | Status |
 |---|------|-----------|-------------|--------|
-| 2.1 | Add 5 string resources to `strings.xml`: `menu_about`, `about_studio_name`, `about_studio_description`, `about_website_label`, `about_no_browser_error` | — | `app/src/main/res/values/strings.xml` | ⬚ |
-| 2.2 | Create `fragment_about.xml`: `ScrollView` → `LinearLayout` (vertical, 24dp padding) → `tv_about_studio_name` (Headline5), 8dp Space, `tv_about_description` (Body1), 24dp Space, `tv_about_website` (Body1, textColorPrimary, clickable, focusable) | — | `app/src/main/res/layout/fragment_about.xml` | ⬚ |
-| 2.3 | Create `menu_about.xml`: single item `action_about`, title `@string/menu_about`, `showAsAction="never"` | — | `app/src/main/res/menu/menu_about.xml` | ⬚ |
-| 2.4 | Add `MaterialToolbar` (id=`toolbar`, `match_parent` × `?attr/actionBarSize`, `colorSurface` bg) as first child of `activity_compass.xml` root `LinearLayout`, above `NavHostFragment` | — | `app/src/main/res/layout/activity_compass.xml` | ⬚ |
+| 2.1 | Add 5 string resources to `strings.xml`: `menu_about`, `about_studio_name`, `about_studio_description`, `about_website_label`, `about_no_browser_error` | — | `app/src/main/res/values/strings.xml` | ✅ |
+| 2.2 | Create `fragment_about.xml`: `ScrollView` → `LinearLayout` (vertical, 24dp padding) → `tv_about_studio_name` (Headline5), 8dp Space, `tv_about_description` (Body1), 24dp Space, `tv_about_website` (Body1, textColorPrimary, clickable, focusable) | — | `app/src/main/res/layout/fragment_about.xml` | ✅ |
+| 2.3 | Create `menu_about.xml`: single item `action_about`, title `@string/menu_about`, `showAsAction="never"` | — | `app/src/main/res/menu/menu_about.xml` | ✅ |
+| 2.4 | Add `MaterialToolbar` (id=`toolbar`, `match_parent` × `?attr/actionBarSize`, `colorSurface` bg) as first child of `activity_compass.xml` root `LinearLayout`, above `NavHostFragment` | — | `app/src/main/res/layout/activity_compass.xml` | ✅ |
 
 **Dependency:** Phase 1 complete (not technically required for XML, but avoids merge conflicts). Tasks 2.1–2.4 can run in parallel.
 
