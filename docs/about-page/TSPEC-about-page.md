@@ -58,6 +58,7 @@ CompassActivity
 |------|---------|
 | `app/src/main/java/com/luopan/compass/ui/AboutFragment.kt` | Full-screen Fragment; displays studio identity, fires URL intent |
 | `app/src/main/java/com/luopan/compass/ui/UrlLauncher.kt` | Protocol interface + `SystemUrlLauncher` implementation |
+| `app/src/test/java/com/luopan/compass/ui/FakeUrlLauncher.kt` | Test double — `internal` class; lives in `src/test` so it is never compiled into the production APK |
 | `app/src/main/res/layout/fragment_about.xml` | About screen layout |
 | `app/src/main/res/menu/menu_about.xml` | Activity-level "About" overflow menu item |
 | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | Unit tests — UrlLauncher dispatch logic |
@@ -74,7 +75,7 @@ CompassActivity
 | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | `setSupportActionBar()`, add About `MenuProvider`, handle `dest_about` in tab-sync |
 | `app/src/main/res/values/strings.xml` | Add `menu_about`, `about_studio_name`, `about_studio_description`, `about_website_label`, `about_no_browser_error` |
 | `gradle/libs.versions.toml` | Add `fragment-testing = { group = "androidx.fragment", name = "fragment-testing", version.ref = "fragment" }` to `[libraries]` |
-| `app/build.gradle.kts` | Add `testImplementation(libs.fragment.testing)` — required by `launchFragmentInContainer` in `noBrowser_showsSnackbar` Robolectric test |
+| `app/build.gradle.kts` | Add `testImplementation(libs.fragment.testing)` (required by `launchFragmentInContainer`) and `testImplementation(libs.espresso.core)` (required by `onView`/`withText`/`isDisplayed`/`doesNotExist` in Robolectric tests) |
 
 ---
 
@@ -103,8 +104,9 @@ class SystemUrlLauncher(private val context: Context) : UrlLauncher {
     }
 }
 
-// Test double — used in unit tests
-class FakeUrlLauncher : UrlLauncher {
+// Test double — lives in src/test (never compiled into production APK)
+// app/src/test/java/com/luopan/compass/ui/FakeUrlLauncher.kt
+internal class FakeUrlLauncher : UrlLauncher {
     var result: UrlLauncher.Result = UrlLauncher.Result.Launched
     var lastUrl: String? = null
     override fun launch(url: String): UrlLauncher.Result {
@@ -331,9 +333,10 @@ Note: `&amp;` is the XML-escaped form of `&` required inside string resources.
 
 | Test | Level | Assertion |
 |------|-------|-----------|
-| `websiteUrl_isYijiStudio` | JVM | `AboutFragment.WEBSITE_URL == "https://yiji.studio"` — guards against accidental URL change |
+| `websiteUrl_isYijiStudio` | Robolectric | `AboutFragment.WEBSITE_URL == "https://yiji.studio"` — guards against accidental URL change |
 | `systemUrlLauncher_parsesUri_correctly` | Robolectric | `Uri.parse(AboutFragment.WEBSITE_URL)` scheme == "https", host == "yiji.studio" (`android.net.Uri` requires Robolectric runtime) |
 | `noBrowser_showsSnackbar` | Robolectric | Launch `AboutFragment` via `FragmentScenario`, set `fragment.urlLauncher = FakeUrlLauncher(result = NoBrowserFound)`, click `tv_about_website`, assert `onView(withText(R.string.about_no_browser_error)).check(matches(isDisplayed()))` |
+| `launched_doesNotShowSnackbar` | Robolectric | Launch `AboutFragment` via `FragmentScenario`, set `fragment.urlLauncher = FakeUrlLauncher(result = Launched)`, click `tv_about_website`, assert `onView(withText(R.string.about_no_browser_error)).check(doesNotExist())` |
 
 **Robolectric injection pattern for `noBrowser_showsSnackbar`:**
 
@@ -372,9 +375,10 @@ Uses `ActivityScenarioRule(CompassActivity::class.java)` with `Intents.init()` /
 
 | Property | Level | Rationale |
 |----------|-------|-----------|
-| `WEBSITE_URL` constant value | JVM | Pure string assertion, no Android framework |
+| `WEBSITE_URL` constant value | Robolectric | File-level `@RunWith(RobolectricTestRunner::class)` applies to all methods including pure string assertions |
 | `Uri.parse` correctness | Robolectric | `android.net.Uri` is a stubbed Android class — requires Robolectric runtime even for a parse check |
 | No-browser Snackbar branch | Robolectric | `ActivityNotFoundException` not injectable via `Intents.intending()`; `FakeUrlLauncher` + `FragmentScenario` exercises the real Fragment path in the JVM |
+| No Snackbar on successful launch | Robolectric | Negative guard — `FakeUrlLauncher(result = Launched)` + `doesNotExist()` ensures the Snackbar is not shown on the happy path |
 | Content visible on screen | Instrumented | Requires inflated layout |
 | Intent fired with correct URI | Instrumented | Requires real Activity + Intents library |
 | Navigation from Modern/Luopan | Instrumented | Requires real NavController |

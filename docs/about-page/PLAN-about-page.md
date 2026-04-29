@@ -38,8 +38,9 @@ Must complete before any test in Phase 3 can compile.
 | 0.1 | Add `fragment = "1.6.1"` version to `[versions]` in `libs.versions.toml` | — | `gradle/libs.versions.toml` | ⬚ |
 | 0.2 | Add `fragment-testing = { group = "androidx.fragment", name = "fragment-testing", version.ref = "fragment" }` to `[libraries]` in `libs.versions.toml` | — | `gradle/libs.versions.toml` | ⬚ |
 | 0.3 | Add `testImplementation(libs.fragment.testing)` to `app/build.gradle.kts` | — | `app/build.gradle.kts` | ⬚ |
+| 0.4 | Add `testImplementation(libs.espresso.core)` to `app/build.gradle.kts` — required by `onView`/`withText`/`isDisplayed`/`doesNotExist` in Robolectric tests (`espresso-core` is currently `androidTestImplementation` only) | — | `app/build.gradle.kts` | ⬚ |
 
-**Dependency:** Tasks 0.1 → 0.2 → 0.3 (sequential within phase).
+**Dependency:** Tasks 0.1 → 0.2 → 0.3 → 0.4 (sequential within phase).
 
 ---
 
@@ -51,7 +52,7 @@ Create the injectable seam and its test double. No TDD cycle needed for the inte
 |---|------|-----------|-------------|--------|
 | 1.1 | Create `UrlLauncher` interface with sealed `Result` (Launched, NoBrowserFound) | — | `app/src/main/java/com/luopan/compass/ui/UrlLauncher.kt` | ⬚ |
 | 1.2 | Implement `SystemUrlLauncher(context: Context)` — `startActivity(ACTION_VIEW)`, catch `ActivityNotFoundException` → return `NoBrowserFound` | — | `app/src/main/java/com/luopan/compass/ui/UrlLauncher.kt` | ⬚ |
-| 1.3 | Implement `FakeUrlLauncher` — `var result = Launched`, `var lastUrl: String?`, captures `lastUrl` on `launch()` | — | `app/src/main/java/com/luopan/compass/ui/UrlLauncher.kt` | ⬚ |
+| 1.3 | Create `FakeUrlLauncher` as `internal class` — `var result = Launched`, `var lastUrl: String?`, captures `lastUrl` on `launch()`. Lives in `src/test` (not `src/main`) so it is never compiled into the production APK | — | `app/src/test/java/com/luopan/compass/ui/FakeUrlLauncher.kt` | ⬚ |
 
 **Dependency:** Phase 0 complete (build sync needed before IDE compilation).
 
@@ -86,7 +87,9 @@ Write the Robolectric unit tests first (Red), then implement `AboutFragment` to 
 | 3.4 | **Green** — No production code change needed; Robolectric stubs `android.net.Uri`. Verify test 3.3 passes. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | — | ⬚ |
 | 3.5 | **Red** — Add `noBrowser_showsSnackbar` to `AboutFragmentLogicTest`: `val scenario = launchFragmentInContainer<AboutFragment>()`, then `scenario.onFragment { it.urlLauncher = FakeUrlLauncher().apply { result = NoBrowserFound } }` (injection must happen *after* `launchFragmentInContainer` returns and *before* `perform(click())`), then click `tv_about_website`, assert `onView(withText(R.string.about_no_browser_error)).check(matches(isDisplayed()))`. Test fails: `onViewCreated` click handler not yet implemented. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | — | ⬚ |
 | 3.6 | **Green** — Implement `AboutFragment.onCreateView` (inflate `fragment_about.xml`) and `onViewCreated` click handler: `urlLauncher.launch(WEBSITE_URL)`; if `NoBrowserFound` → `Snackbar.make(requireView(), R.string.about_no_browser_error, LENGTH_LONG).show()`. Test 3.5 passes. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | `app/src/main/java/com/luopan/compass/ui/AboutFragment.kt` | ⬚ |
-| 3.7 | **Refactor** — Review `AboutFragment`: clean up any nullability handling on `urlLauncher`, ensure `onAttach` guard is tight. Re-run all three Robolectric tests; all green. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | `app/src/main/java/com/luopan/compass/ui/AboutFragment.kt` | ⬚ |
+| 3.7 | **Refactor** — Review `AboutFragment`: clean up any nullability handling on `urlLauncher`, ensure `onAttach` guard is tight. Re-run all four Robolectric tests; all green. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | `app/src/main/java/com/luopan/compass/ui/AboutFragment.kt` | ⬚ |
+| 3.8 | **Red** — Add `launched_doesNotShowSnackbar` to `AboutFragmentLogicTest`: inject `FakeUrlLauncher(result = Launched)`, click `tv_about_website`, assert `onView(withText(R.string.about_no_browser_error)).check(doesNotExist())`. Test is expected to fail until the click handler is confirmed not to show the Snackbar on success. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | — | ⬚ |
+| 3.9 | **Green** — No production code change needed; the click handler added in 3.6 only calls `Snackbar.make` in the `NoBrowserFound` branch. Verify test 3.8 passes after 3.6 implementation is in place. | `app/src/test/java/com/luopan/compass/ui/AboutFragmentLogicTest.kt` | — | ⬚ |
 
 **Dependency:** Phase 2 complete (fragment_about.xml and strings must exist for `onCreateView` to compile). Phase 1 complete (UrlLauncher must exist).
 
@@ -140,6 +143,7 @@ Write and verify `AboutScreenTest` against the running app. These run on a devic
 
 - [ ] All Robolectric tests in `AboutFragmentLogicTest` pass: `./gradlew :app:test --tests "*.AboutFragmentLogicTest"`
 - [ ] No-browser Snackbar branch covered by `noBrowser_showsSnackbar` (Robolectric)
+- [ ] Successful-launch branch covered by `launched_doesNotShowSnackbar` (Robolectric — negative property)
 - [ ] All instrumented tests in `AboutScreenTest` pass on a connected device/emulator: `./gradlew :app:connectedAndroidTest`
 - [ ] `nav_launchSingleTop_noStackDuplicate` passes — back from About returns to previous screen, not a duplicate About
 - [ ] `./gradlew :app:assembleDebug` succeeds with no warnings for new files

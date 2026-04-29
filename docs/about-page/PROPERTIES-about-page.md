@@ -16,10 +16,22 @@
 
 | Level | Runner | When to use |
 |-------|--------|-------------|
-| **Unit-JVM** | JUnit4 (plain JVM) | Pure Kotlin/Java with no Android framework calls |
 | **Unit-Robolectric** | RobolectricTestRunner | Android classes (`Uri`, Fragment lifecycle, Snackbar) required but no device |
 | **Instrumented** | AndroidJUnitRunner (device/emulator) | Real NavController, TabLayout, Activity lifecycle, intent dispatching |
 | **Code Review** | Manual | Properties that are verified by absence of code constructs |
+
+> **Note:** All tests in `AboutFragmentLogicTest` run under `@RunWith(RobolectricTestRunner::class)`. There are no plain-JVM tests — even the `WEBSITE_URL` constant assertion runs in the Robolectric runner because the file-level `@RunWith` annotation applies to all methods.
+
+## Test Dependencies
+
+The Robolectric tests in `AboutFragmentLogicTest` (P-04, P-05, P-07, P-08, P-18–P-20) require two `testImplementation` dependencies that are not yet in the project:
+
+| Dependency | Required by | Task |
+|------------|-------------|------|
+| `testImplementation(libs.fragment.testing)` | `launchFragmentInContainer` in P-07, P-08 | PLAN Task 0.3 |
+| `testImplementation(libs.espresso.core)` | `onView`, `withText`, `matches`, `isDisplayed`, `doesNotExist` in P-07, P-08 | PLAN Task 0.4 |
+
+`espresso-core` is currently `androidTestImplementation` only. Without a `testImplementation` declaration, the Robolectric test class will not compile.
 
 ---
 
@@ -37,7 +49,7 @@
 
 | ID | Property | Category | Level | Test Method | Assertion |
 |----|----------|----------|-------|-------------|-----------|
-| P-04 | `AboutFragment.WEBSITE_URL` **must** equal `"https://yiji.studio"` | Contract | Unit-JVM | `websiteUrl_isYijiStudio` | `assertEquals("https://yiji.studio", AboutFragment.WEBSITE_URL)` |
+| P-04 | `AboutFragment.WEBSITE_URL` **must** equal `"https://yiji.studio"` | Contract | Unit-Robolectric | `websiteUrl_isYijiStudio` | `assertEquals("https://yiji.studio", AboutFragment.WEBSITE_URL)` |
 | P-05 | `Uri.parse(AboutFragment.WEBSITE_URL)` **must** produce a URI with scheme `"https"` and host `"yiji.studio"` | Contract | Unit-Robolectric | `systemUrlLauncher_parsesUri_correctly` | `assertEquals("https", uri.scheme); assertEquals("yiji.studio", uri.host)` |
 | P-06 | Tapping `tv_about_website` **must** fire an `ACTION_VIEW` intent with data URI exactly `https://yiji.studio` | Functional | Instrumented | `websiteLink_firesActionViewIntent` | `Intents.intended(allOf(hasAction(Intent.ACTION_VIEW), hasData("https://yiji.studio")))` after `Intents.intending(hasAction(ACTION_VIEW)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))` |
 | P-07 | When `UrlLauncher.launch()` returns `NoBrowserFound`, tapping `tv_about_website` **must** show a Snackbar with text from `R.string.about_no_browser_error` | Error Handling | Unit-Robolectric | `noBrowser_showsSnackbar` | `onView(withText(R.string.about_no_browser_error)).check(matches(isDisplayed()))` after injecting `FakeUrlLauncher(result = NoBrowserFound)` via `FragmentScenario.onFragment { }` |
@@ -49,14 +61,14 @@
 
 | ID | Property | Category | Level | Test Method | Assertion |
 |----|----------|----------|-------|-------------|-----------|
-| P-09 | Opening overflow and tapping `menu_about` **from Modern Mode** **must** navigate to `AboutFragment` | Functional | Instrumented | `nav_fromModern_aboutScreenShown` | `onView(withId(R.id.tv_about_studio_name)).check(matches(isDisplayed()))` |
-| P-10 | Opening overflow and tapping `menu_about` **from Luopan Mode** **must** navigate to `AboutFragment` | Functional | Instrumented | `nav_fromLuopan_aboutScreenShown` | `onView(withId(R.id.tv_about_studio_name)).check(matches(isDisplayed()))` |
-| P-11 | Pressing back from About (entered from Modern) **must** return to Modern Mode (`R.id.compassRose` visible) | Functional | Instrumented | `nav_backFromAbout_returnsToModern` | `pressBack(); onView(withId(R.id.compassRose)).check(matches(isDisplayed()))` |
-| P-12 | Pressing back from About (entered from Luopan) **must** return to Luopan Mode (`R.id.luopanView` visible) | Functional | Instrumented | `nav_backFromAbout_returnsToLuopan` | `pressBack(); onView(withId(R.id.luopanView)).check(matches(isDisplayed()))` |
-| P-13 | Navigating to About from Modern Mode **must NOT** change the active tab (TabLayout position remains `0`) | Functional | Instrumented | `tabSync_fromModern_tabUnchanged` | `activityRule.scenario.onActivity { assertEquals(0, it.findViewById<TabLayout>(R.id.tabLayout).selectedTabPosition) }` |
-| P-14 | Navigating to About from Luopan Mode **must NOT** change the active tab (TabLayout position remains `1`) | Functional | Instrumented | `tabSync_fromLuopan_tabUnchanged` | `activityRule.scenario.onActivity { assertEquals(1, it.findViewById<TabLayout>(R.id.tabLayout).selectedTabPosition) }` |
-| P-15 | Tapping "About" while already on the About screen **must NOT** push a duplicate `dest_about` onto the back stack; pressing back **must** return to the originating primary screen | Functional | Instrumented | `nav_launchSingleTop_noStackDuplicate` | Navigate to About → tap About again → `pressBack()` → `onView(withId(R.id.compassRose)).check(matches(isDisplayed()))` |
-| P-16 (negative) | `AboutFragment` **must NOT** register a `MenuProvider`; the About menu item is provided exclusively by the Activity-level `MenuProvider` | Contract | Code Review | — | Verify `AboutFragment.kt` contains no call to `addMenuProvider(...)` or `requireActivity().addMenuProvider(...)` |
+| P-09 | Opening overflow and tapping `menu_about` **from Modern Mode** **must** navigate to `AboutFragment` | Functional | Instrumented | `nav_fromModern_aboutScreenShown` | `openActionBarOverflowOrOptionsMenu(getInstrumentation().targetContext); onView(withText(R.string.menu_about)).perform(click()); onView(withId(R.id.tv_about_studio_name)).check(matches(isDisplayed()))` |
+| P-10 | Opening overflow and tapping `menu_about` **from Luopan Mode** **must** navigate to `AboutFragment` | Functional | Instrumented | `nav_fromLuopan_aboutScreenShown` | Switch to Luopan tab; `openActionBarOverflowOrOptionsMenu(getInstrumentation().targetContext); onView(withText(R.string.menu_about)).perform(click()); onView(withId(R.id.tv_about_studio_name)).check(matches(isDisplayed()))` |
+| P-11 | Pressing back from About (entered from Modern) **must** return to Modern Mode (`R.id.compassRose` visible) | Functional | Instrumented | `nav_backFromAbout_returnsToModern` | Navigate to About from Modern; `pressBack(); onView(withId(R.id.compassRose)).check(matches(isDisplayed()))` |
+| P-12 | Pressing back from About (entered from Luopan) **must** return to Luopan Mode (`R.id.luopanView` visible) | Functional | Instrumented | `nav_backFromAbout_returnsToLuopan` | Navigate to About from Luopan; `pressBack(); onView(withId(R.id.luopanView)).check(matches(isDisplayed()))` |
+| P-13 | Navigating to About from Modern Mode **must NOT** change the active tab (TabLayout position remains `0`) | Functional | Instrumented | `tabSync_fromModern_tabUnchanged` | `openActionBarOverflowOrOptionsMenu(getInstrumentation().targetContext); onView(withText(R.string.menu_about)).perform(click()); activityRule.scenario.onActivity { assertEquals(0, it.findViewById<TabLayout>(R.id.tabLayout).selectedTabPosition) }` |
+| P-14 | Navigating to About from Luopan Mode **must NOT** change the active tab (TabLayout position remains `1`) | Functional | Instrumented | `tabSync_fromLuopan_tabUnchanged` | Switch to Luopan tab; `openActionBarOverflowOrOptionsMenu(getInstrumentation().targetContext); onView(withText(R.string.menu_about)).perform(click()); activityRule.scenario.onActivity { assertEquals(1, it.findViewById<TabLayout>(R.id.tabLayout).selectedTabPosition) }` |
+| P-15 | Tapping "About" while already on the About screen **must NOT** push a duplicate `dest_about` onto the back stack; pressing back **must** return to the originating primary screen (TSPEC §7) | Functional | Instrumented | `nav_launchSingleTop_noStackDuplicate` | Navigate to About from Modern; `openActionBarOverflowOrOptionsMenu(...); onView(withText(R.string.menu_about)).perform(click()); pressBack(); onView(withId(R.id.compassRose)).check(matches(isDisplayed()))`. Luopan entry path is mechanically identical (same `launchSingleTop` flag) — one test is sufficient. |
+| P-16 (negative) | `AboutFragment` **must NOT** register a `MenuProvider`; the About menu item is provided exclusively by the Activity-level `MenuProvider` (TSPEC §5.4) | Contract | Code Review | — | Verify `AboutFragment.kt` contains no call to `addMenuProvider(...)` or `requireActivity().addMenuProvider(...)` |
 
 ---
 
@@ -73,10 +85,12 @@
 
 These verify that `FakeUrlLauncher` correctly models the `UrlLauncher` protocol — needed as infrastructure for P-07 and P-08.
 
+> **Placement note:** `FakeUrlLauncher` must live in `app/src/test/java/com/luopan/compass/ui/` (not `src/main`). It is declared `internal` so Robolectric tests in the same module can access it, but it is never compiled into the production APK. See TSPEC §2 for the updated file listing.
+
 | ID | Property | Category | Level | Test Method | Assertion |
 |----|----------|----------|-------|-------------|-----------|
-| P-19 | `FakeUrlLauncher.launch(url)` **must** capture the URL in `lastUrl` | Contract | Unit-JVM | (inline in `noBrowser_showsSnackbar` setup or separate) | `fake.lastUrl == AboutFragment.WEBSITE_URL` after click |
-| P-20 | `FakeUrlLauncher.launch(url)` **must** return the configured `result` value | Contract | Unit-JVM | (validated implicitly by P-07 and P-08) | `fake.result = NoBrowserFound → launch(url) returns NoBrowserFound` |
+| P-19 | `FakeUrlLauncher.launch(url)` **must** capture the URL in `lastUrl` | Contract | Unit-Robolectric | (inline in `noBrowser_showsSnackbar` setup or separate) | `fake.lastUrl == AboutFragment.WEBSITE_URL` after click |
+| P-20 | `FakeUrlLauncher.launch(url)` **must** return the configured `result` value | Contract | Unit-Robolectric | (validated implicitly by P-07 and P-08) | `fake.result = NoBrowserFound → launch(url) returns NoBrowserFound` |
 
 ---
 
