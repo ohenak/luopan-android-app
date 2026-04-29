@@ -35,6 +35,7 @@ class AboutFragmentLogicTest {
         val scenario = launchFragmentInContainer<AboutFragment>(
             themeResId = R.style.Theme_LuopanCompass
         )
+        // inject after launch so onAttach has run; click handler reads urlLauncher lazily at call time
         scenario.onFragment { fragment -> fragment.urlLauncher = fake }
         onView(withId(R.id.tv_about_website)).perform(click())
         onView(withText(R.string.about_no_browser_error)).check(matches(isDisplayed()))
@@ -47,8 +48,10 @@ class AboutFragmentLogicTest {
         val scenario = launchFragmentInContainer<AboutFragment>(
             themeResId = R.style.Theme_LuopanCompass
         )
+        // inject after launch so onAttach has run; click handler reads urlLauncher lazily at call time
         scenario.onFragment { fragment -> fragment.urlLauncher = fake }
         onView(withId(R.id.tv_about_website)).perform(click())
         onView(withText(R.string.about_no_browser_error)).check(doesNotExist())
+        assertEquals(AboutFragment.WEBSITE_URL, fake.lastUrl)
     }
 }

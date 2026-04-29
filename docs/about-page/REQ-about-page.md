@@ -35,7 +35,7 @@ Add a minimal About screen that credits YiJi Studio (易機閣) as the maker of 
 |-------|-------|
 | **ID** | REQ-ABOUT-01 |
 | **Title** | Studio name and description |
-| **Description** | The screen displays the studio's bilingual name (易機閣 / YiJi Studio) and the fixed one-line description: *"Chinese metaphysics consultations — Feng Shui, Purple Star Astrology & I Ching."* The description is stored in string resource `R.string.about_studio_description`. |
+| **Description** | The screen displays the studio's bilingual name (易機閣 / YiJi Studio) and the fixed one-line description: *"Chinese metaphysics consultations — Feng Shui, Purple Star Astrology & I Ching."* (trailing period is intentional sentence punctuation). The description is stored in string resource `R.string.about_studio_description`. |
 | **Priority** | P0 |
 | **Source user stories** | US-ABOUT-01 |
 
@@ -44,7 +44,7 @@ Add a minimal About screen that credits YiJi Studio (易機閣) as the maker of 
 > **Who:** Any user who opens the About screen  
 > **Given:** The About screen is displayed  
 > **When:** The user views the screen  
-> **Then:** The text "易機閣 / YiJi Studio" is visible on screen, AND the text from `R.string.about_studio_description` ("Chinese metaphysics consultations — Feng Shui, Purple Star Astrology & I Ching") is visible on screen
+> **Then:** The text "易機閣 / YiJi Studio" is visible on screen, AND the text from `R.string.about_studio_description` ("Chinese metaphysics consultations — Feng Shui, Purple Star Astrology & I Ching.") is visible on screen
 
 ---
 
@@ -121,7 +121,7 @@ Add a minimal About screen that credits YiJi Studio (易機閣) as the maker of 
 ## 6. Assumptions
 
 - The Activity toolbar is present or can be added to `CompassActivity` without disrupting existing tab navigation
-- `R.string.menu_about` = "About"; `R.string.about_studio_description` = "Chinese metaphysics consultations — Feng Shui, Purple Star Astrology & I Ching"; `R.string.about_no_browser_error` = "No browser found to open link"
+- `R.string.menu_about` = "About"; `R.string.about_studio_description` = "Chinese metaphysics consultations — Feng Shui, Purple Star Astrology & I Ching."; `R.string.about_no_browser_error` = "No browser found to open link"
 - BearingHistoryFragment (Phase 4) is out of scope for this feature's navigation tests; if it ships concurrently, its screen must be added to the acceptance criteria for REQ-ABOUT-03
 
 ---
