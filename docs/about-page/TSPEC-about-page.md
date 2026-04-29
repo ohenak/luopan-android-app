@@ -3,7 +3,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 0.2 |
+| **Version** | 0.3 |
 | **Date** | 2026-04-28 |
 | **Status** | Draft |
 | **Author** | Engineering |
@@ -73,6 +73,8 @@ CompassActivity
 | `app/src/main/res/navigation/nav_graph.xml` | Add `dest_about` Fragment destination |
 | `app/src/main/java/com/luopan/compass/ui/CompassActivity.kt` | `setSupportActionBar()`, add About `MenuProvider`, handle `dest_about` in tab-sync |
 | `app/src/main/res/values/strings.xml` | Add `menu_about`, `about_studio_name`, `about_studio_description`, `about_website_label`, `about_no_browser_error` |
+| `gradle/libs.versions.toml` | Add `fragment-testing = { group = "androidx.fragment", name = "fragment-testing", version.ref = "fragment" }` to `[libraries]` |
+| `app/build.gradle.kts` | Add `testImplementation(libs.fragment.testing)` — required by `launchFragmentInContainer` in `noBrowser_showsSnackbar` Robolectric test |
 
 ---
 
@@ -123,9 +125,9 @@ class FakeUrlLauncher : UrlLauncher {
 `AboutFragment` receives its `UrlLauncher` via a companion-object factory:
 
 ```kotlin
-class AboutFragment(
-    private val urlLauncher: UrlLauncher = SystemUrlLauncher(/* set in onAttach */)
-) : Fragment() {
+class AboutFragment : Fragment() {
+
+    internal var urlLauncher: UrlLauncher? = null  // set in onAttach; overridable by tests
 
     companion object {
         const val WEBSITE_URL = "https://yiji.studio"
@@ -133,11 +135,11 @@ class AboutFragment(
 }
 ```
 
-`WEBSITE_URL` is a `companion object` constant so it can be asserted in pure JVM unit tests without instantiating the Fragment.
+`WEBSITE_URL` is a `companion object` constant so it can be asserted in pure JVM unit tests without instantiating the Fragment. `urlLauncher` is `internal var` (not `private val`) so Robolectric tests in the same module can assign `fragment.urlLauncher = FakeUrlLauncher()` inside `scenario.onFragment { }` without reflection.
 
-Because `Fragment` requires a no-arg constructor for the system, `UrlLauncher` is supplied via a `FragmentFactory` registered on the `NavHostFragment`'s `childFragmentManager` before navigation, or — more practically — created lazily in `onAttach(context)` if the injected launcher is a sentinel value. The simpler approach (and the one used here) is:
+Because `Fragment` requires a no-arg constructor for the system, `UrlLauncher` is supplied lazily in `onAttach`. The simpler approach (and the one used here) is:
 
-- The fragment holds a `var urlLauncher: UrlLauncher` settable from tests via `onAttach`.
+- The fragment holds an `internal var urlLauncher: UrlLauncher?` overridable by tests.
 - In `onAttach(context)`, if `urlLauncher` is not already set, assign `SystemUrlLauncher(context)`.
 - Tests override the launcher by subclassing or by setting the field before `onViewCreated`.
 
@@ -357,13 +359,13 @@ Uses `ActivityScenarioRule(CompassActivity::class.java)` with `Intents.init()` /
 | `content_studioNameVisible` | About screen open | — | `onView(withText(R.string.about_studio_name)).check(matches(isDisplayed()))` |
 | `content_descriptionVisible` | About screen open | — | `onView(withText(R.string.about_studio_description)).check(matches(isDisplayed()))` |
 | `content_websiteLabelVisible` | About screen open | — | `onView(withText(R.string.about_website_label)).check(matches(isDisplayed()))` |
-| `websiteLink_firesActionViewIntent` | About screen open, `Intents.intending(hasAction(ACTION_VIEW)).respondWith(okResult)` | Tap `tv_about_website` | `Intents.intended(allOf(hasAction(ACTION_VIEW), hasData("https://yiji.studio")))` |
+| `websiteLink_firesActionViewIntent` | About screen open, `val okResult = Instrumentation.ActivityResult(Activity.RESULT_OK, null)` / `Intents.intending(hasAction(ACTION_VIEW)).respondWith(okResult)` | Tap `tv_about_website` | `Intents.intended(allOf(hasAction(ACTION_VIEW), hasData("https://yiji.studio")))` |
 | `nav_fromModern_aboutScreenShown` | Modern Mode active | Open overflow, tap `R.string.menu_about` | `onView(withId(R.id.tv_about_studio_name)).check(matches(isDisplayed()))` |
 | `nav_fromLuopan_aboutScreenShown` | Luopan Mode active | Open overflow, tap `R.string.menu_about` | `onView(withId(R.id.tv_about_studio_name)).check(matches(isDisplayed()))` |
 | `nav_backFromAbout_returnsToModern` | Navigated to About from Modern | `pressBack()` | `onView(withId(R.id.compassRose)).check(matches(isDisplayed()))` |
 | `nav_backFromAbout_returnsToLuopan` | Navigated to About from Luopan | `pressBack()` | `onView(withId(R.id.luopanView)).check(matches(isDisplayed()))` |
-| `tabSync_fromModern_tabUnchanged` | Modern tab active (position 0) | Open overflow, tap `R.string.menu_about` | `tabLayout.selectedTabPosition == 0` |
-| `tabSync_fromLuopan_tabUnchanged` | Luopan tab active (position 1) | Open overflow, tap `R.string.menu_about` | `tabLayout.selectedTabPosition == 1` |
+| `tabSync_fromModern_tabUnchanged` | Modern tab active (position 0) | Open overflow, tap `R.string.menu_about` | `activityRule.scenario.onActivity { assertEquals(0, it.findViewById<TabLayout>(R.id.tabLayout).selectedTabPosition) }` |
+| `tabSync_fromLuopan_tabUnchanged` | Luopan tab active (position 1) | Open overflow, tap `R.string.menu_about` | `activityRule.scenario.onActivity { assertEquals(1, it.findViewById<TabLayout>(R.id.tabLayout).selectedTabPosition) }` |
 | `nav_launchSingleTop_noStackDuplicate` | About screen open | Open overflow, tap `R.string.menu_about` again; `pressBack()` | `onView(withId(R.id.compassRose)).check(matches(isDisplayed()))` — back returns to Modern, not a second About |
 
 ### 11.3 Test Level Summary
@@ -371,7 +373,7 @@ Uses `ActivityScenarioRule(CompassActivity::class.java)` with `Intents.init()` /
 | Property | Level | Rationale |
 |----------|-------|-----------|
 | `WEBSITE_URL` constant value | JVM | Pure string assertion, no Android framework |
-| `Uri.parse` correctness | JVM | Pure parse check, no Android framework |
+| `Uri.parse` correctness | Robolectric | `android.net.Uri` is a stubbed Android class — requires Robolectric runtime even for a parse check |
 | No-browser Snackbar branch | Robolectric | `ActivityNotFoundException` not injectable via `Intents.intending()`; `FakeUrlLauncher` + `FragmentScenario` exercises the real Fragment path in the JVM |
 | Content visible on screen | Instrumented | Requires inflated layout |
 | Intent fired with correct URI | Instrumented | Requires real Activity + Intents library |
