@@ -1,13 +1,9 @@
 package com.luopan.compass.ui
 
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
 import android.view.WindowManager
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.MenuProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.NavOptions
@@ -74,10 +70,6 @@ class CompassActivity : AppCompatActivity() {
             SensorCapabilityLogger(applicationContext, SettingsRepository(applicationContext)).maybeWrite()
         }
 
-        // Task 4.2 — Set up MaterialToolbar as the ActionBar
-        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-
 
         tabLayout = findViewById(R.id.tabLayout)
 
@@ -88,28 +80,22 @@ class CompassActivity : AppCompatActivity() {
         // Wire TabLayout ↔ NavController (TSPEC §9.3)
         wireTabNavigation()
 
-        // Task 4.3 — Activity-level MenuProvider for the About overflow item
-        addMenuProvider(object : MenuProvider {
-            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-                menuInflater.inflate(R.menu.menu_about, menu)
+        // Task 4.2 / 4.3 — Toolbar with About overflow item (direct MaterialToolbar API,
+        // bypasses setSupportActionBar which swallows onCreateOptionsMenu under ToolbarActionBar)
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        toolbar.inflateMenu(R.menu.menu_about)
+        toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.action_about) {
+                navController.navigate(
+                    R.id.dest_about,
+                    null,
+                    NavOptions.Builder().setLaunchSingleTop(true).build()
+                )
+                true
+            } else {
+                false
             }
-
-            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
-                return when (menuItem.itemId) {
-                    R.id.action_about -> {
-                        navController.navigate(
-                            R.id.dest_about,
-                            null,
-                            NavOptions.Builder()
-                                .setLaunchSingleTop(true)
-                                .build()
-                        )
-                        true
-                    }
-                    else -> false
-                }
-            }
-        })
+        }
 
         // Cold-start mode restoration (TSPEC §8.4):
         // If savedInstanceState is null, this is a fresh start — navigate to the persisted mode.
