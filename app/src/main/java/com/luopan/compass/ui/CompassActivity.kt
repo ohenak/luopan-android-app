@@ -83,6 +83,7 @@ class CompassActivity : AppCompatActivity() {
         // Task 4.2 / 4.3 — Toolbar with About overflow item (direct MaterialToolbar API,
         // bypasses setSupportActionBar which swallows onCreateOptionsMenu under ToolbarActionBar)
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        toolbar.title = getString(R.string.app_name)
         toolbar.inflateMenu(R.menu.menu_about)
         toolbar.setOnMenuItemClickListener { item ->
             if (item.itemId == R.id.action_about) {

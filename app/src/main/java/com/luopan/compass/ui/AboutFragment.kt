@@ -12,11 +12,11 @@ import com.luopan.compass.R
 
 class AboutFragment : Fragment() {
 
-    internal var urlLauncher: UrlLauncher? = null
+    internal lateinit var urlLauncher: UrlLauncher
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
-        if (urlLauncher == null) {
+        if (!::urlLauncher.isInitialized) {
             urlLauncher = SystemUrlLauncher(context)
         }
     }
@@ -27,9 +27,8 @@ class AboutFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // urlLauncher is guaranteed non-null: onAttach sets it if the test hasn't already injected one.
         view.findViewById<TextView>(R.id.tv_about_website).setOnClickListener {
-            val result = urlLauncher!!.launch(WEBSITE_URL)
+            val result = urlLauncher.launch(WEBSITE_URL)
             if (result is UrlLauncher.Result.NoBrowserFound) {
                 Snackbar.make(requireView(), R.string.about_no_browser_error, Snackbar.LENGTH_LONG)
                     .show()
