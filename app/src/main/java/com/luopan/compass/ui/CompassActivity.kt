@@ -6,7 +6,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
+import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.tabs.TabLayout
 import com.luopan.compass.R
 import com.luopan.compass.diagnostics.SensorCapabilityLogger
@@ -68,6 +70,7 @@ class CompassActivity : AppCompatActivity() {
             SensorCapabilityLogger(applicationContext, SettingsRepository(applicationContext)).maybeWrite()
         }
 
+
         tabLayout = findViewById(R.id.tabLayout)
 
         val navHostFragment = supportFragmentManager
@@ -76,6 +79,24 @@ class CompassActivity : AppCompatActivity() {
 
         // Wire TabLayout ↔ NavController (TSPEC §9.3)
         wireTabNavigation()
+
+        // Task 4.2 / 4.3 — Toolbar with About overflow item (direct MaterialToolbar API,
+        // bypasses setSupportActionBar which swallows onCreateOptionsMenu under ToolbarActionBar)
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        toolbar.title = getString(R.string.app_name)
+        toolbar.inflateMenu(R.menu.menu_about)
+        toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.action_about) {
+                navController.navigate(
+                    R.id.dest_about,
+                    null,
+                    NavOptions.Builder().setLaunchSingleTop(true).build()
+                )
+                true
+            } else {
+                false
+            }
+        }
 
         // Cold-start mode restoration (TSPEC §8.4):
         // If savedInstanceState is null, this is a fresh start — navigate to the persisted mode.
@@ -129,7 +150,7 @@ class CompassActivity : AppCompatActivity() {
                 R.id.dest_modern  -> TAB_MODERN
                 R.id.dest_luopan  -> TAB_LUOPAN
                 R.id.dest_history -> TAB_HISTORY
-                else -> return@addOnDestinationChangedListener
+                else -> return@addOnDestinationChangedListener // dest_about and any future non-tab destinations fall here — no tab selection change
             }
             val currentTab = tabLayout.getTabAt(targetPosition)
             if (tabLayout.selectedTabPosition != targetPosition && currentTab != null) {

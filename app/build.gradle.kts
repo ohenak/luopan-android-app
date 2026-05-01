@@ -92,6 +92,12 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.fragment.testing)
+    // fragment-testing-manifest must be debugImplementation (not testImplementation) so that
+    // AGP's Robolectric resource merging includes its R$style in the merged R class.
+    // Without this, launchFragmentInContainer throws NoClassDefFoundError at runtime.
+    debugImplementation(libs.fragment.testing.manifest)
+    testImplementation(libs.espresso.core)
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)

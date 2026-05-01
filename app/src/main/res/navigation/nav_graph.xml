@@ -19,4 +19,8 @@
         android:name="com.luopan.compass.ui.BearingHistoryFragment"
         android:label="@string/tab_history" />
 
+    <fragment
+        android:id="@+id/dest_about"
+        android:name="com.luopan.compass.ui.AboutFragment"
+        android:label="About" />
 </navigation>

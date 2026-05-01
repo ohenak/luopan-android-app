@@ -133,4 +133,11 @@
     <string name="ring5_label">Ring 5 — 六十分金</string>
     <!-- Overflow menu item to open ring visibility sheet (TalkBack alternative, TSPEC §6.4) -->
     <string name="menu_show_hide_rings">Show/hide rings</string>
+
+    <!-- About screen -->
+    <string name="menu_about">About</string>
+    <string name="about_studio_name">易機閣 / YiJi Studio</string>
+    <string name="about_studio_description">Chinese metaphysics consultations — Feng Shui, Purple Star Astrology &amp; I Ching.</string>
+    <string name="about_website_label">yiji.studio</string>
+    <string name="about_no_browser_error">No browser found to open link</string>
 </resources>
